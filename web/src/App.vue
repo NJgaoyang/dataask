@@ -1,5 +1,5 @@
 <script setup>
-import { computed, onMounted, ref, nextTick } from 'vue'
+import { computed, onMounted, onBeforeUnmount, ref, nextTick } from 'vue'
 import axios from 'axios'
 import { showToast, showFailToast, showSuccessToast, showConfirmDialog } from 'vant'
 import AnswerChart from './components/AnswerChart.vue'
@@ -43,6 +43,16 @@ const adminVisible = ref(false)
 const status = ref({})
 const configVisible = ref(false)
 const configKind = ref('starrocks')
+const isDesktop = ref(false)
+const buildSha = __DATAASK_BUILD_SHA__
+let desktopMedia
+const aiForm = ref({ baseUrl:'', model:'', apiKey:'', clearKey:false })
+const embeddingForm = ref({
+  baseUrl:'', model:'Qwen/Qwen3-Embedding-0.6B', apiKey:'', clearKey:false,
+  enabled:false, dimensions:1024
+})
+const semanticStatus = ref({ count: 0, indexedModel: '', configured: false })
+const semanticBusy = ref(false)
 const configBusy = ref(false)
 const configTestBusy = ref(false)
 const configTestMessage = ref('')
@@ -133,7 +143,25 @@ async function openAdmin() {
   catch (e) { showFailToast('读取配置失败：' + errorText(e)) }
   try { users.value = (await api.get('/admin/users')).data }
   catch (e) { showFailToast('读取账号失败：' + errorText(e)) }
-  await Promise.all([reloadTables(), reloadMetrics(), reloadJoinRules()])
+  await Promise.all([reloadTables(), reloadMetrics(), reloadJoinRules(), reloadSemanticStatus()])
+}
+async function reloadSemanticStatus() {
+  try { semanticStatus.value = (await api.get('/admin/semantic/status')).data }
+  catch (e) { semanticStatus.value = { count: 0 }; }
+}
+async function rebuildSemanticIndex() {
+  if (semanticBusy.value) return
+  semanticBusy.value = true
+  configTestMessage.value = ''
+  try {
+    const { data } = await api.post('/admin/semantic/rebuild', {}, { timeout: 180000 })
+    configTestMessage.value = data.message
+    showSuccessToast(data.message || '索引已重建')
+    await reloadSemanticStatus()
+  } catch(e) {
+    configTestMessage.value = errorText(e)
+    showFailToast(configTestMessage.value)
+  } finally { semanticBusy.value = false }
 }
 async function reloadJoinRules() {
   try { joinRules.value = (await api.get('/admin/join-rules')).data }
@@ -253,19 +281,34 @@ async function showConfig(kind) {
   try {
     await refreshAdminStatus()
     const sr = settingsData.value.starrocks || {}
+    const ai = settingsData.value.ai || {}
+    const embedding = settingsData.value.embedding || {}
     srForm.value = { jdbcUrl: sr.jdbcUrl || '', username: sr.username || '',
       password: '', schema: sr.schema || 'ads' }
+    aiForm.value = { baseUrl: ai.baseUrl || '', model: ai.model || '', apiKey:'', clearKey:false }
+    embeddingForm.value = {
+      baseUrl: embedding.baseUrl || '', model: embedding.model || 'Qwen/Qwen3-Embedding-0.6B',
+      apiKey:'', clearKey:false, enabled: !!embedding.enabled,
+      dimensions: embedding.dimensions || 1024
+    }
+    if (kind === 'embedding') await reloadSemanticStatus()
     configVisible.value = true
   } catch (e) { showFailToast(errorText(e)) }
+}
+function modelPayload(kind) {
+  return kind === 'ai' ? aiForm.value : embeddingForm.value
 }
 async function testConfig() {
   if (configTestBusy.value) return
   configTestBusy.value = true
   configTestMessage.value = ''
   try {
-    const isStarRocks = configKind.value === 'starrocks'
-    const url = isStarRocks ? '/admin/settings/starrocks/test' : '/admin/settings/ai/test'
-    const { data } = isStarRocks ? await api.post(url, srForm.value) : await api.post(url)
+    const kind = configKind.value
+    let endpoint = '/admin/settings/starrocks/test'
+    if (kind === 'ai') endpoint = '/admin/settings/ai/test'
+    else if (kind === 'embedding') endpoint = '/admin/settings/embedding/test'
+    const payload = kind === 'starrocks' ? srForm.value : modelPayload(kind)
+    const { data } = await api.post(endpoint, payload, { timeout: 45000 })
     configTestMessage.value = data.message || '连接成功'
     showSuccessToast(configTestMessage.value)
   } catch (e) {
@@ -276,12 +319,24 @@ async function testConfig() {
 async function saveConfig() {
   if (configBusy.value) return
   configBusy.value = true
+  configTestMessage.value = ''
   try {
-    const { data } = await api.post('/admin/settings/starrocks', srForm.value)
-    configVisible.value = false
+    const kind = configKind.value
+    let endpoint = '/admin/settings/starrocks'
+    if (kind === 'ai') endpoint = '/admin/settings/ai'
+    else if (kind === 'embedding') endpoint = '/admin/settings/embedding'
+    const payload = kind === 'starrocks' ? srForm.value : modelPayload(kind)
+    const { data } = await api.post(endpoint, payload)
+    if (kind === 'ai') { aiForm.value.apiKey = ''; aiForm.value.clearKey = false }
+    if (kind === 'embedding') { embeddingForm.value.apiKey = ''; embeddingForm.value.clearKey = false }
+    if (kind === 'starrocks') {
+      await reloadTables()
+      configVisible.value = false
+    }
     await refreshAdminStatus()
-    await reloadTables()
-    showSuccessToast(data.message || '数据源已保存')
+    if (kind === 'embedding') await reloadSemanticStatus()
+    configTestMessage.value = data.message || '配置已保存'
+    showSuccessToast(configTestMessage.value)
   } catch (e) { showFailToast(errorText(e)) }
   finally { configBusy.value = false }
 }
@@ -304,7 +359,15 @@ function pretty(v) {
   if (typeof v === 'number') return new Intl.NumberFormat('zh-CN', { maximumFractionDigits: 2 }).format(v)
   return String(v)
 }
-onMounted(() => { if (loggedIn.value) loadSessions() })
+onMounted(() => {
+  desktopMedia = window.matchMedia('(min-width: 1024px)')
+  const update = () => { isDesktop.value = desktopMedia.matches }
+  update()
+  desktopMedia.addEventListener('change', update)
+  window.__dataAskDesktopListener = update
+  if (loggedIn.value) loadSessions()
+})
+onBeforeUnmount(() => desktopMedia?.removeEventListener('change', window.__dataAskDesktopListener))
 </script>
 
 <template>
@@ -344,6 +407,7 @@ onMounted(() => { if (loggedIn.value) loadSessions() })
           <p v-if="!visibleSessions.length" class="sidebar-empty">暂无对话记录</p>
         </nav>
         <div class="sidebar-bottom">
+          <p class="sidebar-build">工作台版本 {{ buildSha }}</p>
           <button type="button" v-if="isAdmin" @click="openAdmin">
             <van-icon name="setting-o"/> 系统管理
           </button>
@@ -488,7 +552,8 @@ onMounted(() => { if (loggedIn.value) loadSessions() })
           <div class="drawer-bottom"><span>{{ me.displayName || me.username }}</span><button @click="logout">退出登录</button></div>
         </div>
       </van-popup>
-      <van-popup v-model:show="adminVisible" position="bottom" round :style="{ height: '88%' }">
+      <van-popup v-model:show="adminVisible" :position="isDesktop ? 'center' : 'bottom'" round
+        :style="{ width: isDesktop ? 'min(920px, 92vw)' : '100%', height: isDesktop ? 'min(780px, 88vh)' : '88%' }">
         <div class="admin-panel">
           <div class="drawer-header"><b>系统管理</b><van-icon name="cross" @click="adminVisible=false"/></div>
           <button type="button" class="status-row status-action" @click="showConfig('starrocks')">
@@ -496,9 +561,17 @@ onMounted(() => { if (loggedIn.value) loadSessions() })
             <span class="status-value"><strong>{{ status.starrocksConfigured ? '已配置' : '未配置' }}</strong><van-icon name="arrow"/></span>
           </button>
           <button type="button" class="status-row status-action" @click="showConfig('ai')">
-            <span>AI 模型</span>
+            <span>对话模型</span>
             <span class="status-value"><strong>{{ status.aiConfigured ? status.model : (status.aiKeyConfigured && status.aiUrlConfigured ? '检查模型名称' : '检查配置') }}</strong><van-icon name="arrow"/></span>
           </button>
+          <button type="button" class="status-row status-action" @click="showConfig('embedding')">
+            <span>Embedding 模型</span>
+            <span class="status-value">
+              <strong>{{ status.embeddingConfigured ? status.embeddingModel : '未启用 / 未配置' }}</strong>
+              <van-icon name="arrow"/>
+            </span>
+          </button>
+          <div class="admin-build-status">DataAsk 工作台 · 版本 {{ buildSha }} · PC宽屏使用三栏布局</div>
           <h3>开放给 AI 的 ADS 表</h3>
           <p class="muted">默认不开放任何表。仅授权通过审核的经营数据表。</p>
           <div v-for="table in allowedTables" :key="table.name" class="admin-table">
@@ -618,39 +691,65 @@ onMounted(() => { if (loggedIn.value) loadSessions() })
           <p class="muted">AI 配置直接使用服务器 application.yml，不会在浏览器回显密钥；StarRocks 配置可通过上方入口测试和保存。</p>
         </div>
       </van-popup>
-      <van-popup v-model:show="configVisible" position="bottom" round :style="{ height: '78%' }">
+      <van-popup v-model:show="configVisible" :position="isDesktop ? 'center' : 'bottom'" round
+        :style="{ width: isDesktop ? 'min(620px, 92vw)' : '100%', height: isDesktop ? 'min(740px, 85vh)' : '80%' }">
         <div class="config-panel">
           <div class="drawer-header">
-            <b>{{ configKind === 'starrocks' ? 'StarRocks ADS 数据源' : 'AI 模型配置检查' }}</b>
+            <b>{{ configKind === 'starrocks' ? 'StarRocks ADS 数据源'
+              : configKind === 'ai' ? '对话模型管理' : 'Embedding 模型管理' }}</b>
             <van-icon name="cross" @click="configVisible = false"/>
           </div>
           <template v-if="configKind === 'starrocks'">
-            <p class="muted">可在这里配置 StarRocks 只读账号。保存前先校验连接，成功后自动读取 ADS 表及字段注释。</p>
-            <van-field v-model="srForm.jdbcUrl" label="JDBC 地址" label-width="85px"
-              placeholder="jdbc:mysql://192.168.1.10:9030/ads"/>
+            <p class="muted">配置 StarRocks FE 只读账号，测试连接成功后保存并立即读取 ADS 字段注释。</p>
+            <van-field v-model="srForm.jdbcUrl" label="JDBC 地址" label-width="85px" placeholder="jdbc:mysql://192.168.1.10:9030/ads"/>
             <van-field v-model="srForm.schema" label="ADS 数据库" label-width="85px" placeholder="ads"/>
             <van-field v-model="srForm.username" label="用户名" label-width="85px" placeholder="只读用户名"/>
-            <van-field v-model="srForm.password" label="密码" label-width="85px"
-              type="password" autocomplete="new-password"
+            <van-field v-model="srForm.password" label="密码" label-width="85px" type="password"
               :placeholder="settingsData.starrocks?.passwordSet ? '已配置，留空不修改' : '请输入密码'"/>
-            <p class="config-note">密码由服务器加密保存，页面不会回显。</p>
+            <p class="config-note">数据库密码由后端保存，留空会保留现有密码。</p>
+          </template>
+          <template v-else-if="configKind === 'ai'">
+            <p class="muted">在这里直接配置用于自然语言分析和 SQL 生成的大模型。保存后无需重启服务。</p>
+            <van-field v-model="aiForm.baseUrl" label="Base URL" label-width="95px" placeholder="https://api.example.com/v1"/>
+            <van-field v-model="aiForm.model" label="模型名称" label-width="95px" placeholder="输入服务商模型 ID"/>
+            <van-field v-model="aiForm.apiKey" label="API Key" label-width="95px" type="password"
+              autocomplete="new-password" :placeholder="settingsData.ai?.apiKeySet ? '已设置 · 留空不修改' : '填写 API Key'"/>
+            <van-cell title="清除原有 API Key" label="仅在主动更换为无密钥的本地模型时勾选">
+              <template #right-icon><van-switch v-model="aiForm.clearKey" size="20px"/></template>
+            </van-cell>
+            <p class="config-note">API Key 从此页面提交给后端保存，编辑时不会明文回显。</p>
           </template>
           <template v-else>
-            <p class="muted">直接读取运行中服务的 application.yml / 环境变量，无需重复填写 API Key 和 Base URL。</p>
-            <div class="status-row"><span>API Key</span><strong>{{ status.aiKeyConfigured ? '已读取（内容隐藏）' : '未读取' }}</strong></div>
-            <div class="status-row"><span>Base URL</span><strong>{{ status.aiUrlConfigured ? '已读取' : '未读取' }}</strong></div>
-            <div class="config-value">{{ settingsData.ai?.baseUrl || '请检查 dataask.ai.base-url' }}</div>
-            <div class="status-row"><span>模型名称 model</span><strong>{{ status.aiModelConfigured ? '已读取' : '未读取' }}</strong></div>
-            <div class="config-value">{{ settingsData.ai?.model || '请配置 dataask.ai.model' }}</div>
-            <p class="config-note">若文件已配置但这里显示“未读取”，请检查实际部署目录的 conf/application.yml 和环境变量，并重启服务。测试按钮会用已配置的密钥请求模型。</p>
+            <p class="muted">用于 ADS 表、字段注释及 Excel 指标口径的语义匹配。可接入支持 OpenAI /embeddings 接口的服务。</p>
+            <van-cell title="启用 Embedding"><template #right-icon>
+              <van-switch v-model="embeddingForm.enabled" size="20px"/>
+            </template></van-cell>
+            <van-field v-model="embeddingForm.baseUrl" label="Base URL" label-width="95px"
+              placeholder="http://127.0.0.1:8000/v1"/>
+            <van-field v-model="embeddingForm.model" label="模型名称" label-width="95px"
+              placeholder="Qwen/Qwen3-Embedding-0.6B"/>
+            <van-field v-model.number="embeddingForm.dimensions" label="向量维度" label-width="95px"
+              type="number" placeholder="1024"/>
+            <van-field v-model="embeddingForm.apiKey" label="API Key" label-width="95px" type="password"
+              autocomplete="new-password" :placeholder="settingsData.embedding?.apiKeySet ? '已设置 · 留空不修改' : '本地无密钥服务可留空'"/>
+            <van-cell title="清除原有 API Key"><template #right-icon>
+              <van-switch v-model="embeddingForm.clearKey" size="20px"/>
+            </template></van-cell>
+            <div class="semantic-status">
+              <strong>语义索引</strong>
+              <span>{{ semanticStatus.count || 0 }} 条 · {{ semanticStatus.indexedModel || '尚未构建' }}</span>
+            </div>
+            <p class="config-note">保存并测试模型后，点击“重建语义索引”。仅向模型发送授权 ADS 的字段描述及指标口径，不上传业务明细数据。</p>
           </template>
           <p v-if="configTestMessage" class="config-feedback">{{ configTestMessage }}</p>
           <div class="config-actions">
-            <van-button block plain type="primary" :loading="configTestBusy" :disabled="configBusy"
-              @click="testConfig">测试连接</van-button>
-            <van-button v-if="configKind === 'starrocks'" block type="primary" :loading="configBusy"
-              :disabled="configTestBusy" @click="saveConfig">测试并保存</van-button>
-            <van-button v-else block type="default" @click="configVisible=false">关闭</van-button>
+            <van-button block plain type="primary" :loading="configTestBusy"
+              :disabled="configBusy || semanticBusy" @click="testConfig">测试连接</van-button>
+            <van-button block type="primary" :loading="configBusy"
+              :disabled="configTestBusy || semanticBusy" @click="saveConfig">保存配置</van-button>
+            <van-button v-if="configKind==='embedding' && status.embeddingConfigured" block
+              plain type="primary" :loading="semanticBusy"
+              :disabled="configBusy || configTestBusy" @click="rebuildSemanticIndex">重建语义索引</van-button>
           </div>
         </div>
       </van-popup>
