@@ -130,3 +130,14 @@ ss -lntp | grep ':8080'
 ```
 
 如果使用的是之前打包的 TAR，修改仓库中的启动脚本不会自动更新旧 TAR；需要重新运行 `bash scripts/package.sh` 并部署新包。也可以直接按照上面步骤配置 JWT 密钥后重启，无需重新打包。
+
+
+## 模型状态显示“未配置”，但 application.yml 已经填写了 Key / Base URL
+
+- 系统管理的“AI 模型”行可以点击，进入“AI 模型配置检查”。它只读取当前运行的服务配置，不修改 Key、不将 Key 发给浏览器。
+- 完整可用状态需要 `dataask.ai.api-key`、`dataask.ai.base-url` 和 `dataask.ai.model` **三项同时存在**；只配置前两项，会显示“检查模型名称”。
+- Linux TAR 部署优先读取解压目录 `conf/application.yml`。这个外部文件中的空值也会覆盖 JAR 自带 `application.yml` 的非空值，因此要检查**实际运行目录**的配置，而不只是 Git 仓库源码里的文件。
+- 若使用 `${DATAASK_AI_API_KEY:}`、`${DATAASK_AI_BASE_URL:}` 等占位符，必须给启动进程设置相应环境变量。
+- 修改 `conf/application.yml` 中的模型配置后，应通过 `bash bin/stop.sh`、`bash bin/start.sh` 重启；页面的“测试连接”能够给出 HTTP 状态错误，不会暴露 Key。
+- StarRocks 的“未配置”也是可点击入口，可以填写 FE JDBC 地址、执行连接测试并保存；管理员开放 ADS 表后，用户才能问数。
+- 由于前端资源包含在 JAR 中，**更新仓库代码后需要重新执行 `bash scripts/package.sh` 并部署新 TAR**，否则旧页面仍然无法点击。
