@@ -1,5 +1,6 @@
 package com.dataask.chat;
 
+import com.dataask.config.RuntimeConfigService;
 import com.dataask.data.SqlGuard;
 import com.dataask.data.StarRocksGateway;
 import com.fasterxml.jackson.databind.JsonNode;
@@ -7,7 +8,6 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Size;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpStatus;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.security.core.Authentication;
@@ -27,16 +27,12 @@ public class ChatController {
     private final SqlGuard guard;
     private final ObjectMapper json;
     private final RestClient http;
-    private final String aiUrl;
-    private final String aiKey;
-    private final String aiModel;
+    private final RuntimeConfigService settings;
 
-    public ChatController(JdbcTemplate jdbc, StarRocksGateway starrocks, SqlGuard guard, ObjectMapper json,
-            @Value("${dataask.ai.base-url:}") String aiUrl,
-            @Value("${dataask.ai.api-key:}") String aiKey,
-            @Value("${dataask.ai.model:}") String aiModel) {
+    public ChatController(JdbcTemplate jdbc, StarRocksGateway starrocks, SqlGuard guard,
+            ObjectMapper json, RuntimeConfigService settings) {
         this.jdbc = jdbc; this.starrocks = starrocks; this.guard = guard; this.json = json;
-        this.aiUrl = aiUrl; this.aiKey = aiKey; this.aiModel = aiModel;
+        this.settings = settings;
         this.http = RestClient.builder().build();
     }
 
@@ -67,7 +63,7 @@ public class ChatController {
     @PostMapping("/ask")
     Answer ask(@Valid @RequestBody AskRequest input, Authentication user) {
         String username = user.getName();
-        if (aiUrl.isBlank() || aiKey.isBlank() || aiModel.isBlank())
+        if (!settings.ai().configured())
             throw new ResponseStatusException(HttpStatus.SERVICE_UNAVAILABLE,
                 "尚未配置 AI 模型，请设置 DATAASK_AI_BASE_URL / API_KEY / MODEL");
         String question = input.question().trim();
@@ -166,13 +162,14 @@ public class ChatController {
 
     private JsonNode plan(String system, String user) {
         try {
-            String endpoint = aiUrl.replaceAll("/+$", "") + "/chat/completions";
+            RuntimeConfigService.AiConfig config = settings.ai();
+            String endpoint = config.baseUrl().replaceAll("/+$", "") + "/chat/completions";
             Map<String,Object> body = Map.of(
-                "model", aiModel, "temperature", 0,
+                "model", config.model(), "temperature", 0,
                 "messages", List.of(Map.of("role","system","content",system),
                                    Map.of("role","user","content",user)));
             String response = http.post().uri(java.net.URI.create(endpoint))
-                .header("Authorization", "Bearer " + aiKey)
+                .header("Authorization", "Bearer " + config.apiKey())
                 .body(body).retrieve().body(String.class);
             JsonNode root = json.readTree(response);
             String content = root.path("choices").path(0).path("message").path("content").asText().trim();
