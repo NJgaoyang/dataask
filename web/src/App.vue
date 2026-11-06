@@ -1,7 +1,7 @@
 <script setup>
 import { computed, onMounted, ref, nextTick } from 'vue'
 import axios from 'axios'
-import { showToast, showFailToast, showSuccessToast } from 'vant'
+import { showToast, showFailToast, showSuccessToast, showConfirmDialog } from 'vant'
 import AnswerChart from './components/AnswerChart.vue'
 
 const api = axios.create({ baseURL: '/api', timeout: 65000 })
@@ -40,6 +40,13 @@ const srForm = ref({ jdbcUrl: '', username: '', password: '', schema: 'ads' })
 const allowedTables = ref([])
 const expandedTable = ref('')
 const users = ref([])
+const metricFileInput = ref(null)
+const selectedMetricFile = ref(null)
+const metricPreview = ref(null)
+const metricPreviewBusy = ref(false)
+const metricImportBusy = ref(false)
+const metricInfo = ref({ total: 0, batches: [], metrics: [] })
+const metricError = ref('')
 const newUser = ref({ username: '', displayName: '', password: '', role: 'USER' })
 const footerRef = ref(null)
 const quickQuestions = ['昨天的营业额是多少？', '昨天各城市的订单量排行', '最近7天的营收趋势', '本月各城市销售额对比']
@@ -112,7 +119,91 @@ async function openAdmin() {
   catch (e) { showFailToast('读取配置失败：' + errorText(e)) }
   try { users.value = (await api.get('/admin/users')).data }
   catch (e) { showFailToast('读取账号失败：' + errorText(e)) }
-  await reloadTables()
+  await Promise.all([reloadTables(), reloadMetrics()])
+}
+async function reloadMetrics() {
+  try { metricInfo.value = (await api.get('/admin/metrics')).data }
+  catch (e) { showFailToast('读取指标口径失败：' + errorText(e)) }
+}
+function chooseMetricFile() { metricFileInput.value?.click() }
+async function selectMetricFile(event) {
+  const file = event.target.files?.[0]
+  if (!file) return
+  metricPreview.value = null
+  metricError.value = ''
+  selectedMetricFile.value = file
+  if (!/\.xlsx?$/i.test(file.name)) { metricError.value = '请选择 .xlsx 或 .xls 文件'; return }
+  if (file.size > 5 * 1024 * 1024) { metricError.value = 'Excel 文件不能超过 5 MB'; return }
+  metricPreviewBusy.value = true
+  try {
+    const body = new FormData()
+    body.append('file', file)
+    metricPreview.value = (await api.post('/admin/metrics/preview', body)).data
+  } catch (e) { metricError.value = errorText(e) }
+  finally { metricPreviewBusy.value = false; event.target.value = '' }
+}
+async function importMetrics() {
+  if (!selectedMetricFile.value || !metricPreview.value || metricImportBusy.value) return
+  metricImportBusy.value = true
+  metricError.value = ''
+  try {
+    const body = new FormData()
+    body.append('file', selectedMetricFile.value)
+    const { data } = await api.post('/admin/metrics/import', body)
+    showSuccessToast(data.message || '指标已导入')
+    selectedMetricFile.value = null
+    metricPreview.value = null
+    await reloadMetrics()
+  } catch (e) { metricError.value = errorText(e); showFailToast(metricError.value) }
+  finally { metricImportBusy.value = false }
+}
+async function downloadMetricTemplate() {
+  try {
+    const response = await api.get('/admin/metrics/template', { responseType: 'blob' })
+    const url = URL.createObjectURL(response.data)
+    const a = document.createElement('a')
+    a.href = url
+    a.download = 'DataAsk-指标口径模板.xlsx'
+    document.body.appendChild(a)
+    a.click()
+    a.remove()
+    setTimeout(() => URL.revokeObjectURL(url), 2000)
+  } catch (e) { showFailToast('模板下载失败：' + errorText(e)) }
+}
+async function deleteMetricBatch(item) {
+  try {
+    await showConfirmDialog({
+      title: '删除指标口径',
+      message: '确认删除“' + item.filename + '”导入的 ' + item.count + ' 条指标？'
+    })
+    await api.delete('/admin/metrics/batches/' + item.id)
+    await reloadMetrics()
+    showSuccessToast('该批次已删除')
+  } catch (e) {
+    if (e !== 'cancel' && e !== 'close') showFailToast(errorText(e))
+  }
+}
+function columnLabel(message, column, index) {
+  const labels = message?.columnLabels || {}
+  if (labels[column]) return labels[column]
+  const direct = {
+    city: '城市', city_name: '城市', city_name_std: '城市',
+    province: '省份', province_name: '省份', store: '门店',
+    store_name: '门店名称', date: '日期', dt: '业务日期', biz_date: '业务日期',
+    month: '月份', month_dt: '月份', order_cnt: '订单量', order_count: '订单数',
+    total_orders: '订单总数', total_order: '订单总数', user_cnt: '用户数',
+    total_users: '用户总数', pay_amount: '实付金额', amount: '金额',
+    total_amount: '总金额', revenue: '营业额', total_revenue: '营业额',
+    net_revenue: '净收入', refund_amount: '退款金额',
+  }
+  const key = String(column || '').toLowerCase().replace(/[`"]/g,'')
+  if (/[一-龥]/.test(column)) return column
+  if (direct[key]) return direct[key]
+  if (/^(total|sum|count)_/.test(key)) {
+    const suffix = key.replace(/^(total|sum|count)_/,'')
+    if (direct[suffix]) return '合计' + direct[suffix]
+  }
+  return '字段' + (index + 1)
 }
 async function showConfig(kind) {
   configKind.value = kind
@@ -220,19 +311,19 @@ onMounted(() => { if (loggedIn.value) loadSessions() })
             <template v-if="msg.rows?.length">
               <div v-if="msg.chartType === 'metric' && msg.rows.length === 1" class="metric-data">
                 <div v-for="col in msg.columns" :key="col">
-                  <small>{{ col }}</small><strong>{{ pretty(msg.rows[0][col]) }}</strong>
+                  <small :title="col">{{ columnLabel(msg, col, msg.columns.indexOf(col)) }}</small><strong>{{ pretty(msg.rows[0][col]) }}</strong>
                 </div>
               </div>
               <AnswerChart v-if="['bar','line','pie'].includes(msg.chartType) && msg.rows.length > 1" :message="msg"/>
-              <div class="result-table-scroll">
+              <div class="result-table-scroll" role="region" tabindex="0" aria-label="数据结果表格，可独立上下滚动">
                 <table class="result-table">
-                  <thead><tr><th v-for="col in msg.columns" :key="col">{{ col }}</th></tr></thead>
-                  <tbody><tr v-for="(row, idx) in msg.rows.slice(0, 30)" :key="idx">
+                  <thead><tr><th v-for="(col, idx) in msg.columns" :key="col" :title="col">{{ columnLabel(msg, col, idx) }}</th></tr></thead>
+                  <tbody><tr v-for="(row, idx) in msg.rows" :key="idx">
                     <td v-for="col in msg.columns" :key="col">{{ pretty(row[col]) }}</td>
                   </tr></tbody>
                 </table>
               </div>
-              <p v-if="msg.rows.length > 30" class="table-foot">当前显示前30行；服务端单次最多返回200行。</p>
+              <p class="table-foot">当前显示 {{ msg.rows.length }} 行，表格区域可独立上下滚动（最多200行）。</p>
             </template>
             <div v-if="msg.followUps?.length" class="followups">
               <button v-for="item in msg.followUps" :key="item" :disabled="busy"
@@ -289,6 +380,57 @@ onMounted(() => { if (loggedIn.value) loadSessions() })
             </div>
           </div>
           <p v-if="!allowedTables.length" class="muted">没有读取到 ADS 表，请检查连接配置。</p>
+          <section class="metric-admin">
+            <div class="metric-section-title">
+              <h3>指标口径 · Excel</h3>
+              <p class="muted">上传现有的指标定义，AI 将依据确认的业务口径理解 ADS 数据。当前已导入 {{ metricInfo.total || 0 }} 条。</p>
+            </div>
+            <input ref="metricFileInput" class="file-input-hidden" type="file"
+              accept=".xlsx,.xls" @change="selectMetricFile" aria-label="选择指标口径Excel文件"/>
+            <div class="metric-action-row">
+              <van-button size="small" type="primary" icon="plus" plain @click="chooseMetricFile">上传 Excel</van-button>
+              <van-button size="small" plain icon="down" @click="downloadMetricTemplate">下载模板</van-button>
+            </div>
+            <p class="muted">支持 .xlsx / .xls，最大 5 MB；至少包含“指标名称”和“指标口径”两列。</p>
+            <div v-if="metricPreviewBusy" class="metric-upload-state">
+              <van-loading size="16px"/> 正在解析 Excel ...
+            </div>
+            <p v-if="metricError" class="metric-error">{{ metricError }}</p>
+            <div v-if="metricPreview" class="metric-preview">
+              <div class="metric-preview-heading">
+                <b>{{ metricPreview.filename }}</b><span>识别到 {{ metricPreview.count }} 条</span>
+              </div>
+              <p v-for="notice in metricPreview.notices" :key="notice" class="metric-note">{{ notice }}</p>
+              <div class="metric-preview-table" tabindex="0" role="region" aria-label="指标预览表格">
+                <table>
+                  <thead><tr><th>指标名称</th><th>业务口径</th><th>ADS 表</th></tr></thead>
+                  <tbody><tr v-for="(item, idx) in metricPreview.samples" :key="idx">
+                    <td>{{ item.metricName }}</td><td>{{ item.definition }}</td><td>{{ item.adsTable || '—' }}</td>
+                  </tr></tbody>
+                </table>
+              </div>
+              <van-button type="primary" block :loading="metricImportBusy" @click="importMetrics">
+                确认导入 {{ metricPreview.count }} 条指标
+              </van-button>
+            </div>
+            <div v-if="metricInfo.batches?.length" class="metric-batches">
+              <h4>导入历史</h4>
+              <div v-for="batch in metricInfo.batches" :key="batch.id" class="metric-batch">
+                <div class="metric-batch-details"><b>{{ batch.filename }}</b>
+                  <small>{{ batch.count }} 条 · {{ batch.createdAt }}</small></div>
+                <button type="button" class="metric-delete" :aria-label="'删除'+batch.filename"
+                  @click="deleteMetricBatch(batch)"><van-icon name="delete-o" size="18"/></button>
+              </div>
+            </div>
+            <p v-else class="muted">尚未上传指标口径文件。</p>
+            <div v-if="metricInfo.metrics?.length" class="metric-definition-list">
+              <h4>最近导入的指标</h4>
+              <div v-for="item in metricInfo.metrics.slice(0, 8)" :key="item.id" class="metric-definition-item">
+                <strong>{{ item.metricName }}</strong>
+                <p>{{ item.definition }}</p>
+              </div>
+            </div>
+          </section>
           <h3>内部账号管理</h3>
           <div v-for="user in users" :key="user.username" class="status-row">
             <span>{{ user.displayName }}（{{ user.username }}）</span><small>{{ user.role }}</small>
