@@ -1,6 +1,10 @@
 server:
   port: ${DATAASK_PORT:8080}
 spring:
+  servlet:
+    multipart:
+      max-file-size: 5MB
+      max-request-size: 6MB
   datasource:
     url: ${DATAASK_MYSQL_URL:jdbc:mysql://127.0.0.1:3306/dataask?useUnicode=true&characterEncoding=utf8}
     username: ${DATAASK_MYSQL_USER:dataask}
