@@ -161,3 +161,33 @@ ss -lntp | grep ':8080'
 - \`src/main/java/com/dataask/data/StarRocksGateway.java\`
 - \`src/main/java/com/dataask/chat/ChatController.java\`
 - \`src/test/java/com/dataask/semantic/EntityValueResolverTest.java\`
+
+
+## 指标 Excel、结果表格与 ADS 多表关联（最新版本）
+
+### 指标口径 Excel
+
+管理员进入 **系统管理 → 指标口径 · Excel → 上传 Excel**。支持 .xlsx/.xls、最多 5 MB，导入前预览前 10 条，确认后写入 MySQL，支持导入历史和按批次删除。点击“下载模板”可以获得规范格式。Excel 必须至少包括“指标名称”和“指标口径”；可选“指标别名、ADS表名、来源字段、时间字段、分析维度、备注”。AI 在生成 SQL 时会参考已上传口径，但不直接执行 Excel 中的指令。
+
+### 中文列名与固定高度表格
+
+表格最多占用约 **320px** 高度，在内部上下/左右滚动，表头固定；后端仍限制最多返回 200 行。结果列名优先使用 AI 返回的中文业务标签，然后查找已授权 ADS 字段的中文注释和已知业务字段。无法确定含义时会显示“字段N”并保留原始技术列名作为鼠标悬停提示，避免误译。
+
+ECharts 已调整为多色图例、横向排行条、渐变趋势图、环形图。在合适的两列数据场景可自动生成排行/趋势图。图表仅显示前 8～12 项以保证手机可读性；完整查询结果显示在下方表格区域。
+
+### 多张 ADS 汇总表关联
+
+系统管理中新增“**ADS 跨表关联规则**”，可配置已授权的两张 ADS 表、主表与关联表的关联键（支持多个字段，以英文逗号分隔）、一对一/多对一类型和至少 8 字的业务粒度说明。
+
+规则保存在 MySQL；AI 可使用审核过的关联规则。多表 SQL 在执行前会检查是否仅使用批准的 JOIN 等值关联键，拒绝不完整的关联条件、无审批关系和隐式关联。**管理员仍需核实 ADS 汇总表在关联粒度上是否真正唯一；仅审核键名无法证明不会重复计数。** 跨不同粒度的多个事实表建议先预聚合，避免乘法放大。
+
+### 部署升级
+
+仓库代码提交在 main 分支。应用的前端资源在 JAR 内，更新后需重新打包并部署：
+
+    git pull origin main
+    bash scripts/package.sh
+
+升级时保留原有部署目录的 conf/application.yml、JWT 密钥和 MySQL 数据库，停止旧服务并替换新版 JAR；首次运行 schema.sql 将以 CREATE TABLE IF NOT EXISTS 新增指标和关联规则表，无需清空已有数据。AI 的 API Key、Base URL、model 继续从部署机 application.yml 读取。
+
+这仍是 MVP：上线供领导使用前需要验证实际 ADS 数据、指标口径、用户行级权限及关联键唯一性。
