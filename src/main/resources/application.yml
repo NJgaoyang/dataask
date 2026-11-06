@@ -1,5 +1,5 @@
 server:
-  port: ${DATAASK_PORT:8080}
+  port: ${DATAASK_PORT:8087}
 spring:
   servlet:
     multipart:
@@ -24,6 +24,6 @@ dataask:
     password: ${DATAASK_STARROCKS_PASSWORD:}
     schema: ${DATAASK_STARROCKS_SCHEMA:ads}
   ai:
-    base-url: ${DATAASK_AI_BASE_URL:}
+    base-url: ${DATAASK_AI_BASE_URL:https://api.deepseek.com}
     api-key: ${DATAASK_AI_API_KEY:}
-    model: ${DATAASK_AI_MODEL:}
+    model: ${DATAASK_AI_MODEL:deepseek-flash}
