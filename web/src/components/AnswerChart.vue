@@ -4,38 +4,137 @@ import * as echarts from 'echarts'
 
 const props = defineProps({ message: { type: Object, required: true } })
 const el = ref(null)
-let instance = null
+let chart = null
+let observer = null
+const palette = ['#3478ec', '#12b8a6', '#f49b4e', '#8467d8', '#e86992', '#24a6cf', '#dbc34d', '#62bc80']
 
 function renderChart() {
   if (!el.value) return
-  const { columns = [], rows = [], chartType = 'table' } = props.message
-  const measure = columns.find(c => rows.some(r => r[c] !== null && r[c] !== '' && Number.isFinite(Number(r[c]))))
-  const dimension = columns.find(c => c !== measure)
+  const { columns = [], rows = [], chartType = 'table', columnLabels = {} } = props.message
+  const numericColumns = columns.filter(key => rows.some(row =>
+    row[key] !== null && row[key] !== '' && row[key] !== undefined &&
+    typeof row[key] !== 'boolean' && Number.isFinite(Number(row[key]))))
+  const measures = numericColumns.filter(key => /count|cnt|amount|orders|revenue|total|sum|num|income|sales|金额|收入|数量|订单/i.test(key))
+  const measure = measures[0] || numericColumns[numericColumns.length - 1]
+  const dimension = columns.find(key => key !== measure && rows.some(row =>
+    row[key] !== null && row[key] !== undefined && !Number.isFinite(Number(row[key])))) ||
+    columns.find(key => key !== measure)
   if (!measure || !dimension || !rows.length) {
-    if (instance) { instance.dispose(); instance = null }
+    if (chart) { chart.dispose(); chart = null }
     return
   }
-  if (!instance) instance = echarts.init(el.value)
-  const labels = rows.slice(0, 20).map(r => String(r[dimension] ?? ''))
-  const values = rows.slice(0, 20).map(r => Number(r[measure] || 0))
+  const limit = chartType === 'pie' ? 8 : 12
+  const values = rows.slice(0, limit).map(row => ({
+    name: String(row[dimension] ?? '未分类'),
+    value: Number(row[measure]) || 0
+  }))
+  const labels = values.map(item => item.name)
+  const numbers = values.map(item => item.value)
+  const valueName = columnLabels[measure] || measure
+  const dimName = columnLabels[dimension] || dimension
+  const paletteColor = value => ({
+    type: 'linear',
+    x: 0, y: 0, x2: 1, y2: 0,
+    colorStops: [{ offset: 0, color: value }, { offset: 1, color: value }]
+  })
   const type = ['bar', 'line', 'pie'].includes(chartType) ? chartType : 'bar'
-  instance.setOption({
-    color: ['#2568c9', '#73a6ef', '#99c4f2', '#c1d8f6'],
-    tooltip: { trigger: type === 'pie' ? 'item' : 'axis' },
-    grid: { left: 8, right: 14, bottom: 50, top: 22, containLabel: true },
-    xAxis: type === 'pie' ? undefined : { type: 'category', data: labels, axisLabel: { rotate: labels.length > 6 ? 35 : 0, color: '#7f8da0' } },
-    yAxis: type === 'pie' ? undefined : { type: 'value', axisLabel: { color: '#7f8da0' } },
-    series: type === 'pie'
-      ? [{ type: 'pie', radius: ['35%', '64%'], data: labels.map((name, i) => ({ name, value: values[i] })) }]
-      : [{ type, smooth: true, data: values, barMaxWidth: 36, areaStyle: type === 'line' ? { opacity: 0.08 } : undefined }]
-  }, { notMerge: true })
+  if (!chart) chart = echarts.init(el.value, null, { renderer: 'canvas' })
+  const common = {
+    color: palette,
+    animationDuration: 450,
+    textStyle: { fontFamily: 'PingFang SC, Microsoft YaHei, sans-serif', color: '#496079' },
+    tooltip: {
+      trigger: type === 'pie' ? 'item' : 'axis',
+      backgroundColor: '#fff',
+      borderColor: '#e2eaf5',
+      padding: [10, 12],
+      textStyle: { color: '#263e5b', fontSize: 12 },
+      confine: true,
+      valueFormatter: value => Number(value).toLocaleString('zh-CN', { maximumFractionDigits: 2 })
+    }
+  }
+  if (type === 'pie' && numbers.every(v => v >= 0) && numbers.some(v => v > 0)) {
+    chart.setOption({
+      ...common,
+      legend: {
+        bottom: 3, left: 'center', type: 'scroll', itemWidth: 10, itemHeight: 10,
+        textStyle: { color: '#71829a', fontSize: 11 }, pageButtonItemGap: 4
+      },
+      series: [{
+        name: valueName, type: 'pie',
+        radius: ['43%', '69%'], center: ['50%', '43%'],
+        avoidLabelOverlap: true,
+        itemStyle: { borderRadius: 7, borderWidth: 3, borderColor: '#fff' },
+        label: { show: false }, emphasis: { label: { show: true, fontWeight: 600 } },
+        data: values
+      }]
+    }, { notMerge: true })
+  } else if (type === 'line') {
+    chart.setOption({
+      ...common,
+      grid: { left: 10, right: 15, top: 27, bottom: 52, containLabel: true },
+      xAxis: { type: 'category', data: labels, axisTick: { show: false },
+        axisLabel: { color: '#8190a6', fontSize: 10, rotate: labels.length > 7 ? 30 : 0 },
+        axisLine: { lineStyle: { color: '#e5ebf5' } } },
+      yAxis: { type: 'value', name: valueName, nameTextStyle: { color: '#8b99ab', fontSize: 10 },
+        axisLabel: { color: '#8190a6', fontSize: 10 },
+        splitLine: { lineStyle: { color: '#e9eff8', type: 'dashed' } } },
+      series: [{ name: valueName, type: 'line', smooth: 0.32,
+        data: numbers, lineStyle: { width: 3, color: palette[0] },
+        symbol: 'circle', symbolSize: 7,
+        itemStyle: { color: palette[0], borderColor: '#fff', borderWidth: 2 },
+        areaStyle: { color: new echarts.graphic.LinearGradient(0, 0, 0, 1, [
+          { offset: 0, color: '#b8d6ff' }, { offset: 1, color: 'rgba(231,242,255,0.08)' }
+        ]) } }]
+    }, { notMerge: true })
+  } else {
+    const horizontal = labels.length > 5
+    const colors = numbers.map((_, i) => palette[i % palette.length])
+    chart.setOption({
+      ...common,
+      grid: { left: 12, right: horizontal ? 45 : 15, top: 24, bottom: horizontal ? 20 : 60, containLabel: true },
+      xAxis: horizontal
+        ? { type: 'value', axisLabel: { color: '#8391a5', fontSize: 10 },
+            splitLine: { lineStyle: { color: '#e8eef7', type: 'dashed' } } }
+        : { type: 'category', data: labels, axisLabel: { color: '#7185a1', fontSize: 11,
+            rotate: labels.length > 4 ? 25 : 0 }, axisTick: { show: false }, axisLine: { lineStyle: { color: '#e2eaf4' } } },
+      yAxis: horizontal
+        ? { type: 'category', inverse: true, data: labels, axisTick: { show: false },
+            axisLine: { show: false }, axisLabel: { color: '#536a85', fontSize: 11, width: 70, overflow: 'truncate' } }
+        : { type: 'value', axisLabel: { color: '#8391a5', fontSize: 10 },
+            splitLine: { lineStyle: { color: '#e8eef7', type: 'dashed' } } },
+      series: [{
+        name: valueName, type: 'bar', data: numbers.map((v, i) => ({
+          value: v, itemStyle: { color: paletteColor(colors[i]), borderRadius: horizontal ? [0, 6, 6, 0] : [6, 6, 0, 0] }
+        })), barMaxWidth: horizontal ? 18 : 34, barCategoryGap: '35%',
+        label: horizontal ? { show: true, position: 'right', color: '#526782', fontSize: 10,
+          formatter: p => Number(p.value).toLocaleString('zh-CN', { maximumFractionDigits: 1 }) } : { show: false }
+      }]
+    }, { notMerge: true })
+  }
 }
 
-onMounted(() => nextTick(renderChart))
+onMounted(() => {
+  nextTick(() => {
+    renderChart()
+    if (el.value && typeof ResizeObserver !== 'undefined') {
+      observer = new ResizeObserver(() => chart?.resize())
+      observer.observe(el.value)
+    }
+  })
+})
 watch(() => props.message, () => nextTick(renderChart), { deep: true })
-onBeforeUnmount(() => { if (instance) instance.dispose() })
+onBeforeUnmount(() => { observer?.disconnect(); if (chart) chart.dispose() })
 </script>
 
 <template>
-  <div ref="el" class="chart-view"></div>
+  <div class="chart-shell">
+    <div class="chart-caption">
+      <span>经营数据图表</span><small>基于 StarRocks 实际查询结果</small>
+    </div>
+    <div ref="el" class="chart-view"></div>
+    <p v-if="message.rows?.length > (message.chartType === 'pie' ? 8 : 12)" class="chart-limit">
+      图表展示前 {{ message.chartType === 'pie' ? 8 : 12 }} 项，完整数据请查看下方表格
+    </p>
+  </div>
 </template>
