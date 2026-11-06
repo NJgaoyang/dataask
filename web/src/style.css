@@ -69,3 +69,12 @@
 .chart-caption small{color:#8a9bb1;font-size:10px}
 .chart-shell .chart-view{border:0!important;background:transparent!important;padding:0!important;margin:5px 0!important;height:290px;min-height:250px}
 .chart-limit{padding:0 10px;margin:0 0 8px;color:#94a2b4;font-size:11px}
+
+
+.join-admin{padding:13px 0}
+.join-editor{background:#f7f9fd;border:1px solid #e3ebf5;border-radius:11px;padding:12px;margin:14px 0 10px}
+.join-editor>label{display:block;font-size:12px;font-weight:600;color:#526b86;margin:10px 0 5px}
+.join-select{display:block;min-height:38px;width:100%;padding:8px 10px;border-radius:7px;border:1px solid #dce6f2;background:#fff;color:#344c69;font-size:12px}
+.join-editor .van-cell{background:transparent;padding:12px 0}
+.join-editor .van-radio__label{font-size:12px}
+.join-editor .van-button{margin-top:11px}
