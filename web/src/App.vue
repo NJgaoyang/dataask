@@ -48,7 +48,7 @@ const buildSha = __DATAASK_BUILD_SHA__
 let desktopMedia
 const aiForm = ref({ baseUrl:'', model:'', apiKey:'', clearKey:false })
 const embeddingForm = ref({
-  baseUrl:'', model:'Qwen/Qwen3-Embedding-0.6B', apiKey:'', clearKey:false,
+  baseUrl:'https://dashscope.aliyuncs.com/api/v1', model:'qwen3.7-text-embedding-flash', apiKey:'', clearKey:false,
   enabled:false, dimensions:1024
 })
 const semanticStatus = ref({ count: 0, indexedModel: '', configured: false })
@@ -287,7 +287,7 @@ async function showConfig(kind) {
       password: '', schema: sr.schema || 'ads' }
     aiForm.value = { baseUrl: ai.baseUrl || '', model: ai.model || '', apiKey:'', clearKey:false }
     embeddingForm.value = {
-      baseUrl: embedding.baseUrl || '', model: embedding.model || 'Qwen/Qwen3-Embedding-0.6B',
+      baseUrl: embedding.baseUrl || 'https://dashscope.aliyuncs.com/api/v1', model: embedding.model || 'qwen3.7-text-embedding-flash',
       apiKey:'', clearKey:false, enabled: !!embedding.enabled,
       dimensions: embedding.dimensions || 1024
     }
@@ -720,14 +720,14 @@ onBeforeUnmount(() => desktopMedia?.removeEventListener('change', window.__dataA
             <p class="config-note">API Key 从此页面提交给后端保存，编辑时不会明文回显。</p>
           </template>
           <template v-else>
-            <p class="muted">用于 ADS 表、字段注释及 Excel 指标口径的语义匹配。可接入支持 OpenAI /embeddings 接口的服务。</p>
+            <p class="muted">用于 ADS 表、字段注释和 Excel 指标口径语义匹配。默认阿里云百炼 DashScope 原生 API；也支持 OpenAI 兼容 /embeddings 接口。</p>
             <van-cell title="启用 Embedding"><template #right-icon>
               <van-switch v-model="embeddingForm.enabled" size="20px"/>
             </template></van-cell>
             <van-field v-model="embeddingForm.baseUrl" label="Base URL" label-width="95px"
-              placeholder="http://127.0.0.1:8000/v1"/>
+              placeholder="https://dashscope.aliyuncs.com/api/v1"/>
             <van-field v-model="embeddingForm.model" label="模型名称" label-width="95px"
-              placeholder="Qwen/Qwen3-Embedding-0.6B"/>
+              placeholder="qwen3.7-text-embedding-flash"/>
             <van-field v-model.number="embeddingForm.dimensions" label="向量维度" label-width="95px"
               type="number" placeholder="1024"/>
             <van-field v-model="embeddingForm.apiKey" label="API Key" label-width="95px" type="password"
