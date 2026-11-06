@@ -30,8 +30,16 @@ function renderChart() {
   }))
   const labels = values.map(item => item.name)
   const numbers = values.map(item => item.value)
-  const valueName = columnLabels[measure] || measure
-  const dimName = columnLabels[dimension] || dimension
+  const basicLabels = {
+    city:'城市', city_name:'城市', city_name_std:'城市', province:'省份',
+    store_name:'门店名称', dt:'业务日期', biz_date:'业务日期', month:'月份',
+    order_cnt:'订单量', order_count:'订单数', total_orders:'订单总数',
+    user_cnt:'用户数', pay_amount:'实付金额', total_amount:'总金额',
+    revenue:'营业额', total_revenue:'营业额', net_revenue:'净收入',
+    refund_amount:'退款金额'
+  }
+  const valueName = columnLabels[measure] || basicLabels[measure] || '指标数值'
+  const dimName = columnLabels[dimension] || basicLabels[dimension] || '分析维度'
   const paletteColor = value => ({
     type: 'linear',
     x: 0, y: 0, x2: 1, y2: 0,
