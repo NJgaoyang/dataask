@@ -110,11 +110,21 @@ public class JoinRuleService {
         if (new HashSet<>(leftKeys).size()!=leftKeys.size() ||
             new HashSet<>(rightKeys).size()!=rightKeys.size())
             throw bad("同一关联键不能重复");
-        jdbc.update("INSERT INTO da_ads_join_rules(left_table,right_table,left_keys,right_keys,cardinality,grain_note) " +
-            "VALUES(?,?,?,?,?,?)",
-            left,right,String.join(",",leftKeys),String.join(",",rightKeys),card,note);
-        Long id=jdbc.queryForObject("SELECT LAST_INSERT_ID()",Long.class);
-        return id==null ? 0 : id;
+        org.springframework.jdbc.support.KeyHolder holder =
+            new org.springframework.jdbc.support.GeneratedKeyHolder();
+        jdbc.update(connection -> {
+            var statement=connection.prepareStatement(
+                "INSERT INTO da_ads_join_rules(left_table,right_table,left_keys,right_keys,cardinality,grain_note) " +
+                "VALUES(?,?,?,?,?,?)", new String[]{"id"});
+            statement.setString(1,left);
+            statement.setString(2,right);
+            statement.setString(3,String.join(",",leftKeys));
+            statement.setString(4,String.join(",",rightKeys));
+            statement.setString(5,card);
+            statement.setString(6,note);
+            return statement;
+        },holder);
+        return holder.getKey()==null ? 0L : holder.getKey().longValue();
     }
 
     public void delete(long id) {
