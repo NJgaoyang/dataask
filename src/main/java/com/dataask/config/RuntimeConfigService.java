@@ -92,10 +92,9 @@ public class RuntimeConfigService {
             effective(m,"sr.schema",yamlStarRocks.schema()));
     }
     public AiConfig ai() {
-        Map<String,String> m=stored();
-        // API Key stays in application.yml, never sent back to the browser or stored in MySQL.
-        return new AiConfig(effective(m,"ai.baseUrl",yamlAi.baseUrl()),yamlAi.apiKey(),
-            effective(m,"ai.model",yamlAi.model()));
+        // All AI settings are owned by application.yml / environment variables.
+        // Do not override them with values previously stored in MySQL.
+        return yamlAi;
     }
 
     public StarRocksConfig validateStarRocks(StarRocksInput data) {
@@ -116,25 +115,6 @@ public class RuntimeConfigService {
         return new StarRocksConfig(url,username,pass,schema);
     }
 
-    public AiConfig validateAi(AiInput data) {
-        if (data==null) throw invalid("缺少 AI 模型配置");
-        String url=safe(data.baseUrl()).replaceAll("/+$","");
-        String model=safe(data.model());
-        try {
-            java.net.URI uri=java.net.URI.create(url);
-            if (!"https".equalsIgnoreCase(uri.getScheme()) &&
-                    !"http".equalsIgnoreCase(uri.getScheme()))
-                throw invalid("模型 Base URL 必须使用 http(s)");
-            if (uri.getHost()==null || uri.getUserInfo()!=null || uri.getFragment()!=null)
-                throw invalid("模型 Base URL 不正确");
-        } catch (IllegalArgumentException ex) {
-            throw invalid("模型 Base URL 不正确");
-        }
-        if (url.length()>500 || model.isBlank() || model.length()>120)
-            throw invalid("请填写正确的 Base URL 和模型名称");
-        return new AiConfig(url,yamlAi.apiKey(),model);
-    }
-
     @Transactional
     public void saveStarRocks(StarRocksInput data) {
         StarRocksConfig c=validateStarRocks(data);
@@ -144,12 +124,6 @@ public class RuntimeConfigService {
         if (data.password()!=null && !data.password().isBlank()) {
             upsert("sr.password",encrypt(c.password()));
         }
-    }
-    @Transactional
-    public void saveAi(AiInput data) {
-        AiConfig c=validateAi(data);
-        upsert("ai.baseUrl",c.baseUrl());
-        upsert("ai.model",c.model());
     }
     private void upsert(String name,String value) {
         jdbc.update("INSERT INTO da_app_settings (setting_key,setting_value) VALUES(?,?) " +
