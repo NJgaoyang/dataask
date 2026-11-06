@@ -30,6 +30,13 @@ const historyVisible = ref(false)
 const sessions = ref([])
 const adminVisible = ref(false)
 const status = ref({})
+const configVisible = ref(false)
+const configKind = ref('starrocks')
+const configBusy = ref(false)
+const configTestBusy = ref(false)
+const configTestMessage = ref('')
+const settingsData = ref({ starrocks: {}, ai: {} })
+const srForm = ref({ jdbcUrl: '', username: '', password: '', schema: 'ads' })
 const allowedTables = ref([])
 const expandedTable = ref('')
 const users = ref([])
@@ -89,14 +96,61 @@ async function ask(text = question.value, sourceMessageId = null) {
     showFailToast(errorText(e))
   } finally { busy.value = false }
 }
+async function refreshAdminStatus() {
+  const [s, cfg] = await Promise.all([api.get('/admin/status'), api.get('/admin/settings')])
+  status.value = s.data
+  settingsData.value = cfg.data
+}
+async function reloadTables() {
+  if (!status.value.starrocksConfigured) { allowedTables.value = []; return }
+  try { allowedTables.value = (await api.get('/admin/tables')).data }
+  catch (e) { allowedTables.value = []; showFailToast('读取 ADS 表失败：' + errorText(e)) }
+}
 async function openAdmin() {
   adminVisible.value = true
+  try { await refreshAdminStatus() }
+  catch (e) { showFailToast('读取配置失败：' + errorText(e)) }
+  try { users.value = (await api.get('/admin/users')).data }
+  catch (e) { showFailToast('读取账号失败：' + errorText(e)) }
+  await reloadTables()
+}
+async function showConfig(kind) {
+  configKind.value = kind
+  configTestMessage.value = ''
   try {
-    const [s, t, u] = await Promise.all([
-      api.get('/admin/status'), api.get('/admin/tables'), api.get('/admin/users')
-    ])
-    status.value = s.data; allowedTables.value = t.data; users.value = u.data
+    await refreshAdminStatus()
+    const sr = settingsData.value.starrocks || {}
+    srForm.value = { jdbcUrl: sr.jdbcUrl || '', username: sr.username || '',
+      password: '', schema: sr.schema || 'ads' }
+    configVisible.value = true
   } catch (e) { showFailToast(errorText(e)) }
+}
+async function testConfig() {
+  if (configTestBusy.value) return
+  configTestBusy.value = true
+  configTestMessage.value = ''
+  try {
+    const isStarRocks = configKind.value === 'starrocks'
+    const url = isStarRocks ? '/admin/settings/starrocks/test' : '/admin/settings/ai/test'
+    const { data } = isStarRocks ? await api.post(url, srForm.value) : await api.post(url)
+    configTestMessage.value = data.message || '连接成功'
+    showSuccessToast(configTestMessage.value)
+  } catch (e) {
+    configTestMessage.value = errorText(e)
+    showFailToast(configTestMessage.value)
+  } finally { configTestBusy.value = false }
+}
+async function saveConfig() {
+  if (configBusy.value) return
+  configBusy.value = true
+  try {
+    const { data } = await api.post('/admin/settings/starrocks', srForm.value)
+    configVisible.value = false
+    await refreshAdminStatus()
+    await reloadTables()
+    showSuccessToast(data.message || '数据源已保存')
+  } catch (e) { showFailToast(errorText(e)) }
+  finally { configBusy.value = false }
 }
 async function toggleAllowed(table) {
   try {
@@ -213,8 +267,14 @@ onMounted(() => { if (loggedIn.value) loadSessions() })
       <van-popup v-model:show="adminVisible" position="bottom" round :style="{ height: '88%' }">
         <div class="admin-panel">
           <div class="drawer-header"><b>系统管理</b><van-icon name="cross" @click="adminVisible=false"/></div>
-          <div class="status-row"><span>StarRocks ADS</span><strong>{{ status.starrocksConfigured ? '已配置' : '未配置' }}</strong></div>
-          <div class="status-row"><span>AI 模型</span><strong>{{ status.aiConfigured ? (status.model || '已配置') : '未配置' }}</strong></div>
+          <button type="button" class="status-row status-action" @click="showConfig('starrocks')">
+            <span>StarRocks ADS</span>
+            <span class="status-value"><strong>{{ status.starrocksConfigured ? '已配置' : '未配置' }}</strong><van-icon name="arrow"/></span>
+          </button>
+          <button type="button" class="status-row status-action" @click="showConfig('ai')">
+            <span>AI 模型</span>
+            <span class="status-value"><strong>{{ status.aiConfigured ? status.model : (status.aiKeyConfigured && status.aiUrlConfigured ? '检查模型名称' : '检查配置') }}</strong><van-icon name="arrow"/></span>
+          </button>
           <h3>开放给 AI 的 ADS 表</h3>
           <p class="muted">默认不开放任何表。仅授权通过审核的经营数据表。</p>
           <div v-for="table in allowedTables" :key="table.name" class="admin-table">
@@ -240,7 +300,43 @@ onMounted(() => { if (loggedIn.value) loadSessions() })
             <van-radio name="USER">普通用户</van-radio><van-radio name="ADMIN">管理员</van-radio>
           </van-radio-group></template></van-field>
           <van-button type="primary" block plain @click="addUser">创建账号</van-button>
-          <p class="muted">模型地址、密钥和 StarRocks 连接由服务端配置文件管理，不在浏览器存储。</p>
+          <p class="muted">AI 配置直接使用服务器 application.yml，不会在浏览器回显密钥；StarRocks 配置可通过上方入口测试和保存。</p>
+        </div>
+      </van-popup>
+      <van-popup v-model:show="configVisible" position="bottom" round :style="{ height: '78%' }">
+        <div class="config-panel">
+          <div class="drawer-header">
+            <b>{{ configKind === 'starrocks' ? 'StarRocks ADS 数据源' : 'AI 模型配置检查' }}</b>
+            <van-icon name="cross" @click="configVisible = false"/>
+          </div>
+          <template v-if="configKind === 'starrocks'">
+            <p class="muted">可在这里配置 StarRocks 只读账号。保存前先校验连接，成功后自动读取 ADS 表及字段注释。</p>
+            <van-field v-model="srForm.jdbcUrl" label="JDBC 地址" label-width="85px"
+              placeholder="jdbc:mysql://192.168.1.10:9030/ads"/>
+            <van-field v-model="srForm.schema" label="ADS 数据库" label-width="85px" placeholder="ads"/>
+            <van-field v-model="srForm.username" label="用户名" label-width="85px" placeholder="只读用户名"/>
+            <van-field v-model="srForm.password" label="密码" label-width="85px"
+              type="password" autocomplete="new-password"
+              :placeholder="settingsData.starrocks?.passwordSet ? '已配置，留空不修改' : '请输入密码'"/>
+            <p class="config-note">密码由服务器加密保存，页面不会回显。</p>
+          </template>
+          <template v-else>
+            <p class="muted">直接读取运行中服务的 application.yml / 环境变量，无需重复填写 API Key 和 Base URL。</p>
+            <div class="status-row"><span>API Key</span><strong>{{ status.aiKeyConfigured ? '已读取（内容隐藏）' : '未读取' }}</strong></div>
+            <div class="status-row"><span>Base URL</span><strong>{{ status.aiUrlConfigured ? '已读取' : '未读取' }}</strong></div>
+            <div class="config-value">{{ settingsData.ai?.baseUrl || '请检查 dataask.ai.base-url' }}</div>
+            <div class="status-row"><span>模型名称 model</span><strong>{{ status.aiModelConfigured ? '已读取' : '未读取' }}</strong></div>
+            <div class="config-value">{{ settingsData.ai?.model || '请配置 dataask.ai.model' }}</div>
+            <p class="config-note">若文件已配置但这里显示“未读取”，请检查实际部署目录的 conf/application.yml 和环境变量，并重启服务。测试按钮会用已配置的密钥请求模型。</p>
+          </template>
+          <p v-if="configTestMessage" class="config-feedback">{{ configTestMessage }}</p>
+          <div class="config-actions">
+            <van-button block plain type="primary" :loading="configTestBusy" :disabled="configBusy"
+              @click="testConfig">测试连接</van-button>
+            <van-button v-if="configKind === 'starrocks'" block type="primary" :loading="configBusy"
+              :disabled="configTestBusy" @click="saveConfig">测试并保存</van-button>
+            <van-button v-else block type="default" @click="configVisible=false">关闭</van-button>
+          </div>
         </div>
       </van-popup>
     </template>
