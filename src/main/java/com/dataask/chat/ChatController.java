@@ -32,20 +32,23 @@ public class ChatController {
     private final RuntimeConfigService settings;
     private final EntityValueResolver entities;
     private final MetricDictionaryService metricDictionary;
+    private final ColumnLabelService labels;
 
     public ChatController(JdbcTemplate jdbc, StarRocksGateway starrocks, SqlGuard guard,
             ObjectMapper json, RuntimeConfigService settings, EntityValueResolver entities,
-            MetricDictionaryService metricDictionary) {
+            MetricDictionaryService metricDictionary, ColumnLabelService labels) {
         this.jdbc = jdbc; this.starrocks = starrocks; this.guard = guard; this.json = json;
         this.settings = settings;
         this.entities = entities;
         this.metricDictionary = metricDictionary;
+        this.labels = labels;
         this.http = RestClient.builder().build();
     }
 
     record AskRequest(String sessionId, @NotBlank @Size(max=800) String question, String sourceMessageId) {}
     record Answer(String id, String sessionId, String question, String title, String summary,
-                  String chartType, List<String> columns, List<Map<String,Object>> rows,
+                  String chartType, List<String> columns, Map<String,String> columnLabels,
+                  List<Map<String,Object>> rows,
                   List<String> followUps) {}
 
     @GetMapping("/sessions")
@@ -127,7 +130,9 @@ public class ChatController {
             当指标口径不明确（如营业额究竟是否扣除退款）、存在多套不同定义或无法根据注释确定时，
             只输出 {"clarification":"用中文简短说明需要确认什么"}，不要编造 SQL。
             否则只输出纯 JSON 对象：
-            {"title":"简短中文标题","sql":"单条 SELECT SQL","chartType":"metric|table|bar|line|pie"}。
+            {"title":"简短中文标题","sql":"单条 SELECT SQL","chartType":"metric|table|bar|line|pie","columnLabels":{"SQL列名":"中文业务名称"}}。
+            SELECT 输出列建议用 AS 指定准确中文别名（例如 AS 城市、AS 订单数），不要返回 city 或 total_orders 等英文展示名。
+            columnLabels 对每个 SELECT 返回列提供简短准确的中文名称；不确定口径时不可编造列解释。
             SQL 必须是 StarRocks/MySQL 兼容方言，只能查询允许表，不能使用注释、分号、信息模式、写操作。
             必须使用完整 adsSchema.tableName 表名，日期使用绝对值而不是 CURRENT_DATE/NOW。
             不要跨业务粒度错误 SUM 已聚合的比率或重复明细。没有数据时也不能编造值。
@@ -145,6 +150,7 @@ public class ChatController {
         String chart = plan.path("chartType").asText("table");
         String summary;
         List<String> columns = List.of();
+        Map<String,String> columnLabels = Map.of();
         List<Map<String,Object>> rows = List.of();
         List<String> followups = List.of();
 
@@ -159,6 +165,7 @@ public class ChatController {
             if (!Set.of("metric","table","bar","line","pie").contains(chart)) chart = "table";
             StarRocksGateway.QueryResult data = starrocks.query(sql);
             columns = data.columns();
+            columnLabels = labels.labels(columns, plan.path("columnLabels"), allowed, discovered);
             rows = data.rows();
             summary = summarize(rows, columns);
             for (EntityValueResolver.Match match : cityMatches) {
@@ -170,7 +177,8 @@ public class ChatController {
         }
 
         String messageId = UUID.randomUUID().toString();
-        Answer answer = new Answer(messageId, session, question, title, summary, chart, columns, rows, followups);
+        Answer answer = new Answer(messageId, session, question, title, summary, chart, columns,
+            columnLabels, rows, followups);
         try {
             String serialized = json.writeValueAsString(answer);
             jdbc.update("INSERT INTO da_messages(id,session_id,question,generated_sql,title,summary,chart_type,payload_json) " +
