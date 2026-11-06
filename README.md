@@ -87,7 +87,7 @@ tail -f logs/dataask.log
 bash bin/stop.sh
 ```
 
-后端已将构建好的前端静态页面一起打包进 JAR，部署后直接访问 `http://服务器IP:8080`。
+后端已将构建好的前端静态页面一起打包进 JAR，部署后直接访问 `http://服务器IP:8087`。
 
 **微信小程序 WebView / 钉钉企业内部应用正式接入时**，需要使用 HTTPS、对应平台域名和免登流程。当前是账号密码登录的 H5 内测版，请不要把 HTTP 明文登录页面暴露到公网。
 
@@ -119,14 +119,14 @@ bash bin/stop.sh
 - **JWT 密钥为空/不足 32 字节**：可在 `conf/application.yml` 的 `dataask.jwt-secret` 填写 `openssl rand -hex 32` 生成的密钥，或者使用新版 `bin/start.sh`。新版脚本会在没有配置 JWT 密钥时首次生成 `conf/.dataask-jwt-secret`（权限 600），之后复用此文件；注意备份，切勿提交仓库。
 - **首次管理员密码缺失**：初始化空库时，`dataask.admin-password` 必须至少 10 个字符；后续重启不会覆盖已有管理员密码。
 - **MySQL 无法连接**：检查 `dataask` 库是否存在、账号权限及 `spring.datasource` 参数。
-- **端口冲突**：`ss -lntp | grep ':8080'`，若端口被占用，可通过 `DATAASK_PORT` 更换端口。
+- **端口冲突**：`ss -lntp | grep ':8087'`，若端口被占用，可通过 `DATAASK_PORT` 更换端口。
 
 诊断命令：
 
 ```bash
 grep -n 'Caused by:' logs/dataask.log | tail -n 15
 tail -n 120 logs/dataask.log
-ss -lntp | grep ':8080'
+ss -lntp | grep ':8087'
 ```
 
 如果使用的是之前打包的 TAR，修改仓库中的启动脚本不会自动更新旧 TAR；需要重新运行 `bash scripts/package.sh` 并部署新包。也可以直接按照上面步骤配置 JWT 密钥后重启，无需重新打包。
@@ -231,7 +231,7 @@ ECharts 已调整为多色图例、横向排行条、渐变趋势图、环形图
 管理员打开 **系统管理**，分别点击 **对话模型** 和 **Embedding 模型**。
 
 - 对话模型：Base URL、模型名称、API Key 可以直接在网页填写、测试、保存，立即生效。
-- Embedding：可启用模型、填写 Base URL、模型名称、API Key（本地免密可留空）和向量维度；建议先用 Qwen3-Embedding-0.6B（常见 1024 维）。
+- Embedding：可启用模型、填写 Base URL、模型名称、API Key（本地免密可留空）和向量维度；默认使用阿里云 qwen3.7-text-embedding-flash（1024 维）。
 - Embedding 保存后必须点击 **重建语义索引** 才开始参与问数；当前最多索引 120 条已授权 ADS 表元数据与 Excel 指标描述，每批 20 条。
 - 语义检索失败时，问数仍使用 ADS 字段注释及 Excel 指标定义回退；不会把向量结果当作业务口径的唯一真相。
 - Key 由后端加密存储到 MySQL 8，前端保存后不再明文回显。原 JWT 加密密钥需要长期保留，否则旧的数据源密钥和模型密钥无法解密。
@@ -253,7 +253,7 @@ ECharts 已调整为多色图例、横向排行条、渐变趋势图、环形图
 
 升级脚本仅替换旧安装目录的 JAR 与启停脚本，保留原 conf/application.yml、JWT 密钥与 MySQL 数据库。服务启动后检查：
 
-    curl -s http://127.0.0.1:8080/build-info.json
+    curl -s http://127.0.0.1:8087/build-info.json
 
 新版本应该返回 buildSha、builtAt、uiLayout 为 desktop-three-pane、modelManagement 为 web 的 JSON，并在 PC 左侧底部显示构建号。返回 404 说明运行的可能是旧 JAR 或访问了错误的服务器。
 
@@ -262,3 +262,20 @@ ECharts 已调整为多色图例、横向排行条、渐变趋势图、环形图
 ### 三、验收边界
 
 这次提交已由 GitHub CI 检查，但还没有在你的实际服务器和真实 StarRocks 中进行连通性、浏览器和微信/钉钉实机验证。企业免登、行级数据权限和指标口径对账仍需独立验收。
+
+
+### 默认配置、阿里云 Embedding 和部署验证（2026-11）
+
+**服务默认端口 8087**。已有 conf/application.yml 配置了端口时，以现有配置为准。
+
+- 对话模型默认地址：https://api.deepseek.com；模型名：deepseek-flash；API Key 在系统管理 Web 页面填写。
+- Embedding 默认地址：https://dashscope.aliyuncs.com/api/v1；模型：qwen3.7-text-embedding-flash；维度：1024。
+- Embedding 默认关闭，需要在 Web 模型管理中填写 Key、启用、测试连接、保存后执行“重建语义索引”。如果之前已保存其他模型，该配置优先于新默认值。
+- DashScope /api/v1 使用原生同步接口 /services/embeddings/text-embedding/text-embedding；OpenAI 兼容地址仍使用 /embeddings。DataAsk 会根据 URL 自动选择正确的请求与响应格式。
+- StarRocks FE 的 jdbc:starrocks://HOST:9030 简写会适配到 MySQL Connector/J 可以使用的 jdbc:mysql://HOST:9030/ads。
+
+请保留已有的服务器 conf/application.yml、JWT 密钥、MySQL 数据，不要将真实密码和 API Key 提交到 GitHub。最新版本可用以下地址核对：
+
+    curl -fsS http://127.0.0.1:8087/build-info.json
+
+如果网页还是旧界面，请先确认已使用新 JAR 启动，再打开构建信息核对 buildSha，并强制刷新浏览器。
