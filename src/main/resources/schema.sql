@@ -71,3 +71,19 @@ CREATE TABLE IF NOT EXISTS da_metric_definitions (
   CONSTRAINT fk_da_metric_batch FOREIGN KEY(batch_id)
     REFERENCES da_metric_import_batches(id) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+
+-- Administrator-reviewed ADS join relations, with explicit grain and key mapping.
+-- A multi-table NL2SQL query must use these relations, never an invented join.
+CREATE TABLE IF NOT EXISTS da_ads_join_rules (
+  id BIGINT NOT NULL AUTO_INCREMENT PRIMARY KEY,
+  left_table VARCHAR(255) NOT NULL,
+  right_table VARCHAR(255) NOT NULL,
+  left_keys VARCHAR(500) NOT NULL,
+  right_keys VARCHAR(500) NOT NULL,
+  cardinality VARCHAR(20) NOT NULL,
+  grain_note VARCHAR(800) NOT NULL,
+  created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  INDEX idx_da_join_left (left_table),
+  INDEX idx_da_join_right (right_table)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
