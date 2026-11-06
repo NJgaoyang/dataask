@@ -55,8 +55,11 @@ public class AdminController {
     }
 
     @PostMapping("/settings/ai/test")
-    Map<String,Object> testAi(@RequestBody RuntimeConfigService.AiInput input) {
-        RuntimeConfigService.AiConfig config=settings.validateAi(input);
+    Map<String,Object> testAi() {
+        RuntimeConfigService.AiConfig config=settings.ai();
+        if (config.baseUrl().isBlank() || config.model().isBlank())
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
+                "缺少模型 Base URL 或 model，请检查实际运行的 conf/application.yml 中 dataask.ai 配置");
         if (config.apiKey().isBlank())
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
                 "尚未读取到 AI API Key，请检查实际运行的 conf/application.yml 中 dataask.ai.api-key");
@@ -89,16 +92,6 @@ public class AdminController {
             throw new ResponseStatusException(HttpStatus.BAD_GATEWAY,
                 "AI 模型连接失败，请检查地址、网络和模型配置");
         }
-    }
-
-    @PostMapping("/settings/ai")
-    Map<String,Object> saveAi(@RequestBody RuntimeConfigService.AiInput input) {
-        if (settings.ai().apiKey().isBlank())
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
-                "AI API Key 未加载，请先配置 application.yml");
-        settings.saveAi(input);
-        return Map.of("success",true,
-            "message","AI 模型配置已保存，API Key 继续从 application.yml 加载");
     }
 
     @GetMapping("/tables")
