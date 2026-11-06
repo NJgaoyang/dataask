@@ -141,3 +141,23 @@ ss -lntp | grep ':8080'
 - 修改 `conf/application.yml` 中的模型配置后，应通过 `bash bin/stop.sh`、`bash bin/start.sh` 重启；页面的“测试连接”能够给出 HTTP 状态错误，不会暴露 Key。
 - StarRocks 的“未配置”也是可点击入口，可以填写 FE JDBC 地址、执行连接测试并保存；管理员开放 ADS 表后，用户才能问数。
 - 由于前端资源包含在 JAR 中，**更新仓库代码后需要重新执行 `bash scripts/package.sh` 并部署新 TAR**，否则旧页面仍然无法点击。
+
+
+## 城市简称与 ADS 实际值自动对齐（已实现的轻量语义层）
+
+为了避免用户说“西安”但 ADS 字段存储“西安市”而导致空结果，后端现在含有
+\`EntityValueResolver\`。
+
+1. 仅检查管理员开放的 ADS 表，识别名称、字段注释中明确表示城市名称的文本列。
+2. 对这些列按需执行 **SELECT DISTINCT ... LIMIT 500**，最多检查 12 个城市字段，每列查询超时 8 秒，并在内存中缓存 15 分钟。
+3. 依据实际取出的城市名称生成短名称映射。例如检测到“西安市”以后，识别“西安”。
+4. 只把与当前用户问题匹配的标准值和来源字段发送给大模型，提示其使用真实维度值；若大模型仍生成 \`city_name = '西安'\` 等明确等值条件，服务端对确认过的城市列进行有范围的修正，随后执行原有 SQL 白名单校验。
+5. 问数结果会在成功命中标准值时标注“西安 → 西安市”。这不依赖向量数据库或 Embedding 模型。
+
+**限制与安全：** 这是面向中文“城市名称”的轻量 MVP，不覆盖所有城市别名、区县、门店、业务术语或拼音；存在同名或歧义的数据值必须先由业务确认。字段值采样对大型明细表可能有成本，生产前应优先使用维表/汇总表或提前维护缓存并压测。只允许 StarRocks 的只读账号查询，尚未实现行级权限隔离。未来可增加实体别名词典、指标语义模型、Embedding 表/字段召回、Reranker、错问 SQL 示例库，但 Embedding 不应代替数据值精确校验或业务口径审核。
+
+相关源码：
+- \`src/main/java/com/dataask/semantic/EntityValueResolver.java\`
+- \`src/main/java/com/dataask/data/StarRocksGateway.java\`
+- \`src/main/java/com/dataask/chat/ChatController.java\`
+- \`src/test/java/com/dataask/semantic/EntityValueResolverTest.java\`
