@@ -111,3 +111,22 @@ bash bin/stop.sh
 目前 SQL 有单条 SELECT、语法解析、ADS 表授权、最大 200 行、20 秒查询超时等保护，但**仍必须配合 StarRocks 最小 SELECT 权限账号及网络隔离使用**。MVP 是表级授权，并非按员工、部门、城市的数据行级权限管理。
 
 下一阶段必须补齐：真实 ADS 口径校验、行级权限、企业微信/小程序和钉钉 SSO、服务端 SQL 执行审计、SQL 资源组和限流、上下文结构化解析与趋势下钻一致性测试。
+
+## 常见启动失败：Unable to start embedded Tomcat
+
+如果日志显示 `ApplicationContextException: Unable to start web server`，请继续查看 **最后一层 `Caused by`**，不能仅凭 Tomcat 外层异常判定为端口占用。
+
+- **JWT 密钥为空/不足 32 字节**：可在 `conf/application.yml` 的 `dataask.jwt-secret` 填写 `openssl rand -hex 32` 生成的密钥，或者使用新版 `bin/start.sh`。新版脚本会在没有配置 JWT 密钥时首次生成 `conf/.dataask-jwt-secret`（权限 600），之后复用此文件；注意备份，切勿提交仓库。
+- **首次管理员密码缺失**：初始化空库时，`dataask.admin-password` 必须至少 10 个字符；后续重启不会覆盖已有管理员密码。
+- **MySQL 无法连接**：检查 `dataask` 库是否存在、账号权限及 `spring.datasource` 参数。
+- **端口冲突**：`ss -lntp | grep ':8080'`，若端口被占用，可通过 `DATAASK_PORT` 更换端口。
+
+诊断命令：
+
+```bash
+grep -n 'Caused by:' logs/dataask.log | tail -n 15
+tail -n 120 logs/dataask.log
+ss -lntp | grep ':8080'
+```
+
+如果使用的是之前打包的 TAR，修改仓库中的启动脚本不会自动更新旧 TAR；需要重新运行 `bash scripts/package.sh` 并部署新包。也可以直接按照上面步骤配置 JWT 密钥后重启，无需重新打包。
