@@ -4,6 +4,8 @@ import com.dataask.config.RuntimeConfigService;
 import com.dataask.data.SqlGuard;
 import com.dataask.data.StarRocksGateway;
 import com.dataask.semantic.EntityValueResolver;
+import com.dataask.semantic.JoinRuleService;
+import com.dataask.semantic.JoinSafetyGuard;
 import com.dataask.metrics.MetricDictionaryService;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -33,15 +35,20 @@ public class ChatController {
     private final EntityValueResolver entities;
     private final MetricDictionaryService metricDictionary;
     private final ColumnLabelService labels;
+    private final JoinRuleService joinRules;
+    private final JoinSafetyGuard joinGuard;
 
     public ChatController(JdbcTemplate jdbc, StarRocksGateway starrocks, SqlGuard guard,
             ObjectMapper json, RuntimeConfigService settings, EntityValueResolver entities,
-            MetricDictionaryService metricDictionary, ColumnLabelService labels) {
+            MetricDictionaryService metricDictionary, ColumnLabelService labels,
+            JoinRuleService joinRules, JoinSafetyGuard joinGuard) {
         this.jdbc = jdbc; this.starrocks = starrocks; this.guard = guard; this.json = json;
         this.settings = settings;
         this.entities = entities;
         this.metricDictionary = metricDictionary;
         this.labels = labels;
+        this.joinRules = joinRules;
+        this.joinGuard = joinGuard;
         this.http = RestClient.builder().build();
     }
 
@@ -122,6 +129,7 @@ public class ChatController {
         List<EntityValueResolver.Match> cityMatches = entities.resolve(question, allowed, discovered);
         String cityHints = entities.hints(cityMatches);
         String metricHints = metricDictionary.promptForQuestion(question, allowed);
+        String joinHints = joinRules.hints(allowed);
         LocalDate today = LocalDate.now(ZoneId.of("Asia/Shanghai"));
         String instruction = """
             你是企业经营数据 SQL 分析助手。必须基于给定 ADS 元数据的真实表名、字段名和注释分析，绝不能猜测不存在的列。
@@ -139,9 +147,12 @@ public class ChatController {
             用户提到的城市简称必须与系统提供的实际 ADS 城市维度值对齐：例如西安应使用字段中真实存在的西安市。
             如果系统没有提供已验证的实体映射，不要自行发明城市值；需要时先说明不确定性。
             用户问同比/环比时，只对 SQL 实际计算到的数据做比较。不要推测不存在的业务因果。
+            多张 ADS 汇总表只在存在管理员批准的 JOIN 关系且粒度已确认时才可关联，
+            ON 子句必须使用批准的所有字段等值关联条件。禁止 CROSS JOIN、隐式关联和未经确认的明细/汇总混合。
+            对于多张聚合表，优先只查询满足业务问题的一张表；必要时才跨表，并避免聚合后相乘造成重复计算。
             """.replace("adsSchema", starrocks.schema());
         String full = "当前业务时区 Asia/Shanghai；今天=" + today + "；昨天=" + today.minusDays(1) +
-            "。\n允许使用的表及字段如下：" + metadata + metricHints + cityHints +
+            "。\n允许使用的表及字段如下：" + metadata + metricHints + joinHints + cityHints +
             "\n" + previous + "\n用户问题：" + question;
         JsonNode plan = plan(instruction, full);
         String clarification = plan.path("clarification").asText("").trim();
@@ -162,6 +173,7 @@ public class ChatController {
             sql = guard.validate(
                 entities.normalizeCityEquality(plan.path("sql").asText(""), cityMatches),
                 allowed, starrocks.schema());
+            joinGuard.validate(sql, joinRules.allowed(allowed), starrocks.schema());
             if (!Set.of("metric","table","bar","line","pie").contains(chart)) chart = "table";
             StarRocksGateway.QueryResult data = starrocks.query(sql);
             columns = data.columns();
