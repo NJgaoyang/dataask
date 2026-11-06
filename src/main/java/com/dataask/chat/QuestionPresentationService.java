@@ -115,6 +115,19 @@ public class QuestionPresentationService {
         return metric; // Never prepend "昨日"/"当日" to the metric itself.
     }
 
+    public static boolean supportsRequestedDay(String question, String sql, java.time.LocalDate today) {
+        if (question == null || sql == null) return false;
+        String text = question.replaceAll("\\s+", "");
+        java.time.LocalDate target = null;
+        if (text.contains("前天")) target = today.minusDays(2);
+        else if (text.contains("昨天") || text.contains("昨日") ||
+                 text.contains("前一天") || text.contains("上一天")) target = today.minusDays(1);
+        if (target == null) return true;
+        // The generator is instructed to use absolute dates. If the actual
+        // target day is absent, never label an unrelated query as yesterday.
+        return sql.contains(target.toString());
+    }
+
     public static boolean hasValidPlan(JsonNode plan) {
         return plan != null && plan.isObject() &&
             !plan.path("unsupported").asBoolean(false) &&
