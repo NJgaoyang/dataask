@@ -80,6 +80,46 @@ public class StarRocksGateway {
         return result;
     }
 
+    /**
+     * Read bounded canonical geographic dimension values from a vetted ADS table.
+     * Caller must verify table and column against approved metadata before calling.
+     */
+    public List<String> distinctDimensionValues(String qualifiedTable, String column) {
+        RuntimeConfigService.StarRocksConfig config = settings.starRocks();
+        String prefix = config.schema() + ".";
+        if (!qualifiedTable.startsWith(prefix) ||
+            !qualifiedTable.substring(prefix.length()).matches("[A-Za-z_][A-Za-z0-9_]*") ||
+            !column.matches("[A-Za-z_][A-Za-z0-9_]*")) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "维度字段不在当前 ADS 数据库内");
+        }
+        String table = qualifiedTable.substring(prefix.length());
+        String quote = Character.toString(96);
+        String field = quote + column + quote;
+        String sql = "SELECT DISTINCT " + field + " FROM " +
+                     quote + config.schema() + quote + "." + quote + table + quote +
+                     " WHERE " + field + " IS NOT NULL AND " + field + " <> '' LIMIT 500";
+        List<String> values = new ArrayList<>();
+        try (Connection c = connect(config); PreparedStatement ps = c.prepareStatement(sql)) {
+            ps.setQueryTimeout(8);
+            ps.setMaxRows(500);
+            try (ResultSet rs = ps.executeQuery()) {
+                while (rs.next() && values.size() < 500) {
+                    String value = rs.getString(1);
+                    if (value != null) {
+                        value = value.trim();
+                        if (value.length() >= 2 && value.length() <= 60) values.add(value);
+                    }
+                }
+            }
+        } catch (SQLException e) {
+            // Best effort: semantic lookup must not interrupt normal analytics.
+            org.slf4j.LoggerFactory.getLogger(StarRocksGateway.class)
+                .warn("Dimension lookup unavailable for {}.{}: SQLState={}",
+                    qualifiedTable, column, e.getSQLState());
+        }
+        return values;
+    }
+
     public QueryResult query(String sql) {
         RuntimeConfigService.StarRocksConfig config=settings.starRocks();
         try (Connection c=connect(config);Statement statement=c.createStatement()) {
