@@ -62,12 +62,34 @@ public class EmbeddingSemanticService {
             "dimensions",matrix[0].length);
     }
 
+    static boolean isDashScopeNative(String baseUrl) {
+        try {
+            URI uri=URI.create(baseUrl);
+            String hostname=uri.getHost();
+            String path=uri.getPath();
+            return hostname!=null && (hostname.equals("dashscope.aliyuncs.com")
+                    || hostname.endsWith(".maas.aliyuncs.com"))
+                && path!=null && path.replaceAll("/+$","").endsWith("/api/v1");
+        } catch (Exception ignored) {
+            return false;
+        }
+    }
+
     private double[][] embed(RuntimeConfigService.EmbeddingConfig cfg, List<String> input) {
         if (!cfg.configured()) throw new ResponseStatusException(
             HttpStatus.BAD_REQUEST,"尚未配置 Embedding 模型");
         try {
-            String endpoint=cfg.baseUrl().replaceAll("/+$","")+"/embeddings";
-            String requestBody=mapper.writeValueAsString(Map.of("model",cfg.model(),"input",input));
+            boolean nativeDashScope=isDashScopeNative(cfg.baseUrl());
+            String base=cfg.baseUrl().replaceAll("/+$","");
+            String endpoint=nativeDashScope
+                ? base+"/services/embeddings/text-embedding/text-embedding" : base+"/embeddings";
+            String requestBody=nativeDashScope
+                ? mapper.writeValueAsString(Map.of(
+                    "model",cfg.model(),
+                    "input",Map.of("texts",input),
+                    "parameters",Map.of("dimension",cfg.dimensions(),"output_type","dense")))
+                : mapper.writeValueAsString(Map.of(
+                    "model",cfg.model(),"input",input,"dimensions",cfg.dimensions()));
             HttpRequest.Builder request=HttpRequest.newBuilder(URI.create(endpoint))
                 .timeout(Duration.ofSeconds(30))
                 .header("Content-Type","application/json");
@@ -80,14 +102,19 @@ public class EmbeddingSemanticService {
                 throw new ResponseStatusException(HttpStatus.BAD_GATEWAY,
                     "Embedding 服务返回 HTTP "+reply.statusCode()+"，请检查 URL、Key 或模型名称");
             }
-            JsonNode response=mapper.readTree(reply.body()).path("data");
+            JsonNode result=mapper.readTree(reply.body());
+            JsonNode response=nativeDashScope
+                ? result.path("output").path("embeddings")
+                : result.path("data");
             if (!response.isArray() || response.size()!=input.size())
                 throw new ResponseStatusException(HttpStatus.BAD_GATEWAY,
                     "Embedding 服务未返回对应数量的向量");
             double[][] output=new double[input.size()][];
             for (int n=0;n<response.size();n++) {
                 JsonNode item=response.get(n);
-                int idx=item.has("index") ? item.path("index").asInt(-1) : n;
+                int idx=nativeDashScope
+                    ? item.path("text_index").asInt(-1)
+                    : item.has("index") ? item.path("index").asInt(-1) : n;
                 if (idx<0 || idx>=input.size() || output[idx]!=null)
                     throw new ResponseStatusException(HttpStatus.BAD_GATEWAY,
                         "Embedding 返回的索引无效");
