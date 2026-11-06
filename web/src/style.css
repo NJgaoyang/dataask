@@ -8,3 +8,17 @@
 .drawer,.admin-panel{background:#fff;height:100%;overflow-y:auto;padding:18px}.drawer-header{display:flex;justify-content:space-between;align-items:center;font-size:18px;padding:7px 2px 24px}.drawer-header .van-icon{color:#8c99a9;cursor:pointer}.drawer-new{width:100%;border:1px solid #e4eaf1;background:#f6f9fd;border-radius:10px;padding:13px;text-align:left;color:#42608a}.session-item{display:flex;align-items:center;gap:12px;padding:15px 7px;border-bottom:1px solid #f0f3f6;font-size:13px;color:#46566a;cursor:pointer}.session-item span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.drawer-bottom{position:absolute;bottom:0;left:0;right:0;background:#fff;border-top:1px solid #edf0f5;padding:16px;display:flex;justify-content:space-between;font-size:13px}.drawer-bottom button{background:none;border:0;color:#3270b7}.muted{font-size:12px;color:#96a2b1;line-height:1.7}
 .admin-panel h3{font-size:15px;margin:24px 0 8px}.status-row{display:flex;justify-content:space-between;align-items:center;border-bottom:1px solid #eef1f5;padding:12px 2px;font-size:13px;gap:10px}.status-row strong{color:#2369c8}.status-row small{color:#8995a5}.admin-table{border-bottom:1px solid #e8ecf2}.table-head{display:flex;align-items:center;justify-content:space-between;gap:8px;padding:12px 0}.table-head span{word-break:break-all;font-size:12px;cursor:pointer}.columns-list{background:#f6f8fb;border-radius:8px;padding:7px}.columns-list div{font-size:11px;color:#8893a4;padding:5px;display:flex;gap:7px;flex-wrap:wrap}.columns-list b{color:#34465e}.columns-list span{color:#526d90}
 @media(min-width:680px){.conversation{padding-left:24px;padding-right:24px}.app-shell{border-left:1px solid #e7ebf2;border-right:1px solid #e7ebf2}}
+
+.status-action{width:100%;font:inherit;text-align:left;border:0;border-bottom:1px solid #eef1f5;background:#fff;color:#34475f;cursor:pointer;padding:15px 2px}
+.status-action:hover,.status-action:focus-visible{background:#f6f9fd;outline-color:#b7cff5}
+.status-value{display:inline-flex;align-items:center;gap:9px;max-width:68%;min-width:0}
+.status-value strong{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:13px}
+.status-value .van-icon{color:#95a3b3}
+.config-panel{height:100%;overflow-y:auto;background:#fff;padding:18px 18px max(24px,env(safe-area-inset-bottom))}
+.config-panel .van-cell{padding:13px 4px}
+.config-panel .status-row{padding:13px 3px}
+.config-panel .status-row strong{font-weight:500;color:#45688e}
+.config-note,.config-feedback{font-size:12px;line-height:1.7;color:#7e8b9d;padding:9px 2px;word-break:break-word}
+.config-feedback{background:#f2f6fc;color:#365377;border-radius:9px;padding:12px;margin:12px 0}
+.config-value{font-size:12px;color:#65768d;background:#f5f7fb;border-radius:7px;padding:11px;margin:3px 0 10px;overflow-wrap:anywhere}
+.config-actions{display:flex;flex-direction:column;gap:10px;margin-top:20px}
