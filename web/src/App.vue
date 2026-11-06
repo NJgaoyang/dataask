@@ -28,6 +28,17 @@ const messages = ref([])
 const sessionId = ref('')
 const historyVisible = ref(false)
 const sessions = ref([])
+const sessionSearch = ref('')
+const resultPanelOpen = ref(true)
+const resultTab = ref('overview')
+const visibleSessions = computed(() => {
+  const keyword = sessionSearch.value.trim().toLowerCase()
+  return keyword ? sessions.value.filter(s => s.title.toLowerCase().includes(keyword)) : sessions.value
+})
+const activeSessionTitle = computed(() =>
+  sessions.value.find(s => s.id === sessionId.value)?.title || '新对话')
+const latestAnswer = computed(() =>
+  [...messages.value].reverse().find(m => m.rows?.length || m.unsupported) || null)
 const adminVisible = ref(false)
 const status = ref({})
 const configVisible = ref(false)
@@ -297,7 +308,7 @@ onMounted(() => { if (loggedIn.value) loadSessions() })
 </script>
 
 <template>
-  <div class="app-shell">
+  <div class="app-shell" :class="{ 'desktop-no-result': !resultPanelOpen }">
     <div v-if="!loggedIn" class="login-screen">
       <div class="login-logo">问</div>
       <h1>DataAsk 数问</h1>
@@ -311,12 +322,53 @@ onMounted(() => { if (loggedIn.value) loadSessions() })
       </div>
     </div>
     <template v-else>
+      <aside class="desktop-sidebar" aria-label="历史对话侧边栏">
+        <div class="sidebar-brand">
+          <div class="brand-icon">问</div>
+          <div class="brand-title"><strong>DataAsk 数问</strong><small>企业经营数据助手</small></div>
+        </div>
+        <button class="sidebar-new" type="button" @click="newConversation">
+          <van-icon name="plus" size="15"/> 新建对话
+        </button>
+        <label class="sidebar-search">
+          <van-icon name="search" color="#8997a8"/>
+          <input v-model="sessionSearch" placeholder="搜索历史对话" aria-label="搜索历史对话"/>
+        </label>
+        <div class="sidebar-label">最近的对话</div>
+        <nav class="sidebar-sessions">
+          <button v-for="item in visibleSessions" :key="item.id"
+            class="sidebar-session" :class="{ active: item.id === sessionId }"
+            type="button" @click="openSession(item)" :title="item.title">
+            <van-icon name="chat-o" size="15"/><span>{{ item.title }}</span>
+          </button>
+          <p v-if="!visibleSessions.length" class="sidebar-empty">暂无对话记录</p>
+        </nav>
+        <div class="sidebar-bottom">
+          <button type="button" v-if="isAdmin" @click="openAdmin">
+            <van-icon name="setting-o"/> 系统管理
+          </button>
+          <div class="sidebar-profile">
+            <span class="sidebar-avatar">{{ (me.displayName || me.username || '用').slice(0,1) }}</span>
+            <span class="sidebar-profile-name">{{ me.displayName || me.username }}</span>
+            <button type="button" class="sidebar-logout" @click="logout" title="退出登录">
+              <van-icon name="sign" size="16"/>
+            </button>
+          </div>
+        </div>
+      </aside>
       <header class="topbar">
         <div class="brand">
           <div class="brand-icon">问</div>
-          <div class="brand-title"><strong>数问</strong><small>经营数据助手</small></div>
+          <div class="brand-title"><strong class="mobile-brand">数问</strong>
+            <strong class="desktop-current-session">{{ activeSessionTitle }}</strong>
+            <small>经营数据助手</small></div>
         </div>
         <div class="top-actions">
+          <button class="desktop-toggle-results" type="button"
+            :title="resultPanelOpen ? '隐藏结果面板' : '显示结果面板'"
+            @click="resultPanelOpen = !resultPanelOpen">
+            <van-icon name="apps-o" size="19"/>
+          </button>
           <button title="历史对话" @click="historyVisible = true"><van-icon name="clock-o" size="21"/></button>
           <button v-if="isAdmin" title="管理员" @click="openAdmin"><van-icon name="setting-o" size="21"/></button>
           <button title="新对话" @click="newConversation"><van-icon name="add-o" size="21"/></button>
@@ -337,8 +389,10 @@ onMounted(() => { if (loggedIn.value) loadSessions() })
         <section v-for="msg in messages" :key="msg.id" class="turn">
           <div class="user-bubble">{{ msg.question }}</div>
           <div class="answer-card">
-            <div class="answer-heading"><span class="answer-mark">数</span><b>{{ msg.title }}</b></div>
-            <p class="answer-summary">{{ msg.summary }}</p>
+            <div class="answer-heading"><span class="answer-mark">数</span><b>{{ msg.title }}</b>
+              <span v-if="msg.timeLabel" class="answer-time">{{ msg.timeLabel }}</span>
+            </div>
+            <p class="answer-summary" :class="{ 'unsupported-text': msg.unsupported }">{{ msg.summary }}</p>
             <template v-if="msg.rows?.length">
               <div v-if="msg.chartType === 'metric' && msg.rows.length === 1" class="metric-data">
                 <div v-for="col in msg.columns" :key="col">
@@ -365,6 +419,54 @@ onMounted(() => { if (loggedIn.value) loadSessions() })
         <div v-if="busy" class="loading-bubble"><van-loading size="16px"/> 正在理解问题并查询 ADS 数据...</div>
         <div ref="footerRef" class="end-marker"></div>
       </main>
+      <aside class="desktop-insights" aria-label="数据结果面板">
+        <div class="insights-top">
+          <strong>数据结果</strong>
+          <button type="button" title="收起结果面板" @click="resultPanelOpen = false"><van-icon name="cross"/></button>
+        </div>
+        <div class="insights-tabs">
+          <button type="button" :class="{ active: resultTab === 'overview' }"
+            @click="resultTab='overview'">概览</button>
+          <button type="button" :class="{ active: resultTab === 'table' }"
+            @click="resultTab='table'">数据</button>
+        </div>
+        <div class="insights-content">
+          <div v-if="!latestAnswer" class="insights-empty">
+            <div class="insights-empty-icon"><van-icon name="chart-trending-o" size="23"/></div>
+            <strong>从一个经营问题开始</strong>
+            <p>查询结果会出现在这里，方便在对话时对照查看。</p>
+          </div>
+          <template v-else>
+            <div class="insights-summary">
+              <div class="insights-meta">本轮分析 <span v-if="latestAnswer.timeLabel">· {{ latestAnswer.timeLabel }}</span></div>
+              <h3>{{ latestAnswer.metricLabel || latestAnswer.title }}</h3>
+              <p :class="{ 'unsupported-text': latestAnswer.unsupported }">{{ latestAnswer.summary }}</p>
+            </div>
+            <template v-if="!latestAnswer.unsupported">
+              <template v-if="resultTab === 'overview'">
+                <div v-if="latestAnswer.rows?.length === 1" class="insights-metric-list">
+                  <div v-for="(col, idx) in latestAnswer.columns" :key="col" class="insights-metric">
+                    <small>{{ columnLabel(latestAnswer, col, idx) }}</small>
+                    <strong>{{ pretty(latestAnswer.rows[0][col]) }}</strong>
+                  </div>
+                </div>
+                <AnswerChart v-if="['bar','line','pie'].includes(latestAnswer.chartType) && latestAnswer.rows?.length > 1" :message="latestAnswer"/>
+                <div v-if="latestAnswer.rows?.length > 1" class="insights-mini-summary">
+                  共 {{ latestAnswer.rows.length }} 行结果，点击「数据」查看完整表格
+                </div>
+              </template>
+              <div v-if="resultTab === 'table' && latestAnswer.rows?.length" class="insights-table-wrap">
+                <table class="result-table">
+                  <thead><tr><th v-for="(col, idx) in latestAnswer.columns" :key="col">{{ columnLabel(latestAnswer, col, idx) }}</th></tr></thead>
+                  <tbody><tr v-for="(row, idx) in latestAnswer.rows" :key="idx">
+                    <td v-for="col in latestAnswer.columns" :key="col">{{ pretty(row[col]) }}</td>
+                  </tr></tbody>
+                </table>
+              </div>
+            </template>
+          </template>
+        </div>
+      </aside>
       <footer class="composer">
         <div class="composer-row">
           <textarea v-model="question" rows="1" maxlength="800" placeholder="问问经营数据，例如：昨日营业额"
