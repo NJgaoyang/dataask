@@ -1,0 +1,11 @@
+target/
+web/node_modules/
+web/dist/
+src/main/resources/static/assets/
+.idea/
+*.iml
+*.log
+*.pid
+release/
+.env
+conf/application.yml
