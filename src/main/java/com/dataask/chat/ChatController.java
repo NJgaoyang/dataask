@@ -255,6 +255,10 @@ public class ChatController {
                 content = content.replaceFirst("^\\s*```(?:json)?\\s*", "").replaceFirst("\\s*```\\s*$", "");
             }
             return json.readTree(content);
+        } catch (com.fasterxml.jackson.core.JsonProcessingException ex) {
+            // If the model cannot produce an intelligible structured query plan,
+            // treat the business question as unsupported rather than hallucinating.
+            return json.createObjectNode().put("unsupported",true);
         } catch (Exception e) {
             throw new ResponseStatusException(HttpStatus.BAD_GATEWAY, "AI 服务调用失败，请检查模型配置和接口兼容性");
         }
