@@ -35,3 +35,10 @@ CREATE TABLE IF NOT EXISTS da_messages (
  INDEX idx_da_messages_session (session_id, created_at),
  CONSTRAINT fk_da_msg_session FOREIGN KEY (session_id) REFERENCES da_sessions(id) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+
+CREATE TABLE IF NOT EXISTS da_app_settings (
+  setting_key VARCHAR(100) NOT NULL PRIMARY KEY,
+  setting_value TEXT NOT NULL,
+  updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
