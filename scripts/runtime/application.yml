@@ -1,3 +1,5 @@
+server:
+  port: ${DATAASK_PORT:8087}
 # DataAsk 部署模板，部署后填写真实参数并 chmod 600 conf/application.yml
 spring:
   datasource:
@@ -13,7 +15,9 @@ dataask:
     username: ""
     password: ""
     schema: ads
+  # AI 模型和 Embedding 模型可在系统管理的 Web 页面配置；
+  # 以下仅为未通过 Web 保存时的默认示例，无需在这里填写 Key。
   ai:
-    base-url: ""
+    base-url: "https://api.deepseek.com"
     api-key: ""
-    model: ""
+    model: "deepseek-flash"
