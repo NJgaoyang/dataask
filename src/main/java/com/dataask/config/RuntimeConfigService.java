@@ -93,12 +93,30 @@ public class RuntimeConfigService {
     }
     public StarRocksConfig starRocks() {
         Map<String,String> m=stored();
+        String schema=effective(m,"sr.schema",yamlStarRocks.schema());
         return new StarRocksConfig(
-            effective(m,"sr.jdbcUrl",yamlStarRocks.jdbcUrl()),
+            normalizeStarRocksUrl(effective(m,"sr.jdbcUrl",yamlStarRocks.jdbcUrl()),schema),
             effective(m,"sr.username",yamlStarRocks.username()),
             m.containsKey("sr.password") ? decrypt(m.get("sr.password")) : yamlStarRocks.password(),
-            effective(m,"sr.schema",yamlStarRocks.schema()));
+            schema);
     }
+    public static String normalizeStarRocksUrl(String raw, String schema) {
+        String url=safe(raw);
+        if (!schema.matches("[A-Za-z_][A-Za-z0-9_]{0,63}"))
+            throw invalid("StarRocks 数据库名不正确");
+        if (url.startsWith("jdbc:starrocks://")) {
+            // This project ships MySQL Connector/J, not a StarRocks-specific JDBC driver.
+            // Convert the user's configured FE address to the MySQL wire protocol.
+            String target=url.substring("jdbc:starrocks://".length());
+            if (target.matches("[A-Za-z0-9.\\-]+:[0-9]{1,5}"))
+                return "jdbc:mysql://"+target+"/"+schema;
+            if (target.matches("[A-Za-z0-9.\\-]+:[0-9]{1,5}/[A-Za-z_][A-Za-z0-9_]*"))
+                return "jdbc:mysql://"+target;
+            throw invalid("StarRocks JDBC 地址格式不正确");
+        }
+        return url;
+    }
+
     public AiConfig ai() {
         Map<String,String> m=stored();
         return new AiConfig(effective(m,"ai.baseUrl",yamlAi.baseUrl()),
@@ -192,9 +210,9 @@ public class RuntimeConfigService {
     public StarRocksConfig validateStarRocks(StarRocksInput data) {
         if (data==null) throw invalid("缺少数据源配置");
         StarRocksConfig previous=starRocks();
-        String url=safe(data.jdbcUrl());
         String username=safe(data.username());
         String schema=safe(data.schema());
+        String url=normalizeStarRocksUrl(data.jdbcUrl(),schema);
         String pass=(data.password()==null || data.password().isBlank())
                 ? previous.password() : data.password();
         // Use a simple JDBC URL; untrusted JDBC parameters must not be accepted.
