@@ -22,3 +22,42 @@
 .config-feedback{background:#f2f6fc;color:#365377;border-radius:9px;padding:12px;margin:12px 0}
 .config-value{font-size:12px;color:#65768d;background:#f5f7fb;border-radius:7px;padding:11px;margin:3px 0 10px;overflow-wrap:anywhere}
 .config-actions{display:flex;flex-direction:column;gap:10px;margin-top:20px}
+
+
+/* Keep each answer compact even when an ADS query returns hundreds of rows. */
+.result-table-scroll{max-height:320px;overflow-y:auto;overflow-x:auto;overscroll-behavior:contain;scrollbar-width:thin;scrollbar-color:#b7c6dc #f3f6fa}
+.result-table-scroll:focus-visible{outline:2px solid #60a5fa;outline-offset:2px}
+.result-table{min-width:100%;width:max-content;max-width:none;white-space:nowrap}
+.result-table thead th{position:sticky;top:0;z-index:2;background:#eef4fb;color:#3c5370;box-shadow:0 1px 0 #dce7f5}
+.result-table tbody tr:nth-child(even){background:#fafcff}
+.result-table tbody tr:hover{background:#eef6ff}
+.result-table th,.result-table td{padding:11px 13px}
+.table-foot{margin:8px 2px;color:#8696ab;font-size:11px}
+.chart-view{height:290px;min-height:240px;margin:12px 0 4px;border-radius:12px;background:linear-gradient(145deg,#fbfdff,#f4f8ff);border:1px solid #eaf1fb;padding:6px}
+.metric-data strong{color:#2067c3}
+.metric-admin{padding:12px 0 16px;margin:18px 0 4px;border-top:1px solid #e6edf6;border-bottom:1px solid #e6edf6}
+.metric-section-title h3{margin-top:8px}
+.metric-action-row{display:flex;flex-wrap:wrap;gap:9px;margin:12px 0}
+.file-input-hidden{position:absolute;width:1px;height:1px;overflow:hidden;clip-path:inset(100%);opacity:0}
+.metric-upload-state{display:flex;align-items:center;gap:9px;color:#60758f;padding:14px 4px;font-size:12px}
+.metric-error{padding:10px 12px;border:1px solid #f4cbc7;border-radius:8px;color:#af3d36;background:#fff4f3;font-size:12px}
+.metric-preview{background:#f7f9fc;border:1px solid #e0e8f1;border-radius:12px;padding:13px;margin:13px 0}
+.metric-preview-heading{display:flex;justify-content:space-between;gap:10px;flex-wrap:wrap;font-size:13px}
+.metric-preview-heading b{word-break:break-all}
+.metric-preview-heading span{color:#3676ca;font-size:12px}
+.metric-note{font-size:11px;color:#7788a1;line-height:1.5}
+.metric-preview-table{overflow:auto;max-height:230px;border:1px solid #e4eaf3;background:#fff;border-radius:8px;margin:10px 0 15px}
+.metric-preview-table table{width:100%;min-width:480px;border-collapse:collapse;font-size:12px}
+.metric-preview-table th{position:sticky;top:0;background:#edf4ff;color:#46617e;text-align:left}
+.metric-preview-table td,.metric-preview-table th{padding:9px 10px;border-bottom:1px solid #eff2f7;max-width:300px;vertical-align:top}
+.metric-preview-table td{overflow-wrap:anywhere}
+.metric-batches h4,.metric-definition-list h4{margin:15px 0 7px;color:#3d516b;font-size:13px}
+.metric-batch{display:flex;align-items:center;justify-content:space-between;gap:12px;border-bottom:1px solid #edf1f6;padding:11px 3px}
+.metric-batch-details{display:flex;flex-direction:column;gap:4px;min-width:0}
+.metric-batch-details b{font-size:12px;color:#354a63;overflow-wrap:anywhere}
+.metric-batch-details small{font-size:11px;color:#91a0ae}
+.metric-delete{flex-shrink:0;border:0;background:transparent;color:#ad6970;padding:6px;border-radius:7px}
+.metric-delete:hover{background:#fff1f1}
+.metric-definition-item{border-bottom:1px solid #edf1f6;padding:9px 3px}
+.metric-definition-item strong{font-size:12px;color:#38516c}
+.metric-definition-item p{margin:4px 0;font-size:11px;color:#75869c;line-height:1.6}
