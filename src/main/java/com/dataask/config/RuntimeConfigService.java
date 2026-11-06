@@ -75,8 +75,10 @@ public class RuntimeConfigService {
 
     private Map<String,String> stored() {
         Map<String,String> values = new HashMap<>();
-        jdbc.query("SELECT setting_key, setting_value FROM da_app_settings", rs ->
-            values.put(rs.getString(1),rs.getString(2)));
+        jdbc.query("SELECT setting_key, setting_value FROM da_app_settings",
+            (org.springframework.jdbc.core.RowCallbackHandler) rs -> {
+                values.put(rs.getString(1),rs.getString(2));
+            });
         return values;
     }
 
