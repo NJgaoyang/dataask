@@ -29,7 +29,13 @@ public class RuntimeConfigService {
         }
     }
     public record StarRocksInput(String jdbcUrl, String username, String password, String schema) {}
-    public record AiInput(String baseUrl, String model) {}
+    public record ModelInput(String baseUrl, String model, String apiKey, boolean clearKey) {}
+    public record EmbeddingInput(String baseUrl, String model, String apiKey, boolean clearKey,
+                                 boolean enabled, int dimensions) {}
+    public record EmbeddingConfig(String baseUrl, String apiKey, String model,
+                                  boolean enabled, int dimensions) {
+        public boolean configured() { return enabled && !baseUrl.isBlank() && !model.isBlank(); }
+    }
 
     private final JdbcTemplate jdbc;
     private final StarRocksConfig yamlStarRocks;
@@ -94,9 +100,93 @@ public class RuntimeConfigService {
             effective(m,"sr.schema",yamlStarRocks.schema()));
     }
     public AiConfig ai() {
-        // All AI settings are owned by application.yml / environment variables.
-        // Do not override them with values previously stored in MySQL.
-        return yamlAi;
+        Map<String,String> m=stored();
+        return new AiConfig(effective(m,"ai.baseUrl",yamlAi.baseUrl()),
+            m.containsKey("ai.apiKey") ? decrypt(m.get("ai.apiKey")) : yamlAi.apiKey(),
+            effective(m,"ai.model",yamlAi.model()));
+    }
+
+    public EmbeddingConfig embedding() {
+        Map<String,String> m=stored();
+        return new EmbeddingConfig(
+            m.getOrDefault("embedding.baseUrl",""),
+            m.containsKey("embedding.apiKey") ? decrypt(m.get("embedding.apiKey")) : "",
+            m.getOrDefault("embedding.model",""),
+            Boolean.parseBoolean(m.getOrDefault("embedding.enabled","false")),
+            parseDimensions(m.get("embedding.dimensions")));
+    }
+
+    private static int parseDimensions(String text) {
+        try {
+            int dimension=Integer.parseInt(text);
+            return dimension >= 64 && dimension <= 4096 ? dimension : 1024;
+        } catch (Exception ignored) { return 1024; }
+    }
+
+    private static String validateModelUrl(String raw) {
+        String url=safe(raw).replaceAll("/+$","");
+        if (url.length()>500) throw invalid("模型 Base URL 过长");
+        try {
+            java.net.URI parsed=java.net.URI.create(url);
+            if (!(parsed.getScheme().equalsIgnoreCase("http") || parsed.getScheme().equalsIgnoreCase("https")) ||
+                parsed.getHost()==null || parsed.getUserInfo()!=null || parsed.getFragment()!=null ||
+                parsed.getRawQuery()!=null) throw invalid("模型地址必须是 HTTP(S) Base URL");
+            return url;
+        } catch (Exception ex) {
+            throw invalid("模型 Base URL 格式不正确");
+        }
+    }
+
+    private static String validateModelName(String text) {
+        String name=safe(text);
+        if (name.isBlank() || name.length()>180 || name.contains("\n") || name.contains("\r"))
+            throw invalid("请输入有效的模型名称");
+        return name;
+    }
+
+    public AiConfig candidateAi(ModelInput input) {
+        if (input==null) throw invalid("模型配置不能为空");
+        AiConfig current=ai();
+        String key=input.clearKey() ? "" :
+            (input.apiKey()==null || input.apiKey().isBlank() ? current.apiKey() : input.apiKey().trim());
+        if (key.length()>4096) throw invalid("API Key 过长");
+        return new AiConfig(validateModelUrl(input.baseUrl()),key,validateModelName(input.model()));
+    }
+
+    public EmbeddingConfig candidateEmbedding(EmbeddingInput input) {
+        if (input==null) throw invalid("Embedding 配置不能为空");
+        EmbeddingConfig current=embedding();
+        String key=input.clearKey() ? "" :
+            (input.apiKey()==null || input.apiKey().isBlank() ? current.apiKey() : input.apiKey().trim());
+        if (key.length()>4096) throw invalid("API Key 过长");
+        if (!input.enabled()) {
+            return new EmbeddingConfig(safe(input.baseUrl()),key,safe(input.model()),false,
+                input.dimensions()>0 ? input.dimensions() : 1024);
+        }
+        int dimension=input.dimensions();
+        if (dimension<64 || dimension>4096) throw invalid("向量维度必须介于 64 和 4096");
+        return new EmbeddingConfig(validateModelUrl(input.baseUrl()),key,
+            validateModelName(input.model()),true,dimension);
+    }
+
+    @Transactional
+    public void saveAi(ModelInput input) {
+        AiConfig config=candidateAi(input);
+        upsert("ai.baseUrl",config.baseUrl());
+        upsert("ai.model",config.model());
+        if (input.clearKey() || (input.apiKey()!=null && !input.apiKey().isBlank()))
+            upsert("ai.apiKey",encrypt(config.apiKey()));
+    }
+
+    @Transactional
+    public void saveEmbedding(EmbeddingInput input) {
+        EmbeddingConfig config=candidateEmbedding(input);
+        upsert("embedding.baseUrl",config.baseUrl());
+        upsert("embedding.model",config.model());
+        upsert("embedding.enabled",Boolean.toString(config.enabled()));
+        upsert("embedding.dimensions",Integer.toString(config.dimensions()));
+        if (input.clearKey() || (input.apiKey()!=null && !input.apiKey().isBlank()))
+            upsert("embedding.apiKey",encrypt(config.apiKey()));
     }
 
     public StarRocksConfig validateStarRocks(StarRocksInput data) {
@@ -135,20 +225,29 @@ public class RuntimeConfigService {
     public Map<String,Object> adminView() {
         StarRocksConfig sr=starRocks();
         AiConfig ai=ai();
+        EmbeddingConfig embedding=embedding();
         return Map.of(
             "starrocks", Map.of("jdbcUrl",sr.jdbcUrl(),"username",sr.username(),
                 "schema",sr.schema(),"passwordSet",!sr.password().isBlank()),
             "ai", Map.of("baseUrl",ai.baseUrl(),"model",ai.model(),
-                "apiKeySet",!ai.apiKey().isBlank()));
+                "apiKeySet",!ai.apiKey().isBlank()),
+            "embedding", Map.of("baseUrl",embedding.baseUrl(),"model",embedding.model(),
+                "apiKeySet",!embedding.apiKey().isBlank(),
+                "enabled",embedding.enabled(),"dimensions",embedding.dimensions()));
     }
     public Map<String,Object> status() {
         StarRocksConfig sr=starRocks();
         AiConfig ai=ai();
-        return Map.of("starrocksConfigured",sr.configured(),"schema",sr.schema(),
-            "aiConfigured",ai.configured(),"model",ai.model(),
-            "aiKeyConfigured",!ai.apiKey().isBlank(),
-            "aiUrlConfigured",!ai.baseUrl().isBlank(),
-            "aiModelConfigured",!ai.model().isBlank());
+        EmbeddingConfig embedding=embedding();
+        return Map.ofEntries(
+            Map.entry("starrocksConfigured",sr.configured()),Map.entry("schema",sr.schema()),
+            Map.entry("aiConfigured",ai.configured()),Map.entry("model",ai.model()),
+            Map.entry("aiKeyConfigured",!ai.apiKey().isBlank()),
+            Map.entry("aiUrlConfigured",!ai.baseUrl().isBlank()),
+            Map.entry("aiModelConfigured",!ai.model().isBlank()),
+            Map.entry("embeddingConfigured",embedding.configured()),
+            Map.entry("embeddingEnabled",embedding.enabled()),
+            Map.entry("embeddingModel",embedding.model()));
     }
     private String encrypt(String plain) {
         try {
