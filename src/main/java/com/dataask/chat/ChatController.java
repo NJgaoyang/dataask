@@ -3,6 +3,7 @@ package com.dataask.chat;
 import com.dataask.config.RuntimeConfigService;
 import com.dataask.data.SqlGuard;
 import com.dataask.data.StarRocksGateway;
+import com.dataask.semantic.EntityValueResolver;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import jakarta.validation.Valid;
@@ -28,11 +29,13 @@ public class ChatController {
     private final ObjectMapper json;
     private final RestClient http;
     private final RuntimeConfigService settings;
+    private final EntityValueResolver entities;
 
     public ChatController(JdbcTemplate jdbc, StarRocksGateway starrocks, SqlGuard guard,
-            ObjectMapper json, RuntimeConfigService settings) {
+            ObjectMapper json, RuntimeConfigService settings, EntityValueResolver entities) {
         this.jdbc = jdbc; this.starrocks = starrocks; this.guard = guard; this.json = json;
         this.settings = settings;
+        this.entities = entities;
         this.http = RestClient.builder().build();
     }
 
@@ -109,6 +112,8 @@ public class ChatController {
         if (metadata.isEmpty())
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "已开放的 ADS 表不存在或无权读取表结构");
 
+        List<EntityValueResolver.Match> cityMatches = entities.resolve(question, allowed, discovered);
+        String cityHints = entities.hints(cityMatches);
         LocalDate today = LocalDate.now(ZoneId.of("Asia/Shanghai"));
         String instruction = """
             你是企业经营数据 SQL 分析助手。必须基于给定 ADS 元数据的真实表名、字段名和注释分析，绝不能猜测不存在的列。
@@ -119,10 +124,13 @@ public class ChatController {
             SQL 必须是 StarRocks/MySQL 兼容方言，只能查询允许表，不能使用注释、分号、信息模式、写操作。
             必须使用完整 adsSchema.tableName 表名，日期使用绝对值而不是 CURRENT_DATE/NOW。
             不要跨业务粒度错误 SUM 已聚合的比率或重复明细。没有数据时也不能编造值。
+            用户提到的城市简称必须与系统提供的实际 ADS 城市维度值对齐：例如西安应使用字段中真实存在的西安市。
+            如果系统没有提供已验证的实体映射，不要自行发明城市值；需要时先说明不确定性。
             用户问同比/环比时，只对 SQL 实际计算到的数据做比较。不要推测不存在的业务因果。
             """.replace("adsSchema", starrocks.schema());
         String full = "当前业务时区 Asia/Shanghai；今天=" + today + "；昨天=" + today.minusDays(1) +
-            "。\n允许使用的表及字段如下：" + metadata + "\n" + previous + "\n用户问题：" + question;
+            "。\n允许使用的表及字段如下：" + metadata + cityHints +
+            "\n" + previous + "\n用户问题：" + question;
         JsonNode plan = plan(instruction, full);
         String clarification = plan.path("clarification").asText("").trim();
         String sql = "";
@@ -138,12 +146,19 @@ public class ChatController {
             summary = clarification;
             chart = "table";
         } else {
-            sql = guard.validate(plan.path("sql").asText(""), allowed, starrocks.schema());
+            sql = guard.validate(
+                entities.normalizeCityEquality(plan.path("sql").asText(""), cityMatches),
+                allowed, starrocks.schema());
             if (!Set.of("metric","table","bar","line","pie").contains(chart)) chart = "table";
             StarRocksGateway.QueryResult data = starrocks.query(sql);
             columns = data.columns();
             rows = data.rows();
             summary = summarize(rows, columns);
+            for (EntityValueResolver.Match match : cityMatches) {
+                if (!match.alias().equals(match.canonical()) && sql.contains(match.canonical())) {
+                    summary += "（已识别“" + match.alias() + "”为“" + match.canonical() + "”）";
+                }
+            }
             followups = List.of("按城市看", "按门店看", "查看近7天趋势");
         }
 
