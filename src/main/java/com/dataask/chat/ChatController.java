@@ -179,6 +179,7 @@ public class ChatController {
             columns = data.columns();
             columnLabels = labels.labels(columns, plan.path("columnLabels"), allowed, discovered);
             rows = data.rows();
+            chart = inferChartType(chart, columns, rows);
             summary = summarize(rows, columns);
             for (EntityValueResolver.Match match : cityMatches) {
                 if (!match.alias().equals(match.canonical()) && sql.contains(match.canonical())) {
@@ -222,6 +223,20 @@ public class ChatController {
         } catch (Exception e) {
             throw new ResponseStatusException(HttpStatus.BAD_GATEWAY, "AI 服务调用失败，请检查模型配置和接口兼容性");
         }
+    }
+
+    private String inferChartType(String requested, List<String> columns, List<Map<String,Object>> rows) {
+        if (!"table".equals(requested) || columns.size()!=2 || rows.size()<2) return requested;
+        String dimension=columns.getFirst(), metric=columns.get(1);
+        boolean numeric=rows.stream().anyMatch(row -> {
+            Object val=row.get(metric);
+            if (val==null) return false;
+            try { Double.parseDouble(val.toString()); return true; }
+            catch(NumberFormatException e) { return false; }
+        });
+        if (!numeric) return requested;
+        if (dimension.matches("(?i).*(dt|date|month|day|日期|月份|时间).*")) return "line";
+        return "bar";
     }
 
     private String summarize(List<Map<String,Object>> rows, List<String> columns) {
