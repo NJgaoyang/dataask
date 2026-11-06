@@ -197,7 +197,12 @@ public class EmbeddingSemanticService {
                 (org.springframework.jdbc.core.RowCallbackHandler) rs -> {
                     String type=rs.getString(1),source=rs.getString(2),content=rs.getString(3);
                     if ("ADS_TABLE".equals(type) && !allowedTables.contains(source)) return;
-                    JsonNode values=mapper.readTree(rs.getString(4));
+                    JsonNode values;
+                    try {
+                        values=mapper.readTree(rs.getString(4));
+                    } catch (com.fasterxml.jackson.core.JsonProcessingException ex) {
+                        return;
+                    }
                     if (!values.isArray() || values.size()!=query.length) return;
                     double dot=0, norm1=0, norm2=0;
                     for(int i=0;i<query.length;i++) {
