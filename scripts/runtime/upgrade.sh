@@ -1,9 +1,9 @@
 #!/usr/bin/env bash
 set -euo pipefail
-ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+ROOT="${2:-$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)}"
 ARCHIVE="${1:-}"
 if [ -z "$ARCHIVE" ] || [ ! -f "$ARCHIVE" ]; then
-  echo "用法: bash bin/upgrade.sh /path/to/dataask-0.1.0.tar.gz"
+  echo "用法: bash bin/upgrade.sh /path/to/dataask-0.1.0.tar.gz [现有安装目录]"
   exit 1
 fi
 if [ ! -f "$ROOT/conf/application.yml" ]; then
@@ -23,13 +23,17 @@ if [ ! -s "$NEW_JAR" ]; then
   exit 1
 fi
 echo "准备升级 DataAsk，仅替换 JAR 和脚本，保留 conf/application.yml、密钥和 MySQL"
-bash "$ROOT/bin/stop.sh"
-sleep 2
 PID_FILE="$ROOT/logs/dataask.pid"
-if [ -f "$PID_FILE" ]; then
-  PID="$(cat "$PID_FILE")"
-  if kill -0 "$PID" 2>/dev/null; then
-    echo "旧进程仍在运行，拒绝替换程序，请先检查 PID=$PID"
+OLD_PID=""
+if [ -f "$PID_FILE" ]; then OLD_PID="$(cat "$PID_FILE")"; fi
+bash "$ROOT/bin/stop.sh"
+if [ -n "$OLD_PID" ]; then
+  for i in $(seq 1 20); do
+    if ! kill -0 "$OLD_PID" 2>/dev/null; then break; fi
+    sleep 1
+  done
+  if kill -0 "$OLD_PID" 2>/dev/null; then
+    echo "旧进程仍在运行，拒绝替换程序，请检查 PID=$OLD_PID"
     exit 1
   fi
 fi
