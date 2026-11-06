@@ -2,6 +2,7 @@ package com.dataask.admin;
 
 import com.dataask.config.RuntimeConfigService;
 import com.dataask.data.StarRocksGateway;
+import com.dataask.semantic.JoinRuleService;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotBlank;
@@ -28,11 +29,14 @@ public class AdminController {
     private final JdbcTemplate jdbc;
     private final PasswordEncoder encoder;
     private final ObjectMapper json;
+    private final JoinRuleService joinRules;
 
     public AdminController(StarRocksGateway starrocks, RuntimeConfigService settings,
-            JdbcTemplate jdbc, PasswordEncoder encoder, ObjectMapper json) {
+            JdbcTemplate jdbc, PasswordEncoder encoder, ObjectMapper json,
+            JoinRuleService joinRules) {
         this.starrocks=starrocks; this.settings=settings;
         this.jdbc=jdbc; this.encoder=encoder; this.json=json;
+        this.joinRules=joinRules;
     }
 
     @GetMapping("/status")
@@ -92,6 +96,26 @@ public class AdminController {
             throw new ResponseStatusException(HttpStatus.BAD_GATEWAY,
                 "AI 模型连接失败，请检查地址、网络和模型配置");
         }
+    }
+
+    @GetMapping("/join-rules")
+    List<JoinRuleService.Rule> listJoinRules() {
+        return joinRules.all();
+    }
+
+    @PostMapping("/join-rules")
+    Map<String,Object> createJoinRule(@RequestBody JoinRuleService.JoinInput input) {
+        Set<String> allowed = new HashSet<>(jdbc.query(
+            "SELECT table_name FROM da_allowed_tables WHERE enabled=1",
+            (rs,n)->rs.getString(1)));
+        long id = joinRules.create(input, allowed);
+        return Map.of("success", true, "id", id);
+    }
+
+    @DeleteMapping("/join-rules/{id}")
+    Map<String,Object> deleteJoinRule(@PathVariable long id) {
+        joinRules.delete(id);
+        return Map.of("success",true);
     }
 
     @GetMapping("/tables")
