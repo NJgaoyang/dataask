@@ -6,6 +6,7 @@ import com.dataask.data.StarRocksGateway;
 import com.dataask.semantic.EntityValueResolver;
 import com.dataask.semantic.JoinRuleService;
 import com.dataask.semantic.JoinSafetyGuard;
+import com.dataask.semantic.EmbeddingSemanticService;
 import com.dataask.metrics.MetricDictionaryService;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -38,12 +39,13 @@ public class ChatController {
     private final JoinRuleService joinRules;
     private final JoinSafetyGuard joinGuard;
     private final QuestionPresentationService presentation;
+    private final EmbeddingSemanticService embeddings;
 
     public ChatController(JdbcTemplate jdbc, StarRocksGateway starrocks, SqlGuard guard,
             ObjectMapper json, RuntimeConfigService settings, EntityValueResolver entities,
             MetricDictionaryService metricDictionary, ColumnLabelService labels,
             JoinRuleService joinRules, JoinSafetyGuard joinGuard,
-            QuestionPresentationService presentation) {
+            QuestionPresentationService presentation, EmbeddingSemanticService embeddings) {
         this.jdbc = jdbc; this.starrocks = starrocks; this.guard = guard; this.json = json;
         this.settings = settings;
         this.entities = entities;
@@ -52,6 +54,7 @@ public class ChatController {
         this.joinRules = joinRules;
         this.joinGuard = joinGuard;
         this.presentation = presentation;
+        this.embeddings = embeddings;
         this.http = RestClient.builder().build();
     }
 
@@ -135,6 +138,7 @@ public class ChatController {
         String cityHints = entities.hints(cityMatches);
         String metricHints = metricDictionary.promptForQuestion(question, allowed);
         String joinHints = joinRules.hints(allowed);
+        String semanticHints = embeddings.hints(question, allowed);
         LocalDate today = LocalDate.now(ZoneId.of("Asia/Shanghai"));
         String instruction = """
             你是企业经营数据 SQL 分析助手。必须基于给定 ADS 元数据的真实表名、字段名和注释分析，绝不能猜测不存在的列。
@@ -162,7 +166,7 @@ public class ChatController {
             对于多张聚合表，优先只查询满足业务问题的一张表；必要时才跨表，并避免聚合后相乘造成重复计算。
             """.replace("adsSchema", starrocks.schema());
         String full = "当前业务时区 Asia/Shanghai；今天=" + today + "；昨天=" + today.minusDays(1) +
-            "。\n允许使用的表及字段如下：" + metadata + metricHints + joinHints + cityHints +
+            "。\n允许使用的表及字段如下：" + metadata + metricHints + semanticHints + joinHints + cityHints +
             "\n" + previous + "\n用户问题：" + question;
         JsonNode plan = plan(instruction, full);
         QuestionPresentationService.Presentation shown =
