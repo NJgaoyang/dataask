@@ -14,7 +14,7 @@ class SqlGuardTest {
         assertThat(guard.validate(sql, allowed, "ads")).isEqualTo(sql);
     }
     @Test void rejectsWrite() {
-        assertThatThrownBy(() -> guard.validate("DELETE FROM ads.revenue_city_di", allowed))
+        assertThatThrownBy(() -> guard.validate("DELETE FROM ads.revenue_city_di", allowed, "ads"))
             .isInstanceOf(ResponseStatusException.class);
     }
     @Test void rejectsUnapproved() {
