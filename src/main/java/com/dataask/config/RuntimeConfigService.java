@@ -109,9 +109,9 @@ public class RuntimeConfigService {
     public EmbeddingConfig embedding() {
         Map<String,String> m=stored();
         return new EmbeddingConfig(
-            m.getOrDefault("embedding.baseUrl",""),
+            m.getOrDefault("embedding.baseUrl","https://dashscope.aliyuncs.com/api/v1"),
             m.containsKey("embedding.apiKey") ? decrypt(m.get("embedding.apiKey")) : "",
-            m.getOrDefault("embedding.model",""),
+            m.getOrDefault("embedding.model","qwen3.7-text-embedding-flash"),
             Boolean.parseBoolean(m.getOrDefault("embedding.enabled","false")),
             parseDimensions(m.get("embedding.dimensions")));
     }
