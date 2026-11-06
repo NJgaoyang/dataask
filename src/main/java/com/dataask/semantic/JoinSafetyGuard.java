@@ -27,7 +27,11 @@ public class JoinSafetyGuard {
             for (String name : new TablesNamesFinder().getTables(statement)) {
                 tables.add(normalizeTable(name, defaultSchema));
             }
-            if (tables.size() <= 1) return;
+            if (tables.size() <= 1) {
+                if (select.getSelectBody() instanceof PlainSelect single &&
+                    single.getJoins()!=null && !single.getJoins().isEmpty()) throw invalid();
+                return;
+            }
 
             // Multi-table SQL is permitted only for SELECT...JOIN with exact approved ON keys.
             if (!(select.getSelectBody() instanceof PlainSelect plain) || plain.getJoins()==null ||
