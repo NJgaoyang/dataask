@@ -65,6 +65,13 @@ public class QuestionPresentationService {
             if (candidate.length() >= 2 && candidate.length() <= 16 &&
                     !candidate.matches(".*(?:城市|门店|日期|月份)$")) return candidate;
         }
+        // A bare request like “总金额” or “查询总金额” is itself the metric,
+        // even if the model proposes a different physical field label.
+        String bare = PERIOD.matcher(text).replaceAll("");
+        bare = bare.replaceAll("^(?:的|关于|请问|想知道|我想了解)", "").trim();
+        if (bare.length() >= 2 && bare.length() <= 12 &&
+            !bare.contains("的") && !bare.matches(".*(?:城市|门店|日期|月份|排行榜)$") &&
+            !bare.matches(".*(?:有哪些|怎么|如何).*")) return bare;
         return "";
     }
 
