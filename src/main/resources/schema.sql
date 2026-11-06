@@ -87,3 +87,17 @@ CREATE TABLE IF NOT EXISTS da_ads_join_rules (
   INDEX idx_da_join_left (left_table),
   INDEX idx_da_join_right (right_table)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+-- Optional semantic vector index, built on-demand from authorized ADS metadata and metric definitions.
+-- No business data rows are copied into this table.
+CREATE TABLE IF NOT EXISTS da_semantic_vectors (
+  id BIGINT NOT NULL AUTO_INCREMENT PRIMARY KEY,
+  source_type VARCHAR(32) NOT NULL,
+  source_key VARCHAR(255) NOT NULL,
+  content TEXT NOT NULL,
+  vector_json LONGTEXT NOT NULL,
+  model_name VARCHAR(180) NOT NULL,
+  created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  INDEX idx_da_semantic_type (source_type),
+  INDEX idx_da_semantic_model (model_name)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
