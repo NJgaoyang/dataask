@@ -42,3 +42,32 @@ CREATE TABLE IF NOT EXISTS da_app_settings (
   setting_value TEXT NOT NULL,
   updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+-- Each upload is a versioned import, allowing admins to remove a bad workbook later.
+CREATE TABLE IF NOT EXISTS da_metric_import_batches (
+  id VARCHAR(36) PRIMARY KEY,
+  source_file VARCHAR(255) NOT NULL,
+  uploaded_by VARCHAR(64) NOT NULL,
+  row_count INT NOT NULL,
+  created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  INDEX idx_da_metric_batch_created (created_at)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+CREATE TABLE IF NOT EXISTS da_metric_definitions (
+  id BIGINT NOT NULL AUTO_INCREMENT PRIMARY KEY,
+  batch_id VARCHAR(36) NOT NULL,
+  metric_name VARCHAR(150) NOT NULL,
+  aliases VARCHAR(500) NOT NULL DEFAULT '',
+  definition TEXT NOT NULL,
+  ads_table VARCHAR(255) NOT NULL DEFAULT '',
+  ads_field VARCHAR(255) NOT NULL DEFAULT '',
+  time_field VARCHAR(128) NOT NULL DEFAULT '',
+  dimensions VARCHAR(500) NOT NULL DEFAULT '',
+  notes TEXT NOT NULL,
+  sheet_name VARCHAR(128) NOT NULL,
+  excel_row INT NOT NULL,
+  INDEX idx_da_metric_name (metric_name),
+  INDEX idx_da_metric_batch (batch_id),
+  CONSTRAINT fk_da_metric_batch FOREIGN KEY(batch_id)
+    REFERENCES da_metric_import_batches(id) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
