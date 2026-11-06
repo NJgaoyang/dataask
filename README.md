@@ -132,9 +132,9 @@ ss -lntp | grep ':8080'
 如果使用的是之前打包的 TAR，修改仓库中的启动脚本不会自动更新旧 TAR；需要重新运行 `bash scripts/package.sh` 并部署新包。也可以直接按照上面步骤配置 JWT 密钥后重启，无需重新打包。
 
 
-## 模型状态显示“未配置”，但 application.yml 已经填写了 Key / Base URL
+## 旧版模型配置故障排查（历史说明；新版已支持 Web 配置）
 
-- 系统管理的“AI 模型”行可以点击，进入“AI 模型配置检查”。它只读取当前运行的服务配置，不修改 Key、不将 Key 发给浏览器。
+- 系统管理的“AI 模型”行可以点击，进入“AI 模型配置检查”。新版本可在 Web 中配置并保存 Key、Base URL 和模型名，旧版本只能读取运行中服务的配置文件。
 - 完整可用状态需要 `dataask.ai.api-key`、`dataask.ai.base-url` 和 `dataask.ai.model` **三项同时存在**；只配置前两项，会显示“检查模型名称”。
 - Linux TAR 部署优先读取解压目录 `conf/application.yml`。这个外部文件中的空值也会覆盖 JAR 自带 `application.yml` 的非空值，因此要检查**实际运行目录**的配置，而不只是 Git 仓库源码里的文件。
 - 若使用 `${DATAASK_AI_API_KEY:}`、`${DATAASK_AI_BASE_URL:}` 等占位符，必须给启动进程设置相应环境变量。
@@ -188,7 +188,7 @@ ECharts 已调整为多色图例、横向排行条、渐变趋势图、环形图
     git pull origin main
     bash scripts/package.sh
 
-升级时保留原有部署目录的 conf/application.yml、JWT 密钥和 MySQL 数据库，停止旧服务并替换新版 JAR；首次运行 schema.sql 将以 CREATE TABLE IF NOT EXISTS 新增指标和关联规则表，无需清空已有数据。AI 的 API Key、Base URL、model 继续从部署机 application.yml 读取。
+升级时保留原有部署目录的 conf/application.yml、JWT 密钥和 MySQL 数据库，停止旧服务并替换新版 JAR；首次运行 schema.sql 将以 CREATE TABLE IF NOT EXISTS 新增指标和关联规则表，无需清空已有数据。新版本优先读取 Web 管理页面保存的模型配置；原 application.yml 保留为对话模型的兼容默认值。
 
 这仍是 MVP：上线供领导使用前需要验证实际 ADS 数据、指标口径、用户行级权限及关联键唯一性。
 
@@ -222,3 +222,43 @@ ECharts 已调整为多色图例、横向排行条、渐变趋势图、环形图
     bash scripts/package.sh
 
 部署更新时必须保留原来的 conf/application.yml、JWT 密钥和 MySQL 数据，不要用空白配置模板覆盖真实密钥。
+
+
+## 最新：Web 模型管理、Embedding 语义索引与 PC 新版可见性
+
+### 一、模型密钥全部在 Web 配置
+
+管理员打开 **系统管理**，分别点击 **对话模型** 和 **Embedding 模型**。
+
+- 对话模型：Base URL、模型名称、API Key 可以直接在网页填写、测试、保存，立即生效。
+- Embedding：可启用模型、填写 Base URL、模型名称、API Key（本地免密可留空）和向量维度；建议先用 Qwen3-Embedding-0.6B（常见 1024 维）。
+- Embedding 保存后必须点击 **重建语义索引** 才开始参与问数；当前最多索引 120 条已授权 ADS 表元数据与 Excel 指标描述，每批 20 条。
+- 语义检索失败时，问数仍使用 ADS 字段注释及 Excel 指标定义回退；不会把向量结果当作业务口径的唯一真相。
+- Key 由后端加密存储到 MySQL 8，前端保存后不再明文回显。原 JWT 加密密钥需要长期保留，否则旧的数据源密钥和模型密钥无法解密。
+
+### 二、为什么 PC 没看到新布局
+
+前端静态资源打包在 Spring Boot JAR 里。只执行 git pull 不会更换服务器上运行的 JAR。
+
+新版桌面浏览器视口宽度 >= 1024px 时，会显示左侧历史会话、中间 AI 对话、右侧数据结果三栏；手机、小程序和钉钉 H5 保持单栏。
+
+在源码目录执行：
+
+    git pull origin main
+    bash scripts/package.sh
+
+假设现有安装目录为 /opt/dataask（请换成你的真实路径），建议执行：
+
+    bash scripts/runtime/upgrade.sh "$PWD/release/dataask-0.1.0.tar.gz" /opt/dataask
+
+升级脚本仅替换旧安装目录的 JAR 与启停脚本，保留原 conf/application.yml、JWT 密钥与 MySQL 数据库。服务启动后检查：
+
+    curl -s http://127.0.0.1:8080/build-info.json
+
+新版本应该返回 buildSha、builtAt、uiLayout 为 desktop-three-pane、modelManagement 为 web 的 JSON，并在 PC 左侧底部显示构建号。返回 404 说明运行的可能是旧 JAR 或访问了错误的服务器。
+
+浏览器可尝试 Ctrl+Shift+R，或用无痕窗口排除旧缓存；新版本已为 HTML 和构建信息添加无缓存响应头。
+
+### 三、验收边界
+
+这次提交已由 GitHub CI 检查，但还没有在你的实际服务器和真实 StarRocks 中进行连通性、浏览器和微信/钉钉实机验证。企业免登、行级数据权限和指标口径对账仍需独立验收。
