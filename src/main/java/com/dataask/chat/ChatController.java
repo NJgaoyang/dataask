@@ -254,7 +254,8 @@ public class ChatController {
             if (content.startsWith("```")) {
                 content = content.replaceFirst("^\\s*```(?:json)?\\s*", "").replaceFirst("\\s*```\\s*$", "");
             }
-            return json.readTree(content);
+            JsonNode parsed = json.readTree(content);
+            return parsed == null ? json.createObjectNode().put("unsupported",true) : parsed;
         } catch (com.fasterxml.jackson.core.JsonProcessingException ex) {
             // If the model cannot produce an intelligible structured query plan,
             // treat the business question as unsupported rather than hallucinating.
