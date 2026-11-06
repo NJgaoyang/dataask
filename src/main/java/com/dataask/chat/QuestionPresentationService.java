@@ -94,8 +94,9 @@ public class QuestionPresentationService {
             if (numeric.size() == 1) chosen = numeric.getFirst();
             else return out;
         }
-        if (rows.stream().anyMatch(row -> isNumeric(row.get(chosen)))) {
-            out.put(chosen, presentation.metricLabel());
+        String finalColumn = chosen;
+        if (rows.stream().anyMatch(row -> isNumeric(row.get(finalColumn)))) {
+            out.put(finalColumn, presentation.metricLabel());
         }
         return out;
     }
