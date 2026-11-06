@@ -3,6 +3,7 @@ package com.dataask.admin;
 import com.dataask.config.RuntimeConfigService;
 import com.dataask.data.StarRocksGateway;
 import com.dataask.semantic.JoinRuleService;
+import com.dataask.semantic.EmbeddingSemanticService;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotBlank;
@@ -30,13 +31,15 @@ public class AdminController {
     private final PasswordEncoder encoder;
     private final ObjectMapper json;
     private final JoinRuleService joinRules;
+    private final EmbeddingSemanticService embeddings;
 
     public AdminController(StarRocksGateway starrocks, RuntimeConfigService settings,
             JdbcTemplate jdbc, PasswordEncoder encoder, ObjectMapper json,
-            JoinRuleService joinRules) {
+            JoinRuleService joinRules, EmbeddingSemanticService embeddings) {
         this.starrocks=starrocks; this.settings=settings;
         this.jdbc=jdbc; this.encoder=encoder; this.json=json;
         this.joinRules=joinRules;
+        this.embeddings=embeddings;
     }
 
     @GetMapping("/status")
@@ -58,45 +61,67 @@ public class AdminController {
         return Map.of("success",true,"message","StarRocks 数据源已保存并生效");
     }
 
+    @PostMapping("/settings/ai")
+    Map<String,Object> saveAi(@RequestBody RuntimeConfigService.ModelInput input) {
+        settings.saveAi(input);
+        return Map.of("success",true,"message","对话模型已保存，立即生效");
+    }
+
     @PostMapping("/settings/ai/test")
-    Map<String,Object> testAi() {
-        RuntimeConfigService.AiConfig config=settings.ai();
+    Map<String,Object> testAi(@RequestBody(required=false) RuntimeConfigService.ModelInput input) {
+        RuntimeConfigService.AiConfig config=input==null?settings.ai():settings.candidateAi(input);
         if (config.baseUrl().isBlank() || config.model().isBlank())
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
-                "缺少模型 Base URL 或 model，请检查实际运行的 conf/application.yml 中 dataask.ai 配置");
-        if (config.apiKey().isBlank())
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
-                "尚未读取到 AI API Key，请检查实际运行的 conf/application.yml 中 dataask.ai.api-key");
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST,"请先填写 Base URL 和模型名称");
         try {
-            String target=config.baseUrl()+"/chat/completions";
+            String target=config.baseUrl().replaceAll("/+$","")+"/chat/completions";
             String body=json.writeValueAsString(Map.of(
                 "model",config.model(),
                 "messages",List.of(Map.of("role","user","content","仅回答 OK"))));
-            HttpRequest request=HttpRequest.newBuilder(URI.create(target))
+            HttpRequest.Builder builder=HttpRequest.newBuilder(URI.create(target))
                 .timeout(Duration.ofSeconds(30))
-                .header("Authorization","Bearer "+config.apiKey())
-                .header("Content-Type","application/json")
-                .POST(HttpRequest.BodyPublishers.ofString(body))
-                .build();
+                .header("Content-Type","application/json");
+            if (!config.apiKey().isBlank())
+                builder.header("Authorization","Bearer "+config.apiKey());
+            HttpRequest request=builder.POST(HttpRequest.BodyPublishers.ofString(body)).build();
             HttpClient client=HttpClient.newBuilder().connectTimeout(Duration.ofSeconds(8)).build();
             HttpResponse<String> reply=client.send(request,HttpResponse.BodyHandlers.ofString());
             if (reply.statusCode()<200 || reply.statusCode()>=300) {
                 throw new ResponseStatusException(HttpStatus.BAD_GATEWAY,
-                    "AI 模型测试失败，HTTP "+reply.statusCode()+"；请检查 Base URL、模型名及密钥权限");
+                    "模型测试失败，HTTP "+reply.statusCode()+"；请检查接口、Key 与模型权限");
             }
-            if (!reply.body().contains("choices"))
+            com.fasterxml.jackson.databind.JsonNode data=json.readTree(reply.body());
+            if (!data.path("choices").isArray() || data.path("choices").isEmpty())
                 throw new ResponseStatusException(HttpStatus.BAD_GATEWAY,
-                    "接口已响应，但不是兼容的 Chat Completions 响应");
-            return Map.of("success",true,"message","AI 模型连接成功");
+                    "接口已响应，但不是 Chat Completions 格式");
+            return Map.of("success",true,"message","对话模型测试成功");
         } catch (ResponseStatusException ex) {
             throw ex;
         } catch (Exception ex) {
             org.slf4j.LoggerFactory.getLogger(AdminController.class)
-                .warn("AI connection test failed: {}",ex.getClass().getSimpleName());
+                .warn("Chat model connection test failed: {}",ex.getClass().getSimpleName());
             throw new ResponseStatusException(HttpStatus.BAD_GATEWAY,
-                "AI 模型连接失败，请检查地址、网络和模型配置");
+                "对话模型连接失败，请检查 Base URL、API Key、模型名称及网络");
         }
     }
+
+    @PostMapping("/settings/embedding")
+    Map<String,Object> saveEmbedding(@RequestBody RuntimeConfigService.EmbeddingInput input) {
+        settings.saveEmbedding(input);
+        return Map.of("success",true,"message","Embedding 模型配置已保存；请重建语义索引");
+    }
+
+    @PostMapping("/settings/embedding/test")
+    Map<String,Object> testEmbedding(@RequestBody(required=false) RuntimeConfigService.EmbeddingInput input) {
+        RuntimeConfigService.EmbeddingConfig config=
+            input==null?settings.embedding():settings.candidateEmbedding(input);
+        return embeddings.test(config);
+    }
+
+    @GetMapping("/semantic/status")
+    Map<String,Object> semanticStatus() { return embeddings.status(); }
+
+    @PostMapping("/semantic/rebuild")
+    Map<String,Object> rebuildSemantics() { return embeddings.rebuild(); }
 
     @GetMapping("/join-rules")
     List<JoinRuleService.Rule> listJoinRules() {
