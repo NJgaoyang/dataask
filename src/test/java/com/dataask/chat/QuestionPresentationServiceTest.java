@@ -27,6 +27,13 @@ class QuestionPresentationServiceTest {
         assertThat(labels).containsEntry("当日金额","总金额");
     }
 
+    @Test void standaloneMetricRetainsItsName() {
+        var result=service.resolve("总金额", "",plan("当日金额","amount"));
+        assertThat(result.metricLabel()).isEqualTo("总金额");
+        var prefix=service.resolve("查询总金额", "",plan("当日金额","amount"));
+        assertThat(prefix.metricLabel()).isEqualTo("总金额");
+    }
+
     @Test void directMetricQuestionKeepsUserExpression() {
         var result=service.resolve("西安的收入是多少", "", plan("收入","amount"));
         assertThat(result.metricLabel()).isEqualTo("收入");
