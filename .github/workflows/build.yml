@@ -16,6 +16,8 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: '22'
+      - name: Check miniapp JavaScript syntax and live API integration
+        run: node scripts/verify-miniapp-js.mjs
       - name: Build H5
         run: |
           cd web
