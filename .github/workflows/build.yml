@@ -18,6 +18,8 @@ jobs:
           node-version: '22'
       - name: Check miniapp JavaScript syntax and live API integration
         run: node scripts/verify-miniapp-js.mjs
+      - name: Verify approved PC workbench layout
+        run: node scripts/verify-pc-home.mjs
       - name: Build H5
         run: |
           cd web
