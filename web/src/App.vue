@@ -1109,39 +1109,91 @@ onBeforeUnmount(() => desktopMedia?.removeEventListener('change', window.__dataA
           </div>
         </div>
       </main>
-      <main v-if="isDesktop && desktopSection==='charts'" class="tb-page-body tb-content-page">
+      <main v-if="isDesktop && desktopSection==='charts'" class="tb-page-body tb-content-page tb-charts-page">
         <div class="tb-page-heading">
-          <div><h1>我的图表</h1><p>收藏的分析问题会保留，重新打开时获取最新业务数据。</p></div>
-          <button type="button" class="tb-secondary-action" @click="loadSavedCharts"><van-icon name="replay"/> 刷新</button>
-        </div>
-        <div class="tb-section-heading">
-          <h3>我收藏的图表 <span class="tb-count-pill">{{ savedCharts.length }}</span></h3>
-        </div>
-        <div class="tb-chart-list" v-if="savedCharts.length">
-          <button v-for="item in savedCharts" :key="item.id" type="button" @click="revisitChart(item)">
-            <span class="tb-entry-icon tb-entry-blue"><van-icon name="chart-trending-o" size="21"/></span>
-            <span class="tb-chart-meta"><strong>{{ item.title }}</strong><small>{{ item.question }}</small></span>
-            <span class="tb-chart-type">{{ item.chartType || '数据分析' }}</span>
-            <van-icon name="arrow" class="tb-entry-arrow"/>
+          <div><h1>我的图表</h1><p>查看已收藏或他人共享的分析，重新查询即可获取最新数据。</p></div>
+          <button type="button" class="tb-secondary-action" :disabled="chartsBusy" @click="loadSavedCharts">
+            <van-icon name="replay"/> 刷新数据
           </button>
         </div>
-        <div class="tb-empty-state" v-else>
-          <van-icon name="chart-trending-o" size="42"/>
-          <h3>{{ chartsBusy ? '正在读取图表…' : '还没有收藏图表' }}</h3>
-          <p>在智能问数结果中点击“收藏”，之后就能在这里重新查询。</p>
-          <button type="button" @click="switchDesktopSection('ask')">去智能问数</button>
+        <div class="tb-chart-workspace">
+          <div class="tb-chart-toolbar">
+            <label class="tb-chart-search">
+              <van-icon name="search" size="17"/>
+              <input v-model="chartSearch" placeholder="搜索图表名称或问数问题" aria-label="搜索图表"/>
+            </label>
+            <label class="tb-chart-select-label">
+              <span>类型</span>
+              <select v-model="chartTypeFilter" aria-label="图表类型筛选">
+                <option value="ALL">全部类型</option>
+                <option v-for="type in chartTypeOptions" :key="type" :value="type">{{ chartTypeLabel(type) }}</option>
+              </select>
+            </label>
+            <label class="tb-chart-select-label">
+              <span>排序</span>
+              <select v-model="chartSortOrder" aria-label="更新时间排序">
+                <option value="recent">最近更新</option>
+                <option value="oldest">最早更新</option>
+              </select>
+            </label>
+          </div>
+          <section class="tb-chart-section">
+            <div class="tb-chart-section-title">
+              <h2><van-icon name="star-o"/> 我收藏的图表 <span>{{ filteredSavedCharts.length }}</span></h2>
+              <small>点击图表可按当前授权重新查询</small>
+            </div>
+            <div class="tb-chart-table-wrap" v-if="filteredSavedCharts.length">
+              <table class="tb-chart-table">
+                <thead><tr><th>图表名称</th><th>自然语言问题</th><th>图表类型</th><th>更新时间</th><th>操作</th></tr></thead>
+                <tbody>
+                  <tr v-for="item in filteredSavedCharts" :key="item.id">
+                    <td class="tb-chart-name-cell">
+                      <span class="tb-chart-row-icon"><van-icon name="chart-trending-o" size="18"/></span>
+                      <button type="button" :title="item.title" @click="revisitChart(item)">{{ item.title }}</button>
+                    </td>
+                    <td class="tb-chart-question-cell" :title="item.question">{{ item.question }}</td>
+                    <td><span class="tb-chart-type-label">{{ chartTypeLabel(item.chartType) }}</span></td>
+                    <td class="tb-chart-date">{{ sessionTimeLabel(item.updatedAt || item.createdAt) }}</td>
+                    <td><button type="button" class="tb-chart-open" @click="revisitChart(item)">查看 <van-icon name="arrow"/></button></td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+            <div v-else class="tb-chart-table-empty">
+              <van-icon name="chart-trending-o" size="28"/>
+              <strong>{{ chartsBusy ? '正在加载…' : chartSearch || chartTypeFilter!=='ALL' ? '没有匹配的图表' : '还没有收藏图表' }}</strong>
+              <p>在智能问数结果中点击“收藏”，就可以随时重新查看。</p>
+              <button v-if="!chartSearch && chartTypeFilter==='ALL' && !chartsBusy" type="button" @click="switchDesktopSection('ask')">去智能问数</button>
+            </div>
+          </section>
+          <section class="tb-chart-section">
+            <div class="tb-chart-section-title">
+              <h2><van-icon name="friends-o"/> 共享给我的图表 <span>{{ filteredSharedCharts.length }}</span></h2>
+            </div>
+            <div class="tb-chart-table-wrap" v-if="filteredSharedCharts.length">
+              <table class="tb-chart-table">
+                <thead><tr><th>图表名称</th><th>自然语言问题</th><th>图表类型</th><th>共享来源</th><th>更新时间</th><th>操作</th></tr></thead>
+                <tbody>
+                  <tr v-for="item in filteredSharedCharts" :key="item.id">
+                    <td class="tb-chart-name-cell">
+                      <span class="tb-chart-row-icon tb-chart-row-shared"><van-icon name="share-o" size="18"/></span>
+                      <button type="button" :title="item.title" @click="revisitChart(item)">{{ item.title }}</button>
+                    </td>
+                    <td class="tb-chart-question-cell" :title="item.question">{{ item.question }}</td>
+                    <td><span class="tb-chart-type-label">{{ chartTypeLabel(item.chartType) }}</span></td>
+                    <td class="tb-chart-owner">{{ item.ownerUsername }}</td>
+                    <td class="tb-chart-date">{{ sessionTimeLabel(item.updatedAt || item.createdAt) }}</td>
+                    <td><button type="button" class="tb-chart-open" @click="revisitChart(item)">查看 <van-icon name="arrow"/></button></td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+            <div v-else class="tb-chart-table-empty tb-shared-empty">
+              <van-icon name="share-o" size="25"/>
+              <strong>{{ chartSearch || chartTypeFilter!=='ALL' ? '没有匹配的共享图表' : '暂无共享给我的图表' }}</strong>
+            </div>
+          </section>
         </div>
-        <div class="tb-section-heading" style="margin-top:30px">
-          <h3>共享给我的图表 <span class="tb-count-pill">{{ sharedCharts.length }}</span></h3>
-        </div>
-        <div class="tb-chart-list" v-if="sharedCharts.length">
-          <button v-for="item in sharedCharts" :key="item.id" type="button" @click="revisitChart(item)">
-            <span class="tb-entry-icon tb-entry-cyan"><van-icon name="share-o" size="21"/></span>
-            <span class="tb-chart-meta"><strong>{{ item.title }}</strong><small>{{ item.ownerUsername }} · {{ item.question }}</small></span>
-            <van-icon name="arrow" class="tb-entry-arrow"/>
-          </button>
-        </div>
-        <p v-else class="tb-inline-empty">暂无其他成员共享给你的图表。</p>
       </main>
       <main v-if="isDesktop && desktopSection==='history'" class="tb-page-body tb-content-page">
         <div class="tb-page-heading">
