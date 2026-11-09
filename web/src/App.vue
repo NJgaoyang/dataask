@@ -552,13 +552,13 @@ onBeforeUnmount(() => desktopMedia?.removeEventListener('change', window.__dataA
 </script>
 
 <template>
-  <div class="app-shell" :class="{ 'desktop-no-result': !resultPanelOpen }">
+  <div class="app-shell" :class="{ 'desktop-no-result': !resultPanelOpen, 'consumer-pc': isDesktop, 'consumer-home': isDesktop && !messages.length && !busy && !desktopFeedback }">
     <div v-if="!loggedIn" class="login-screen">
       <div class="login-logo">问</div>
-      <h1>DataAsk 数问</h1>
-      <p>面向企业管理者的智能经营数据助手</p>
+      <h1>{{ isDesktop ? 'DataAsk' : 'DataAsk 数问' }}</h1>
+      <p>{{ isDesktop ? '和数据聊聊天，让每个问题都有答案。' : '面向企业管理者的智能经营数据助手' }}</p>
       <div class="login-card">
-        <h2>登录到数问</h2>
+        <h2>{{ isDesktop ? '欢迎回来' : '登录到数问' }}</h2>
         <van-field v-model="loginForm.username" label="账号" placeholder="请输入账号" autocomplete="username"/>
         <van-field v-model="loginForm.password" label="密码" placeholder="请输入密码" type="password" autocomplete="current-password" @keyup.enter="login"/>
         <van-button type="primary" block :loading="loggingIn" @click="login">登录</van-button>
@@ -569,25 +569,21 @@ onBeforeUnmount(() => desktopMedia?.removeEventListener('change', window.__dataA
       <aside class="desktop-sidebar" aria-label="历史对话侧边栏">
         <div class="sidebar-brand">
           <div class="brand-icon">问</div>
-          <div class="brand-title"><strong>DataAsk 智能问数</strong><small>企业经营数据助手</small></div>
+          <div class="brand-title"><strong>DataAsk</strong><small>你的智能数据搭子</small></div>
         </div>
         <button class="sidebar-new" type="button" @click="newConversation">
-          <van-icon name="plus" size="15"/> 新建对话
+          <van-icon name="plus" size="16"/> 开启新对话
         </button>
         <label class="sidebar-search">
           <van-icon name="search" color="#8997a8"/>
-          <input v-model="sessionSearch" placeholder="搜索历史对话" aria-label="搜索历史对话"/>
+          <input v-model="sessionSearch" placeholder="找找聊过的话题" aria-label="搜索历史对话"/>
         </label>
         <nav class="desktop-main-nav" aria-label="PC 功能导航">
-          <button type="button" class="active" @click="newConversation"><van-icon name="chat-o"/> 智能问数</button>
-          <button type="button" @click="openSavedCharts"><van-icon name="chart-trending-o"/> 我的图表</button>
-          <button type="button" @click="historyVisible = true"><van-icon name="clock-o"/> 历史会话</button>
-          <button v-if="isAdmin" type="button" @click="openAdmin"><van-icon name="records-o"/> 指标口径</button>
-          <button v-if="isAdmin" type="button" @click="showConfig('starrocks')"><van-icon name="cluster-o"/> 数据连接</button>
-          <button v-if="isAdmin" type="button" @click="showConfig('ai')"><van-icon name="setting-o"/> 模型配置</button>
+          <button type="button" class="active" @click="newConversation"><van-icon name="chat-o"/> 开始探索</button>
+          <button type="button" @click="openSavedCharts"><van-icon name="star-o"/> 我的收藏</button>
         </nav>
         <div class="sidebar-history-heading">
-          <span class="sidebar-label">最近对话</span>
+          <span class="sidebar-label">最近聊过</span>
           <span class="sidebar-history-count" :title="'共 '+visibleSessions.length+' 条对话'">{{ visibleSessions.length }}</span>
         </div>
         <nav class="sidebar-sessions" aria-label="最近对话">
@@ -614,8 +610,8 @@ onBeforeUnmount(() => desktopMedia?.removeEventListener('change', window.__dataA
           <button v-if="isAdmin" type="button" class="sidebar-admin-card" @click="openAdmin" title="打开系统管理">
             <span class="sidebar-admin-icon"><van-icon name="setting-o" size="18"/></span>
             <span class="sidebar-admin-content">
-              <strong>系统管理</strong>
-              <small>模型 · 数据源 · 权限配置</small>
+              <strong>管理后台</strong>
+              <small>管理员专属</small>
             </span>
             <van-icon class="sidebar-admin-arrow" name="arrow" size="14"/>
           </button>
@@ -654,24 +650,42 @@ onBeforeUnmount(() => desktopMedia?.removeEventListener('change', window.__dataA
       </header>
       <main class="conversation">
         <section v-if="!messages.length && (!isDesktop || (!busy && !desktopFeedback))" class="welcome">
-          <div class="welcome-icon"><van-icon name="chart-trending-o" size="27"/></div>
-          <div v-if="isDesktop" class="desktop-welcome-kicker">DATAASK · 智能问数</div>
-          <h2>今天想了解哪些经营数据？</h2>
-          <p v-if="isDesktop">用自然语言提问，查看指标、趋势和经营表现。</p>
-          <p v-else>直接提问，系统会根据已授权的 ADS 数据计算真实结果。</p>
-          <div v-if="isDesktop" class="desktop-examples-label">试试这样问 <span>点击问题即可开始查询</span></div>
-          <div v-if="isDesktop" class="quick-grid desktop-quick-grid">
-            <button v-for="(item, idx) in quickQuestions" :key="item" :disabled="busy" @click="ask(item)">
-              <span class="desktop-question-icon"><van-icon :name="['chart-trending-o','bar-chart-o','chart-trending-o','balance-o'][idx]"/></span>
-              <span class="quick-question-text">{{ item }}</span> <van-icon name="arrow" />
-            </button>
-          </div>
-          <div v-else class="quick-grid">
-            <button v-for="item in quickQuestions" :key="item" :disabled="busy" @click="ask(item)">
-              {{ item }} <van-icon name="arrow" />
-            </button>
-          </div>
-          <p class="data-notice"><van-icon name="shield-o"/> 仅查询管理员开放的 ADS 表，结果来自真实数据库</p>
+          <template v-if="isDesktop">
+            <div class="consumer-hero-mark" aria-hidden="true">
+              <span class="consumer-hero-glyph">✦</span><span class="consumer-hero-dot">•</span>
+            </div>
+            <div class="consumer-hero-eyebrow">DATAASK · 轻松探索经营数据</div>
+            <h2>想知道什么，问一句就好。</h2>
+            <p class="consumer-hero-description">从昨天的业绩到最近的变化，像聊天一样找到数据答案。</p>
+            <div class="consumer-examples-header">
+              <span><van-icon name="fire-o"/> 可以从这些问题开始</span>
+              <span>选一个试试 <van-icon name="arrow" size="11"/></span>
+            </div>
+            <div class="quick-grid consumer-quick-grid">
+              <button v-for="(item, idx) in quickQuestions" :key="item" :disabled="busy"
+                type="button" @click="ask(item)">
+                <span class="consumer-question-art" :class="'question-art-'+idx">
+                  <van-icon :name="['bar-chart-o','location-o','chart-trending-o','balance-o'][idx]" size="22"/>
+                </span>
+                <span class="consumer-question-content">
+                  <span class="consumer-question-title">{{ item }}</span>
+                  <small>{{ ['快速看看经营表现','发现城市间的差异','用趋势发现新变化','多维度轻松比较'][idx] }}</small>
+                </span>
+                <van-icon name="arrow" class="consumer-question-arrow" size="14"/>
+              </button>
+            </div>
+          </template>
+          <template v-else>
+            <div class="welcome-icon"><van-icon name="chart-trending-o" size="27"/></div>
+            <h2>今天想了解哪些经营数据？</h2>
+            <p>直接提问，系统会根据已授权的 ADS 数据计算真实结果。</p>
+            <div class="quick-grid">
+              <button v-for="item in quickQuestions" :key="item" :disabled="busy" @click="ask(item)">
+                {{ item }} <van-icon name="arrow" />
+              </button>
+            </div>
+            <p class="data-notice"><van-icon name="shield-o"/> 仅查询管理员开放的 ADS 表，结果来自真实数据库</p>
+          </template>
         </section>
         <section v-for="msg in messages" :key="msg.id" class="turn">
           <div class="user-bubble">{{ msg.question }}</div>
@@ -792,10 +806,10 @@ onBeforeUnmount(() => desktopMedia?.removeEventListener('change', window.__dataA
       <footer class="composer">
         <div class="composer-row">
           <textarea ref="desktopQuestionRef" v-model="question" :rows="isDesktop ? 3 : 1" maxlength="800"
-            :placeholder="isDesktop ? '请输入你的问题，例如：昨天的营业额是多少？' : '问问经营数据，例如：昨日营业额'"
+            :placeholder="isDesktop ? '想了解什么？直接问我吧…' : '问问经营数据，例如：昨日营业额'"
             aria-label="输入经营数据问题" @keydown.enter.exact.prevent="ask()"></textarea>
           <div v-if="isDesktop" class="desktop-composer-hints">
-            <span>Enter 发送 <i>·</i> Shift + Enter 换行</span>
+            <span><van-icon name="shield-o"/> 使用已授权数据回答 · Enter 发送</span>
             <span :class="{ 'near-limit': question.length > 700 }">{{ question.length }}/800</span>
           </div>
           <button v-if="isDesktop && busy" class="send-btn stop-btn" type="button"
