@@ -469,6 +469,13 @@ function toggleAdminNavigation() {
   adminExpanded.value = false
   if (desktopIsAdminSection.value) switchDesktopSection('overview')
 }
+async function refreshAdminOverview() {
+  if (!requireAdmin()) return
+  try {
+    await refreshAdminStatus()
+    showSuccessToast('配置状态已更新')
+  } catch(e) { showFailToast('状态更新失败：' + errorText(e)) }
+}
 async function openAdminSection(section) {
   if (!requireAdmin() || !desktopAdminSections.includes(section)) return
   if (['admin-source','admin-model','admin-embedding'].includes(section)) {
@@ -857,7 +864,7 @@ onBeforeUnmount(() => desktopMedia?.removeEventListener('change', window.__dataA
               <strong>用户管理</strong><small>用户账号与角色</small>
               <van-icon name="arrow" class="tb-admin-overview-arrow"/>
             </button>
-            <button type="button" @click="refreshAdminStatus">
+            <button type="button" @click="refreshAdminOverview">
               <span class="tb-admin-overview-icon icon-status"><van-icon name="chart-trending-o" size="21"/></span>
               <strong>配置状态</strong><small>刷新数据源、模型配置状态</small>
               <van-icon name="replay" class="tb-admin-overview-arrow"/>
