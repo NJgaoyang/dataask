@@ -45,6 +45,19 @@ const sessions = ref([])
 const sessionSearch = ref('')
 const resultPanelOpen = ref(true)
 const resultTab = ref('overview')
+function sessionTimeLabel(updatedAt) {
+  if (!updatedAt) return ''
+  const text = String(updatedAt)
+  const date = text.slice(0, 10)
+  const time = text.slice(11, 16)
+  const today = new Date()
+  const todayDate = [today.getFullYear(), String(today.getMonth() + 1).padStart(2, '0'), String(today.getDate()).padStart(2, '0')].join('-')
+  if (date === todayDate) return '今天 ' + time
+  const yesterday = new Date(today.getFullYear(), today.getMonth(), today.getDate() - 1)
+  const yesterdayDate = [yesterday.getFullYear(), String(yesterday.getMonth() + 1).padStart(2, '0'), String(yesterday.getDate()).padStart(2, '0')].join('-')
+  if (date === yesterdayDate) return '昨天 ' + time
+  return date && time ? date.slice(5) + ' ' + time : text.slice(0, 16)
+}
 const visibleSessions = computed(() => {
   const keyword = sessionSearch.value.trim().toLowerCase()
   return keyword ? sessions.value.filter(s => s.title.toLowerCase().includes(keyword)) : sessions.value
@@ -526,25 +539,50 @@ onBeforeUnmount(() => desktopMedia?.removeEventListener('change', window.__dataA
           <button v-if="isAdmin" type="button" @click="showConfig('starrocks')"><van-icon name="cluster-o"/> 数据连接</button>
           <button v-if="isAdmin" type="button" @click="showConfig('ai')"><van-icon name="setting-o"/> 模型配置</button>
         </nav>
-        <div class="sidebar-label">最近的对话</div>
-        <nav class="sidebar-sessions">
+        <div class="sidebar-history-heading">
+          <span class="sidebar-label">最近对话</span>
+          <span class="sidebar-history-count" :title="'共 '+visibleSessions.length+' 条对话'">{{ visibleSessions.length }}</span>
+        </div>
+        <nav class="sidebar-sessions" aria-label="最近对话">
           <button v-for="item in visibleSessions" :key="item.id"
             class="sidebar-session" :class="{ active: item.id === sessionId }"
-            type="button" @click="openSession(item)" :title="item.title">
-            <van-icon name="chat-o" size="15"/><span>{{ item.title }}</span>
+            type="button" @click="openSession(item)" :title="item.title"
+            :aria-current="item.id === sessionId ? 'page' : undefined">
+            <van-icon class="sidebar-session-icon" name="chat-o" size="16"/>
+            <span class="sidebar-session-meta">
+              <span class="sidebar-session-title">{{ item.title }}</span>
+              <span class="sidebar-session-time">{{ sessionTimeLabel(item.updatedAt) }}</span>
+            </span>
           </button>
-          <p v-if="!visibleSessions.length" class="sidebar-empty">暂无对话记录</p>
+          <div v-if="!visibleSessions.length" class="sidebar-empty">
+            <van-icon name="chat-o" size="20"/>
+            <span>{{ sessionSearch ? '没有找到相关对话' : '还没有对话记录' }}</span>
+          </div>
         </nav>
         <div class="sidebar-bottom">
-          <p class="sidebar-build">工作台版本 {{ buildSha }}</p>
-          <button type="button" v-if="isAdmin" @click="openAdmin">
-            <van-icon name="setting-o"/> 系统管理
+          <div class="sidebar-build-row">
+            <span class="sidebar-build-label">当前版本</span>
+            <span class="sidebar-build-tag" :title="'构建版本 '+buildSha">{{ buildSha }}</span>
+          </div>
+          <button v-if="isAdmin" type="button" class="sidebar-admin-card" @click="openAdmin" title="打开系统管理">
+            <span class="sidebar-admin-icon"><van-icon name="setting-o" size="18"/></span>
+            <span class="sidebar-admin-content">
+              <strong>系统管理</strong>
+              <small>模型 · 数据源 · 权限配置</small>
+            </span>
+            <van-icon class="sidebar-admin-arrow" name="arrow" size="14"/>
           </button>
-          <div class="sidebar-profile">
-            <span class="sidebar-avatar">{{ (me.displayName || me.username || '用').slice(0,1) }}</span>
-            <span class="sidebar-profile-name">{{ me.displayName || me.username }}</span>
-            <button type="button" class="sidebar-logout" @click="logout" title="退出登录">
-              <van-icon name="sign" size="16"/>
+          <div class="sidebar-profile-card">
+            <div class="sidebar-profile-left">
+              <span class="sidebar-avatar">{{ (me.displayName || me.username || '用').slice(0,1) }}</span>
+              <span class="sidebar-profile-meta">
+                <strong :title="me.displayName || me.username">{{ me.displayName || me.username }}</strong>
+                <small>{{ isAdmin ? '系统管理员' : '普通成员' }}</small>
+              </span>
+            </div>
+            <button type="button" class="sidebar-logout" @click="logout"
+              title="退出登录" aria-label="退出登录">
+              <van-icon name="sign" size="17"/>
             </button>
           </div>
         </div>
