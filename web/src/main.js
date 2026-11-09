@@ -3,4 +3,5 @@ import Vant from 'vant'
 import 'vant/lib/index.css'
 import App from './App.vue'
 import './style.css'
+import './quickbi-pc.css'
 createApp(App).use(Vant).mount('#app')
