@@ -793,7 +793,7 @@ onBeforeUnmount(() => desktopMedia?.removeEventListener('change', window.__dataA
             <strong class="desktop-current-session">{{ activeSessionTitle }}</strong>
             <small>经营数据助手</small></div>
         </div>
-        <div v-else class="top-actions">
+        <div v-if="!isDesktop" class="top-actions">
           <button class="desktop-toggle-results" type="button"
             :title="resultPanelOpen ? '隐藏结果面板' : '显示结果面板'" @click="resultPanelOpen = !resultPanelOpen">
             <van-icon name="apps-o" size="19"/>
