@@ -270,6 +270,14 @@ async function openSavedCharts() {
 }
 async function revisitChart(chart) {
   chartsVisible.value = false
+  if (isDesktop.value) {
+    await loadApprovedDatasets()
+    if (chart.dataset && !approvedDatasets.value.includes(chart.dataset)) {
+      showFailToast('该图表所用数据集已取消授权，请联系管理员')
+      return
+    }
+    selectedDataset.value = chart.dataset || ''
+  }
   newConversation()
   await ask(chart.question)
 }
@@ -712,7 +720,7 @@ onBeforeUnmount(() => desktopMedia?.removeEventListener('change', window.__dataA
               <span>DataAsk 智能问数</span>
             </div>
             <h2>你好，今天想分析哪些数据？</h2>
-            <p class="qbi-welcome-description">选择可用数据，直接提问，即可获得真实分析结果和可交互图表。</p>
+            <p class="qbi-welcome-description">选择可用数据，用自然语言提问；系统会根据已授权 ADS 数据返回分析结果。</p>
             <div class="qbi-dataset-surface">
               <div class="qbi-dataset-description">
                 <div class="qbi-dataset-symbol"><van-icon name="cluster-o" size="20"/></div>
@@ -728,7 +736,7 @@ onBeforeUnmount(() => desktopMedia?.removeEventListener('change', window.__dataA
             </div>
             <div class="qbi-question-heading">
               <span><van-icon name="fire-o"/> 你可以这样问</span>
-              <small>这些问题会查询真实的 ADS 数据</small>
+              <small>通用问法示例，实际可查询内容取决于指标口径</small>
             </div>
             <div class="quick-grid qbi-quick-grid">
               <button v-for="(item, idx) in quickQuestions" :key="item" :disabled="busy"
