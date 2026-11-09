@@ -61,12 +61,38 @@ public class ChatController {
         this.http = RestClient.builder().build();
     }
 
-    record AskRequest(String sessionId, @NotBlank @Size(max=800) String question, String sourceMessageId, String requestId) {}
+    record AskRequest(String sessionId, @NotBlank @Size(max=800) String question, String sourceMessageId, String requestId, String dataset) {}
     record CancelRequest(@NotBlank String requestId) {}
     record Answer(String id, String sessionId, String question, String title, String summary,
                   String chartType, List<String> columns, Map<String,String> columnLabels,
                   List<Map<String,Object>> rows, List<String> followUps,
-                  String metricLabel, String timeLabel, boolean unsupported) {}
+                  String metricLabel, String timeLabel, boolean unsupported, String dataset) {}
+
+    /**
+     * Read-only list of datasets approved by an administrator. This is not a
+     * model/data-source configuration API and requires authentication via /api/**.
+     */
+    @GetMapping("/datasets")
+    List<String> datasets() {
+        return jdbc.query(
+            "SELECT table_name FROM da_allowed_tables WHERE enabled=1 ORDER BY table_name LIMIT 100",
+            (rs,n) -> rs.getString(1));
+    }
+
+    @GetMapping("/datasets/preview")
+    Map<String,Object> datasetPreview(@RequestParam("name") String name) {
+        if (name == null || name.isBlank() || name.length() > 255)
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "请选择已授权的数据表");
+        Integer granted = jdbc.queryForObject(
+            "SELECT COUNT(*) FROM da_allowed_tables WHERE enabled=1 AND table_name=?",
+            Integer.class, name);
+        if (granted == null || granted == 0)
+            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "数据集未授权");
+        var meta = starrocks.discover().stream().filter(t -> t.name().equals(name)).findFirst()
+            .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "数据集不可用"));
+        return Map.of("name",meta.name(), "columns",meta.columns().stream().limit(40)
+            .map(c -> Map.of("name",c.name(), "type",c.type(), "comment",c.comment())).toList());
+    }
 
     @GetMapping("/sessions")
     List<Map<String,Object>> sessions(Authentication user) {
@@ -128,6 +154,12 @@ public class ChatController {
             "SELECT table_name FROM da_allowed_tables WHERE enabled=1", (rs,n) -> rs.getString(1)));
         if (allowed.isEmpty())
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "请管理员先在 ADS 表管理中开放至少一张表");
+        String dataset = input.dataset() == null ? "" : input.dataset().trim();
+        if (!dataset.isEmpty()) {
+            if (!allowed.contains(dataset))
+                throw new ResponseStatusException(HttpStatus.FORBIDDEN, "当前数据集未授权或已被禁用");
+            allowed = Set.of(dataset);
+        }
         List<StarRocksGateway.TableMeta> discovered = starrocks.discover();
         StringBuilder metadata = new StringBuilder();
         int columnsUsed = 0;
@@ -242,7 +274,7 @@ public class ChatController {
         active.checkCancelled();
         String messageId = UUID.randomUUID().toString();
         Answer answer = new Answer(messageId, session, question, title, summary, chart, columns,
-            columnLabels, rows, followups, shown.metricLabel(), shown.periodLabel(), unsupported);
+            columnLabels, rows, followups, shown.metricLabel(), shown.periodLabel(), unsupported, dataset);
         try {
             String serialized = json.writeValueAsString(answer);
             active.checkCancelled();
