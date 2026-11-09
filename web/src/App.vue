@@ -518,61 +518,105 @@ async function reloadTables() {
   try { allowedTables.value = (await api.get('/admin/tables')).data }
   catch (e) { allowedTables.value = []; showFailToast('读取 ADS 表失败：' + errorText(e)) }
 }
+function hydrateConfigForms() {
+  const sr = settingsData.value.starrocks || {}
+  const ai = settingsData.value.ai || {}
+  const embedding = settingsData.value.embedding || {}
+  srForm.value = {
+    jdbcUrl: sr.jdbcUrl || '', username: sr.username || '',
+    password: '', schema: sr.schema || 'ads'
+  }
+  aiForm.value = { baseUrl: ai.baseUrl || '', model: ai.model || '', apiKey:'', clearKey:false }
+  embeddingForm.value = {
+    baseUrl: embedding.baseUrl || 'https://dashscope.aliyuncs.com/api/v1',
+    model: embedding.model || 'qwen3.7-text-embedding-flash',
+    apiKey:'', clearKey:false, enabled:!!embedding.enabled,
+    dimensions:embedding.dimensions || 1024
+  }
+}
+async function loadAdminSectionData(section) {
+  const request = ++adminLoadSequence
+  adminSectionBusy.value = true
+  adminSectionError.value = ''
+  try {
+    if (['admin-overview','admin-status'].includes(section)) {
+      await refreshAdminStatus()
+    } else if (['admin-source','admin-model','admin-embedding'].includes(section)) {
+      await refreshAdminStatus()
+      hydrateConfigForms()
+      if (section === 'admin-embedding') {
+        semanticStatus.value = (await api.get('/admin/semantic/status')).data
+      }
+    } else if (section === 'admin-tables') {
+      await refreshAdminStatus()
+      if (status.value.starrocksConfigured) {
+        allowedTables.value = (await api.get('/admin/tables')).data
+      } else {
+        allowedTables.value = []
+        adminSectionError.value = '尚未配置 StarRocks 数据源，请先在数据源配置中连接 ADS 数据库。'
+      }
+    } else if (section === 'admin-joins') {
+      await refreshAdminStatus()
+      const [rules, tables] = await Promise.all([
+        api.get('/admin/join-rules'),
+        status.value.starrocksConfigured ? api.get('/admin/tables') : Promise.resolve({data:[]})
+      ])
+      joinRules.value = rules.data
+      allowedTables.value = tables.data
+      if (!status.value.starrocksConfigured)
+        adminSectionError.value = '尚未配置 StarRocks，关联规则可查看，但无法新建。'
+    } else if (section === 'admin-metrics') {
+      metricInfo.value = (await api.get('/admin/metrics')).data
+    } else if (section === 'admin-users') {
+      users.value = (await api.get('/admin/users')).data
+    }
+  } catch (e) {
+    if (request === adminLoadSequence) {
+      adminSectionError.value = '读取“' + desktopSectionTitle.value + '”失败：' + errorText(e)
+      showFailToast(adminSectionError.value)
+    }
+  } finally {
+    if (request === adminLoadSequence) adminSectionBusy.value = false
+  }
+}
 async function openAdmin() {
   if (!requireAdmin()) return
   if (isDesktop.value) {
-    adminExpanded.value = true
-    switchDesktopSection('admin-overview')
     adminVisible.value = false
-  } else {
-    adminVisible.value = true
+    switchDesktopSection('admin-overview')
+    await loadAdminSectionData('admin-overview')
+    return
   }
-  try { await refreshAdminStatus() }
-  catch (e) { showFailToast('读取配置失败：' + errorText(e)) }
-  try { users.value = (await api.get('/admin/users')).data }
-  catch (e) { showFailToast('读取账号失败：' + errorText(e)) }
-  await Promise.all([reloadTables(), reloadMetrics(), reloadJoinRules(), reloadSemanticStatus()])
+  adminVisible.value = true
+  try {
+    await refreshAdminStatus()
+    users.value = (await api.get('/admin/users')).data
+    await Promise.all([reloadTables(),reloadMetrics(),reloadJoinRules(),reloadSemanticStatus()])
+  } catch(e) { showFailToast('读取系统管理失败：'+errorText(e)) }
 }
 function toggleAdminNavigation() {
   if (!isAdmin.value) return
-  if (!adminExpanded.value) {
-    openAdmin()
-    return
-  }
+  if (!adminExpanded.value) { openAdmin(); return }
   adminExpanded.value = false
   if (desktopIsAdminSection.value) switchDesktopSection('overview')
 }
 async function refreshAdminOverview() {
   if (!requireAdmin()) return
-  try {
-    await refreshAdminStatus()
-    showSuccessToast('配置状态已更新')
-  } catch(e) { showFailToast('状态更新失败：' + errorText(e)) }
+  await loadAdminSectionData('admin-status')
+  if (!adminSectionError.value) showSuccessToast('配置状态已更新')
 }
 async function openAdminSection(section) {
   if (!requireAdmin() || !desktopAdminSections.includes(section)) return
-  if (['admin-source','admin-model','admin-embedding'].includes(section)) {
-    const kind = section === 'admin-source' ? 'starrocks' : section === 'admin-model' ? 'ai' : 'embedding'
-    await showConfig(kind)
-    return
-  }
+  if (section === 'admin-source') configKind.value = 'starrocks'
+  if (section === 'admin-model') configKind.value = 'ai'
+  if (section === 'admin-embedding') configKind.value = 'embedding'
+  configTestMessage.value = ''
+  configVisible.value = false
+  // Navigate first. A failed API must not make the entire module appear unclickable.
   switchDesktopSection(section)
-  try {
-    if (section === 'admin-overview') {
-      await refreshAdminStatus()
-    } else if (section === 'admin-tables') {
-      await refreshAdminStatus()
-      await reloadTables()
-    } else if (section === 'admin-joins') {
-      await refreshAdminStatus()
-      await Promise.all([reloadTables(),reloadJoinRules()])
-    } else if (section === 'admin-metrics') {
-      await reloadMetrics()
-    } else if (section === 'admin-users') {
-      users.value = (await api.get('/admin/users')).data
-    }
-  } catch (e) { showFailToast('读取管理数据失败：' + errorText(e)) }
+  await loadAdminSectionData(section)
 }
+
 async function reloadSemanticStatus() {
   try { semanticStatus.value = (await api.get('/admin/semantic/status')).data }
   catch (e) { semanticStatus.value = { count: 0 }; }
@@ -706,30 +750,19 @@ function columnLabel(message, column, index) {
 }
 async function showConfig(kind) {
   if (!requireAdmin()) return
+  if (isDesktop.value) {
+    const section = kind === 'starrocks' ? 'admin-source' : kind === 'ai' ? 'admin-model' : 'admin-embedding'
+    await openAdminSection(section)
+    return
+  }
   configKind.value = kind
   configTestMessage.value = ''
   try {
     await refreshAdminStatus()
-    const sr = settingsData.value.starrocks || {}
-    const ai = settingsData.value.ai || {}
-    const embedding = settingsData.value.embedding || {}
-    srForm.value = { jdbcUrl: sr.jdbcUrl || '', username: sr.username || '',
-      password: '', schema: sr.schema || 'ads' }
-    aiForm.value = { baseUrl: ai.baseUrl || '', model: ai.model || '', apiKey:'', clearKey:false }
-    embeddingForm.value = {
-      baseUrl: embedding.baseUrl || 'https://dashscope.aliyuncs.com/api/v1', model: embedding.model || 'qwen3.7-text-embedding-flash',
-      apiKey:'', clearKey:false, enabled: !!embedding.enabled,
-      dimensions: embedding.dimensions || 1024
-    }
+    hydrateConfigForms()
     if (kind === 'embedding') await reloadSemanticStatus()
-    if (isDesktop.value) {
-      adminExpanded.value = true
-      switchDesktopSection(kind === 'starrocks' ? 'admin-source' : kind === 'ai' ? 'admin-model' : 'admin-embedding')
-      configVisible.value = false
-    } else {
-      configVisible.value = true
-    }
-  } catch (e) { showFailToast(errorText(e)) }
+    configVisible.value = true
+  } catch (e) { showFailToast('加载配置失败：' + errorText(e)) }
 }
 function modelPayload(kind) {
   return kind === 'ai' ? aiForm.value : embeddingForm.value
