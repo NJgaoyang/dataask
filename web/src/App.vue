@@ -668,7 +668,7 @@ onBeforeUnmount(() => desktopMedia?.removeEventListener('change', window.__dataA
 </script>
 
 <template>
-  <div class="app-shell" :class="{ 'desktop-no-result': !resultPanelOpen, 'consumer-pc': isDesktop, 'quickbi-pc': isDesktop, 'consumer-home': isDesktop && !messages.length && !busy && !desktopFeedback }">
+  <div class="app-shell" :class="{ 'desktop-no-result': !resultPanelOpen, 'consumer-pc': isDesktop, 'quickbi-pc': isDesktop, 'tencentbi-pc': isDesktop, 'consumer-home': isDesktop && desktopSection==='ask' && !messages.length && !busy && !desktopFeedback }">
     <div v-if="!loggedIn" class="login-screen">
       <div class="login-logo">问</div>
       <h1>{{ isDesktop ? 'DataAsk' : 'DataAsk 数问' }}</h1>
@@ -682,81 +682,56 @@ onBeforeUnmount(() => desktopMedia?.removeEventListener('change', window.__dataA
       </div>
     </div>
     <template v-else>
-      <aside class="desktop-sidebar" aria-label="历史对话侧边栏">
+      <aside class="desktop-sidebar" aria-label="DataAsk 功能导航">
         <div class="sidebar-brand">
           <div class="brand-icon">问</div>
-          <div class="brand-title"><strong>DataAsk</strong><small>智能问数 · 数据分析助手</small></div>
+          <div class="brand-title"><strong>DataAsk</strong><small>智能商业分析平台</small></div>
         </div>
-        <button class="sidebar-new" type="button" @click="newConversation">
-          <van-icon name="plus" size="16"/> 新建问数
-        </button>
-        <label class="sidebar-search">
-          <van-icon name="search" color="#8997a8"/>
-          <input v-model="sessionSearch" placeholder="搜索历史问数" aria-label="搜索历史对话"/>
-        </label>
-        <nav class="desktop-main-nav" aria-label="PC 功能导航">
-          <button type="button" class="active" @click="newConversation"><van-icon name="chat-o"/> 智能问数</button>
-          <button type="button" @click="openSavedCharts"><van-icon name="chart-trending-o"/> 我的图表</button>
+        <div class="tb-nav-category">工作空间</div>
+        <nav class="desktop-main-nav" aria-label="工作空间导航">
+          <button type="button" :class="{active:desktopSection==='overview'}" @click="switchDesktopSection('overview')"><van-icon name="home-o"/> 工作台</button>
+          <button type="button" :class="{active:desktopSection==='ask'}" @click="switchDesktopSection('ask')"><van-icon name="chat-o"/> 智能问数</button>
+          <button type="button" :class="{active:desktopSection==='charts'}" @click="switchDesktopSection('charts')"><van-icon name="chart-trending-o"/> 我的图表</button>
+          <button type="button" :class="{active:desktopSection==='history'}" @click="switchDesktopSection('history')"><van-icon name="clock-o"/> 历史会话</button>
         </nav>
-        <div class="sidebar-history-heading">
-          <span class="sidebar-label">历史问数</span>
-          <span class="sidebar-history-count" :title="'共 '+visibleSessions.length+' 条对话'">{{ visibleSessions.length }}</span>
-        </div>
-        <nav class="sidebar-sessions" aria-label="最近对话">
-          <button v-for="item in visibleSessions" :key="item.id"
-            class="sidebar-session" :class="{ active: item.id === sessionId }"
-            type="button" @click="openSession(item)" :title="item.title"
-            :aria-current="item.id === sessionId ? 'page' : undefined">
-            <van-icon class="sidebar-session-icon" name="chat-o" size="16"/>
-            <span class="sidebar-session-meta">
-              <span class="sidebar-session-title">{{ item.title }}</span>
-              <span class="sidebar-session-time">{{ sessionTimeLabel(item.updatedAt) }}</span>
-            </span>
-          </button>
-          <div v-if="!visibleSessions.length" class="sidebar-empty">
-            <van-icon name="chat-o" size="20"/>
-            <span>{{ sessionSearch ? '没有找到相关对话' : '还没有对话记录' }}</span>
-          </div>
+        <div v-if="isAdmin" class="tb-sidebar-divider"></div>
+        <div v-if="isAdmin" class="tb-nav-category">管理</div>
+        <nav v-if="isAdmin" class="desktop-main-nav" aria-label="管理功能">
+          <button type="button" @click="openAdmin"><van-icon name="setting-o"/> 系统管理</button>
         </nav>
+        <div class="tb-sidebar-fill"></div>
         <div class="sidebar-bottom">
-          <div class="sidebar-build-row">
-            <span class="sidebar-build-label">当前版本</span>
-            <span class="sidebar-build-tag" :title="'构建版本 '+buildSha">{{ buildSha }}</span>
-          </div>
-          <button v-if="isAdmin" type="button" class="sidebar-admin-card" @click="openAdmin" title="打开系统管理">
-            <span class="sidebar-admin-icon"><van-icon name="setting-o" size="18"/></span>
-            <span class="sidebar-admin-content">
-              <strong>管理中心</strong>
-              <small>管理员专属</small>
-            </span>
-            <van-icon class="sidebar-admin-arrow" name="arrow" size="14"/>
-          </button>
           <div class="sidebar-profile-card">
             <div class="sidebar-profile-left">
               <span class="sidebar-avatar">{{ (me.displayName || me.username || '用').slice(0,1) }}</span>
               <span class="sidebar-profile-meta">
                 <strong :title="me.displayName || me.username">{{ me.displayName || me.username }}</strong>
-                <small>{{ isAdmin ? '系统管理员' : '普通成员' }}</small>
+                <small>{{ isAdmin ? '管理员' : '普通用户' }}</small>
               </span>
             </div>
-            <button type="button" class="sidebar-logout" @click="logout"
-              title="退出登录" aria-label="退出登录">
+            <button type="button" class="sidebar-logout" @click="logout" title="退出登录" aria-label="退出登录">
               <van-icon name="sign" size="17"/>
             </button>
           </div>
         </div>
       </aside>
       <header class="topbar">
-        <div class="brand">
+        <div v-if="isDesktop" class="tb-header-breadcrumb">
+          <span>DataAsk</span><van-icon name="arrow" size="11"/><strong>{{ desktopSectionTitle }}</strong>
+        </div>
+        <div v-else class="brand">
           <div class="brand-icon">问</div>
           <div class="brand-title"><strong class="mobile-brand">数问</strong>
-            <strong class="desktop-current-session">{{ isDesktop && !sessionId ? '智能问数' : activeSessionTitle }}</strong>
+            <strong class="desktop-current-session">{{ activeSessionTitle }}</strong>
             <small>经营数据助手</small></div>
         </div>
-        <div class="top-actions">
+        <div v-if="isDesktop" class="tb-header-actions">
+          <span class="tb-dataset-counter"><van-icon name="cluster-o"/>{{ approvedDatasets.length }} 个已授权数据集</span>
+          <button type="button" @click="newConversation"><van-icon name="plus"/> 新建问数</button>
+        </div>
+        <div v-else class="top-actions">
           <button class="desktop-toggle-results" type="button"
-            :title="resultPanelOpen ? '隐藏结果面板' : '显示结果面板'"
-            @click="resultPanelOpen = !resultPanelOpen">
+            :title="resultPanelOpen ? '隐藏结果面板' : '显示结果面板'" @click="resultPanelOpen = !resultPanelOpen">
             <van-icon name="apps-o" size="19"/>
           </button>
           <button title="历史对话" @click="historyVisible = true"><van-icon name="clock-o" size="21"/></button>
@@ -764,7 +739,7 @@ onBeforeUnmount(() => desktopMedia?.removeEventListener('change', window.__dataA
           <button title="新对话" @click="newConversation"><van-icon name="add-o" size="21"/></button>
         </div>
       </header>
-      <main class="conversation">
+      <main v-if="!isDesktop || desktopSection==='ask'" class="conversation">
         <section v-if="!messages.length && (!isDesktop || (!busy && !desktopFeedback))" class="welcome">
           <template v-if="isDesktop">
             <div class="qbi-welcome-brand">
@@ -938,7 +913,7 @@ onBeforeUnmount(() => desktopMedia?.removeEventListener('change', window.__dataA
           </template>
         </div>
       </aside>
-      <footer class="composer">
+      <footer v-if="!isDesktop || desktopSection==='ask'" class="composer">
         <div class="composer-row">
           <textarea ref="desktopQuestionRef" v-model="question" :rows="isDesktop ? 3 : 1" maxlength="800"
             :placeholder="isDesktop ? '例如：昨天各城市的销售额是多少？' : '问问经营数据，例如：昨日营业额'"
@@ -1003,7 +978,7 @@ onBeforeUnmount(() => desktopMedia?.removeEventListener('change', window.__dataA
           </div>
         </div>
       </van-popup>
-      <van-popup v-model:show="chartsVisible" :position="isDesktop ? 'center' : 'bottom'" round
+      <van-popup v-if="!isDesktop" v-model:show="chartsVisible" :position="isDesktop ? 'center' : 'bottom'" round
         :style="{ width: isDesktop ? 'min(680px,90vw)' : '100%', height: isDesktop ? 'min(650px,82vh)' : '75%' }">
         <div class="drawer">
           <div class="drawer-header"><b>我的图表</b><van-icon name="cross" @click="chartsVisible=false"/></div>
