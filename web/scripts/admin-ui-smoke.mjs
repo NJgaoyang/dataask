@@ -130,8 +130,14 @@ try {
 
   await clickTile(page,'ADS 表授权');
   await visible(page.locator('.admin-table'),'ADS tables');
-  await page.locator('.admin-table .van-switch').first().click();
+  const tableSwitch=page.locator('.admin-table .van-switch').first();
+  await tableSwitch.click();
   await requireCall('POST /api/admin/table-allow');
+  // Restore the table permission so the subsequent JOIN test has two approved tables.
+  await tableSwitch.click();
+  for(let i=0;i<80 && calls.filter(x=>x==='POST /api/admin/table-allow').length<2;i++)
+    await new Promise(resolve=>setTimeout(resolve,40));
+  assert.equal(tables.filter(t=>t.enabled).length,2,'Restoring table permission failed');
 
   await clickTile(page,'表关联规则');
   await visible(page.locator('.join-editor'),'Join editor');
