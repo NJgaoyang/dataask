@@ -19,7 +19,9 @@ api.interceptors.response.use(r => r, error => {
   return Promise.reject(error)
 })
 const loggedIn = ref(!!sessionStorage.getItem('dataask_token'))
+// Stored profile is display-only. Permissions are resolved from the authenticated server.
 const me = ref(JSON.parse(sessionStorage.getItem('dataask_user') || '{}'))
+const verifiedRole = ref('')
 const loginForm = ref({ username: 'admin', password: '' })
 const loggingIn = ref(false)
 const question = ref('')
@@ -101,7 +103,39 @@ const metricError = ref('')
 const newUser = ref({ username: '', displayName: '', password: '', role: 'USER' })
 const footerRef = ref(null)
 const quickQuestions = ['昨天的营业额是多少？', '昨天各城市的订单量排行', '最近7天的营收趋势', '本月各城市销售额对比']
-const isAdmin = computed(() => me.value.role === 'ADMIN')
+const isAdmin = computed(() => loggedIn.value && verifiedRole.value === 'ADMIN')
+function requireAdmin() {
+  if (isAdmin.value) return true
+  showFailToast('仅系统管理员可以管理模型、数据源和系统配置')
+  return false
+}
+async function refreshAuthenticatedRole() {
+  if (!sessionStorage.getItem('dataask_token')) {
+    verifiedRole.value = ''
+    return
+  }
+  verifiedRole.value = ''
+  adminVisible.value = false
+  configVisible.value = false
+  try {
+    const { data } = await api.get('/auth/me')
+    const username = String(data.username || '')
+    const role = data.role === 'ADMIN' ? 'ADMIN' : 'USER'
+    // Do not trust a cached role, even when somebody alters sessionStorage manually.
+    const displayName = me.value.username === username ? (me.value.displayName || username) : username
+    me.value = { username, displayName, role }
+    sessionStorage.setItem('dataask_user', JSON.stringify(me.value))
+    verifiedRole.value = role
+  } catch (e) {
+    verifiedRole.value = ''
+    if (e.response?.status === 401) {
+      sessionStorage.removeItem('dataask_token')
+      sessionStorage.removeItem('dataask_user')
+      loggedIn.value = false
+      me.value = {}
+    }
+  }
+}
 function resultView(msg) {
   const explicit = answerViews.value[msg.id]
   if (explicit) return explicit
@@ -137,6 +171,7 @@ async function login() {
     sessionStorage.setItem('dataask_token', data.token)
     const user = { username: data.username, displayName: data.displayName, role: data.role }
     sessionStorage.setItem('dataask_user', JSON.stringify(user))
+    verifiedRole.value = data.role === 'ADMIN' ? 'ADMIN' : 'USER'
     me.value = user; loggedIn.value = true; loginForm.value.password = ''
     await loadSessions()
   } catch (e) { showFailToast(errorText(e)) }
@@ -147,6 +182,8 @@ function logout() {
   sessionStorage.removeItem('dataask_token')
   sessionStorage.removeItem('dataask_user')
   loggedIn.value = false
+  verifiedRole.value = ''
+  configVisible.value = false
   messages.value = []; sessionId.value = ''; historyVisible.value = false; adminVisible.value = false
   desktopFeedback.value = null
 }
@@ -272,6 +309,7 @@ async function reloadTables() {
   catch (e) { allowedTables.value = []; showFailToast('读取 ADS 表失败：' + errorText(e)) }
 }
 async function openAdmin() {
+  if (!requireAdmin()) return
   adminVisible.value = true
   try { await refreshAdminStatus() }
   catch (e) { showFailToast('读取配置失败：' + errorText(e)) }
@@ -284,6 +322,7 @@ async function reloadSemanticStatus() {
   catch (e) { semanticStatus.value = { count: 0 }; }
 }
 async function rebuildSemanticIndex() {
+  if (!requireAdmin()) return
   if (semanticBusy.value) return
   semanticBusy.value = true
   configTestMessage.value = ''
@@ -410,6 +449,7 @@ function columnLabel(message, column, index) {
   return '字段' + (index + 1)
 }
 async function showConfig(kind) {
+  if (!requireAdmin()) return
   configKind.value = kind
   configTestMessage.value = ''
   try {
@@ -433,6 +473,7 @@ function modelPayload(kind) {
   return kind === 'ai' ? aiForm.value : embeddingForm.value
 }
 async function testConfig() {
+  if (!requireAdmin()) return
   if (configTestBusy.value) return
   configTestBusy.value = true
   configTestMessage.value = ''
@@ -451,6 +492,7 @@ async function testConfig() {
   } finally { configTestBusy.value = false }
 }
 async function saveConfig() {
+  if (!requireAdmin()) return
   if (configBusy.value) return
   configBusy.value = true
   configTestMessage.value = ''
@@ -475,12 +517,14 @@ async function saveConfig() {
   finally { configBusy.value = false }
 }
 async function toggleAllowed(table) {
+  if (!requireAdmin()) { table.enabled = !table.enabled; return }
   try {
     await api.post('/admin/table-allow', { tableName: table.name, enabled: table.enabled })
     showSuccessToast(table.enabled ? '已授权' : '已取消授权')
   } catch (e) { table.enabled = !table.enabled; showFailToast(errorText(e)) }
 }
 async function addUser() {
+  if (!requireAdmin()) return
   try {
     await api.post('/admin/users', newUser.value)
     users.value = (await api.get('/admin/users')).data
@@ -499,7 +543,10 @@ onMounted(() => {
   update()
   desktopMedia.addEventListener('change', update)
   window.__dataAskDesktopListener = update
-  if (loggedIn.value) loadSessions()
+  if (loggedIn.value) {
+    refreshAuthenticatedRole()
+    loadSessions()
+  }
 })
 onBeforeUnmount(() => desktopMedia?.removeEventListener('change', window.__dataAskDesktopListener))
 </script>
@@ -801,7 +848,7 @@ onBeforeUnmount(() => desktopMedia?.removeEventListener('change', window.__dataA
           <div class="drawer-bottom"><span>{{ me.displayName || me.username }}</span><button @click="logout">退出登录</button></div>
         </div>
       </van-popup>
-      <van-popup v-model:show="adminVisible" :position="isDesktop ? 'center' : 'bottom'" round
+      <van-popup v-if="isAdmin" v-model:show="adminVisible" :position="isDesktop ? 'center' : 'bottom'" round
         :style="{ width: isDesktop ? 'min(920px, 92vw)' : '100%', height: isDesktop ? 'min(780px, 88vh)' : '88%' }">
         <div class="admin-panel">
           <div class="drawer-header"><b>系统管理</b><van-icon name="cross" @click="adminVisible=false"/></div>
@@ -940,7 +987,7 @@ onBeforeUnmount(() => desktopMedia?.removeEventListener('change', window.__dataA
           <p class="muted">AI 配置直接使用服务器 application.yml，不会在浏览器回显密钥；StarRocks 配置可通过上方入口测试和保存。</p>
         </div>
       </van-popup>
-      <van-popup v-model:show="configVisible" :position="isDesktop ? 'center' : 'bottom'" round
+      <van-popup v-if="isAdmin" v-model:show="configVisible" :position="isDesktop ? 'center' : 'bottom'" round
         :style="{ width: isDesktop ? 'min(620px, 92vw)' : '100%', height: isDesktop ? 'min(740px, 85vh)' : '80%' }">
         <div class="config-panel">
           <div class="drawer-header">
