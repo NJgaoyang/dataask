@@ -58,7 +58,7 @@ public class SecurityConfig {
         return http.build();
     }
     @Bean CommandLineRunner initialAdmin(JdbcTemplate jdbc, PasswordEncoder encoder,
-            @Value("${dataask.admin-password:}") String initial) {
+            @Value("${dataask.admin-password:${DATAASK_ADMIN_PASSWORD:}}") String initial) {
         return args -> {
             Integer count = jdbc.queryForObject("SELECT COUNT(*) FROM da_users", Integer.class);
             if (count != null && count == 0) {

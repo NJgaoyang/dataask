@@ -1,15 +1,10 @@
 <script setup>
 import { computed, onMounted, onBeforeUnmount, ref, nextTick } from 'vue'
-import axios from 'axios'
+import api from './api'
 import { showToast, showFailToast, showSuccessToast, showConfirmDialog } from 'vant'
 import AnswerChart from './components/AnswerChart.vue'
+import CatalogPicker from './components/CatalogPicker.vue'
 
-const api = axios.create({ baseURL: '/api', timeout: 65000 })
-api.interceptors.request.use(config => {
-  const token = sessionStorage.getItem('dataask_token')
-  if (token) config.headers.Authorization = 'Bearer ' + token
-  return config
-})
 api.interceptors.response.use(r => r, error => {
   if (error.response?.status === 401 && !String(error.config?.url || '').includes('/auth/login')) {
     sessionStorage.removeItem('dataask_token')
@@ -40,6 +35,19 @@ const activeSessionTitle = computed(() =>
 const latestAnswer = computed(() =>
   [...messages.value].reverse().find(m => m.rows?.length || m.unsupported) || null)
 const adminVisible = ref(false)
+const adminSection = ref('setup')
+const adminSections = [{key:'setup',label:'模型与连接'}, {key:'catalog',label:'数据库 / 表 / 字段'},
+  {key:'joins',label:'表关联'}, {key:'metrics',label:'指标口径'}, {key:'users',label:'账号管理'}]
+const catalogGeneration = ref(0)
+const serverBuild = ref({})
+async function onCatalogSaved() {
+  await Promise.all([reloadTables(), reloadJoinRules(), reloadSemanticStatus()])
+}
+async function loadBuildInfo() {
+  try { serverBuild.value = (await api.get('/build-info', { params: { t: Date.now() } })).data }
+  catch { serverBuild.value = {} }
+}
+
 const status = ref({})
 const configVisible = ref(false)
 const configKind = ref('starrocks')
@@ -59,7 +67,6 @@ const configTestMessage = ref('')
 const settingsData = ref({ starrocks: {}, ai: {} })
 const srForm = ref({ jdbcUrl: '', username: '', password: '', schema: 'ads' })
 const allowedTables = ref([])
-const expandedTable = ref('')
 const users = ref([])
 const joinRules = ref([])
 const joinSaving = ref(false)
@@ -139,6 +146,7 @@ async function reloadTables() {
 }
 async function openAdmin() {
   adminVisible.value = true
+  await loadBuildInfo()
   try { await refreshAdminStatus() }
   catch (e) { showFailToast('读取配置失败：' + errorText(e)) }
   try { users.value = (await api.get('/admin/users')).data }
@@ -277,6 +285,7 @@ function columnLabel(message, column, index) {
 }
 async function showConfig(kind) {
   configKind.value = kind
+  configVisible.value = true
   configTestMessage.value = ''
   try {
     await refreshAdminStatus()
@@ -329,22 +338,19 @@ async function saveConfig() {
     const { data } = await api.post(endpoint, payload)
     if (kind === 'ai') { aiForm.value.apiKey = ''; aiForm.value.clearKey = false }
     if (kind === 'embedding') { embeddingForm.value.apiKey = ''; embeddingForm.value.clearKey = false }
-    if (kind === 'starrocks') {
-      await reloadTables()
-      configVisible.value = false
-    }
     await refreshAdminStatus()
+    if (kind === 'starrocks') {
+      srForm.value.password = ''
+      catalogGeneration.value++
+      await onCatalogSaved()
+      configVisible.value = false
+      adminSection.value = 'catalog'
+    }
     if (kind === 'embedding') await reloadSemanticStatus()
     configTestMessage.value = data.message || '配置已保存'
     showSuccessToast(configTestMessage.value)
   } catch (e) { showFailToast(errorText(e)) }
   finally { configBusy.value = false }
-}
-async function toggleAllowed(table) {
-  try {
-    await api.post('/admin/table-allow', { tableName: table.name, enabled: table.enabled })
-    showSuccessToast(table.enabled ? '已授权' : '已取消授权')
-  } catch (e) { table.enabled = !table.enabled; showFailToast(errorText(e)) }
 }
 async function addUser() {
   try {
@@ -381,7 +387,7 @@ onBeforeUnmount(() => desktopMedia?.removeEventListener('change', window.__dataA
         <van-field v-model="loginForm.username" label="账号" placeholder="请输入账号" autocomplete="username"/>
         <van-field v-model="loginForm.password" label="密码" placeholder="请输入密码" type="password" autocomplete="current-password" @keyup.enter="login"/>
         <van-button type="primary" block :loading="loggingIn" @click="login">登录</van-button>
-        <p class="login-hint">首次启动由管理员配置初始密码，系统不会使用公开默认密码。</p>
+        <p class="login-hint">首次安装的管理员密码见启动日志或安装时指定的初始密码；已有账号继续使用原密码。</p>
       </div>
     </div>
     <template v-else>
@@ -553,9 +559,16 @@ onBeforeUnmount(() => desktopMedia?.removeEventListener('change', window.__dataA
         </div>
       </van-popup>
       <van-popup v-model:show="adminVisible" :position="isDesktop ? 'center' : 'bottom'" round
-        :style="{ width: isDesktop ? 'min(920px, 92vw)' : '100%', height: isDesktop ? 'min(780px, 88vh)' : '88%' }">
-        <div class="admin-panel">
-          <div class="drawer-header"><b>系统管理</b><van-icon name="cross" @click="adminVisible=false"/></div>
+        :style="{ width: isDesktop ? 'min(1120px, 94vw)' : '100%', height: isDesktop ? 'min(780px, 88vh)' : '88%' }">
+        <div class="admin-panel config-center">
+          <div class="drawer-header"><b>系统管理 · MySQL 配置中心</b><van-icon name="cross" @click="adminVisible=false"/></div>
+          <nav class="admin-tabs" aria-label="管理模块">
+            <button v-for="item in adminSections" :key="item.key" type="button"
+              :class="{active:adminSection===item.key}" @click="adminSection=item.key">{{ item.label }}</button>
+          </nav>
+          <div class="admin-content">
+          <section v-show="adminSection==='setup'">
+          <p class="muted">模型、分析连接和表字段范围统一保存在 MySQL，保存后立即生效，无需重新打包。</p>
           <button type="button" class="status-row status-action" @click="showConfig('starrocks')">
             <span>StarRocks ADS</span>
             <span class="status-value"><strong>{{ status.starrocksConfigured ? '已配置' : '未配置' }}</strong><van-icon name="arrow"/></span>
@@ -571,22 +584,16 @@ onBeforeUnmount(() => desktopMedia?.removeEventListener('change', window.__dataA
               <van-icon name="arrow"/>
             </span>
           </button>
-          <div class="admin-build-status">DataAsk 工作台 · 版本 {{ buildSha }} · PC宽屏使用三栏布局</div>
-          <h3>开放给 AI 的 ADS 表</h3>
-          <p class="muted">默认不开放任何表。仅授权通过审核的经营数据表。</p>
-          <div v-for="table in allowedTables" :key="table.name" class="admin-table">
-            <div class="table-head">
-              <span @click="expandedTable = expandedTable === table.name ? '' : table.name">
-                <van-icon name="arrow-down"/> {{ table.name }}
-              </span>
-              <van-switch v-model="table.enabled" size="19px" @change="toggleAllowed(table)"/>
-            </div>
-            <div v-if="expandedTable === table.name" class="columns-list">
-              <div v-for="col in table.columns" :key="col.name"><b>{{ col.name }}</b> {{ col.type }} <span>{{ col.comment }}</span></div>
-            </div>
-          </div>
-          <p v-if="!allowedTables.length" class="muted">没有读取到 ADS 表，请检查连接配置。</p>
-          <section class="metric-admin join-admin">
+          <div class="admin-build-status">界面版本 {{ buildSha }} · 服务版本 {{ serverBuild.buildSha || '未读取' }} · 配置存储 MySQL</div>
+          <p v-if="serverBuild.buildSha && serverBuild.buildSha !== buildSha && buildSha !== 'dev'" class="metric-error">
+            页面与服务器版本不一致，请强制刷新浏览器，并检查实际部署的 JAR。</p>
+          <p class="muted">部署验证：/api/build-info · PC 三栏工作台 / 手机自适应对话。</p>
+          <van-button type="primary" plain block @click="adminSection='catalog'">选择数据库、表与字段</van-button>
+          </section>
+          <section v-if="adminVisible" v-show="adminSection==='catalog'">
+            <CatalogPicker :generation="catalogGeneration" @configure-source="showConfig('starrocks')" @saved="onCatalogSaved"/>
+          </section>
+          <section v-show="adminSection==='joins'" class="metric-admin join-admin">
             <h3>ADS 跨表关联规则</h3>
             <p class="muted">多张 ADS 汇总表只有明确关联键和业务粒度才能 JOIN。系统不允许未经配置的跨表关联，以免统计金额重复。</p>
             <div v-for="rule in joinRules" :key="rule.id" class="metric-batch">
@@ -626,7 +633,7 @@ onBeforeUnmount(() => desktopMedia?.removeEventListener('change', window.__dataA
               <p class="muted">请先在数据仓库核对唯一性；跨表关联不能代替事实表口径验证。默认禁止多对多关联。</p>
             </div>
           </section>
-          <section class="metric-admin">
+          <section v-show="adminSection==='metrics'" class="metric-admin">
             <div class="metric-section-title">
               <h3>指标口径 · Excel</h3>
               <p class="muted">上传现有的指标定义，AI 将依据确认的业务口径理解 ADS 数据。当前已导入 {{ metricInfo.total || 0 }} 条。</p>
@@ -677,6 +684,7 @@ onBeforeUnmount(() => desktopMedia?.removeEventListener('change', window.__dataA
               </div>
             </div>
           </section>
+          <section v-show="adminSection==='users'">
           <h3>内部账号管理</h3>
           <div v-for="user in users" :key="user.username" class="status-row">
             <span>{{ user.displayName }}（{{ user.username }}）</span><small>{{ user.role }}</small>
@@ -688,7 +696,9 @@ onBeforeUnmount(() => desktopMedia?.removeEventListener('change', window.__dataA
             <van-radio name="USER">普通用户</van-radio><van-radio name="ADMIN">管理员</van-radio>
           </van-radio-group></template></van-field>
           <van-button type="primary" block plain @click="addUser">创建账号</van-button>
-          <p class="muted">AI 配置直接使用服务器 application.yml，不会在浏览器回显密钥；StarRocks 配置可通过上方入口测试和保存。</p>
+          <p class="muted">账号、模型、分析连接及表字段选择均保存在 MySQL。服务器配置文件仅负责元数据库连接与启动参数。</p>
+          </section>
+          </div>
         </div>
       </van-popup>
       <van-popup v-model:show="configVisible" :position="isDesktop ? 'center' : 'bottom'" round
@@ -700,9 +710,9 @@ onBeforeUnmount(() => desktopMedia?.removeEventListener('change', window.__dataA
             <van-icon name="cross" @click="configVisible = false"/>
           </div>
           <template v-if="configKind === 'starrocks'">
-            <p class="muted">配置 StarRocks FE 只读账号，测试连接成功后保存并立即读取 ADS 字段注释。</p>
-            <van-field v-model="srForm.jdbcUrl" label="JDBC 地址" label-width="85px" placeholder="jdbc:mysql://192.168.1.10:9030/ads"/>
-            <van-field v-model="srForm.schema" label="ADS 数据库" label-width="85px" placeholder="ads"/>
+            <p class="muted">填写 StarRocks FE 连接，连接地址可不包含数据库。保存后进入数据库、表和字段选择；更换服务器会清除旧表授权与关联规则。</p>
+            <van-field v-model="srForm.jdbcUrl" label="JDBC 地址" label-width="85px" placeholder="jdbc:mysql://192.168.1.10:9030/"/>
+            <van-field v-model="srForm.schema" label="默认数据库" label-width="85px" placeholder="ads"/>
             <van-field v-model="srForm.username" label="用户名" label-width="85px" placeholder="只读用户名"/>
             <van-field v-model="srForm.password" label="密码" label-width="85px" type="password"
               :placeholder="settingsData.starrocks?.passwordSet ? '已配置，留空不修改' : '请输入密码'"/>

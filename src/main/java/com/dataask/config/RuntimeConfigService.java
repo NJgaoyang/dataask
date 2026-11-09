@@ -17,16 +17,22 @@ public class RuntimeConfigService {
         public boolean configured() { return !jdbcUrl.isBlank() && !username.isBlank(); }
     }
     public record AiConfig(String baseUrl, String apiKey, String model) {
-        public boolean configured() { return !baseUrl.isBlank() && !model.isBlank(); }
+        public boolean configured() { return !baseUrl.isBlank() && !model.isBlank() && (!requiresKey(baseUrl) || !apiKey.isBlank()); }
     }
     public record StarRocksInput(String jdbcUrl, String username, String password, String schema) {}
     public record ModelInput(String baseUrl, String model, String apiKey, boolean clearKey) {}
     public record EmbeddingInput(String baseUrl, String model, String apiKey, boolean clearKey,
                                  boolean enabled, int dimensions) {}
     public record EmbeddingConfig(String baseUrl, String apiKey, String model, boolean enabled, int dimensions) {
-        public boolean configured() { return enabled && !baseUrl.isBlank() && !model.isBlank(); }
+        public boolean configured() { return enabled && !baseUrl.isBlank() && !model.isBlank() && (!requiresKey(baseUrl) || !apiKey.isBlank()); }
     }
 
+    private static boolean requiresKey(String baseUrl) {
+        String host;
+        try { host = Objects.toString(URI.create(baseUrl).getHost(), "").toLowerCase(Locale.ROOT); }
+        catch (Exception ignored) { return true; }
+        return host.equals("api.deepseek.com") || host.endsWith(".aliyuncs.com");
+    }
     private final JdbcTemplate jdbc;
     private final CredentialCipher cipher;
 
@@ -129,11 +135,13 @@ public class RuntimeConfigService {
     }
     @Transactional
     public void saveStarRocks(StarRocksInput input) {
+        lockSettings();
         StarRocksConfig old = starRocks(), config = validateStarRocks(input);
         if (!sourceKey(old).equals(sourceKey(config))) {
             // Never silently grant a different server access to the former server's tables.
             jdbc.update("DELETE FROM da_app_settings WHERE setting_key='catalog.policy'");
             jdbc.update("UPDATE da_allowed_tables SET enabled=0");
+            jdbc.update("DELETE FROM da_ads_join_rules");
             jdbc.update("DELETE FROM da_semantic_vectors");
         }
         upsert("sr.jdbcUrl", config.jdbcUrl());
@@ -143,6 +151,7 @@ public class RuntimeConfigService {
     }
     @Transactional
     public void saveAi(ModelInput input) {
+        lockSettings();
         AiConfig config = candidateAi(input);
         upsert("ai.baseUrl", config.baseUrl());
         upsert("ai.model", config.model());
@@ -150,6 +159,7 @@ public class RuntimeConfigService {
     }
     @Transactional
     public void saveEmbedding(EmbeddingInput input) {
+        lockSettings();
         EmbeddingConfig old = embedding(), config = candidateEmbedding(input);
         if (!old.baseUrl().equals(config.baseUrl()) || !old.model().equals(config.model()) || old.dimensions() != config.dimensions())
             jdbc.update("DELETE FROM da_semantic_vectors");
@@ -158,6 +168,9 @@ public class RuntimeConfigService {
         upsert("embedding.apiKey", cipher.encrypt(config.apiKey()));
         upsert("embedding.enabled", Boolean.toString(config.enabled()));
         upsert("embedding.dimensions", Integer.toString(config.dimensions()));
+    }
+    private void lockSettings() {
+        jdbc.queryForObject("SELECT setting_value FROM da_app_settings WHERE setting_key='system.bootstrap.lock' FOR UPDATE", String.class);
     }
     private void upsert(String name, String value) {
         jdbc.update("INSERT INTO da_app_settings(setting_key,setting_value) VALUES(?,?) " +

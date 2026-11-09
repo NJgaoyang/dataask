@@ -8,6 +8,8 @@ const step = ref(0), database = ref(''), databases = ref([]), tables = ref([])
 const selected = ref({}), active = ref(''), keyword = ref(''), columnKeyword = ref('')
 const sourceKey = ref(''), revision = ref('none'), configured = ref(false)
 const loading = ref(false), saving = ref(false), error = ref(''), dirty = ref(false), page = ref(1)
+const loaded = ref(false)
+let requestId = 0
 const filtered = computed(() => tables.value.filter(t => `${t.name} ${t.comment}`.toLowerCase().includes(keyword.value.trim().toLowerCase())))
 const pages = computed(() => Math.max(1, Math.ceil(filtered.value.length / 10)))
 const pageTables = computed(() => filtered.value.slice((page.value - 1) * 10, page.value * 10))
@@ -20,19 +22,23 @@ watch(keyword, () => { page.value = 1 })
 watch(active, () => { columnKeyword.value = '' })
 function message(e) { return e.response?.data?.message || e.message || '操作失败' }
 async function loadTables(name) {
+  const id = ++requestId
+  loaded.value = false
   if (!name) { tables.value = []; selected.value = {}; return }
   loading.value = true; error.value = ''
   try {
     const { data } = await api.get('/admin/catalog/tables', { params: { database: name } })
+    if (id !== requestId) return
+    loaded.value = true
     tables.value = data.tables
     selected.value = Object.fromEntries(data.tables.map(t => [t.name, [...t.selectedColumns]]))
     sourceKey.value = data.sourceKey; revision.value = data.revision
     active.value = data.tables[0]?.name || ''; page.value = 1; dirty.value = false
-  } catch (e) { tables.value = []; selected.value = {}; error.value = message(e) }
-  finally { loading.value = false }
+  } catch (e) { if(id === requestId) { tables.value = []; selected.value = {}; error.value = message(e) } }
+  finally { if(id === requestId) loading.value = false }
 }
 async function refresh() {
-  loading.value = true; error.value = ''
+  loading.value = true; error.value = ''; loaded.value = false
   try {
     const { data } = await api.get('/admin/catalog/databases')
     configured.value = data.configured; databases.value = data.databases
@@ -69,7 +75,7 @@ function selectVisibleColumns(checked) {
   for (const col of visibleColumns.value) toggleColumn(col.name, checked)
 }
 async function save() {
-  if (saving.value) return
+  if (saving.value || !loaded.value) return
   if (!selectedTables.value.length) {
     try { await showConfirmDialog({ title: '撤销当前库的全部授权', message: '当前没有选中字段。保存后，此数据库将不再参与问数。其他数据库的选择不受影响。' }) }
     catch { return }
@@ -154,8 +160,8 @@ onMounted(refresh)
       <div class="catalog-actions">
         <span>{{ selectedTables.length }} 张表 · {{ fieldCount }} 字段 {{ dirty ? '· 尚未保存' : '· 已同步' }}</span>
         <button v-if="step > 0" type="button" :disabled="saving" @click="step--">上一步</button>
-        <button v-if="step < 2" type="button" class="catalog-primary" :disabled="!database || !configured" @click="step++">下一步</button>
-        <button v-else type="button" class="catalog-primary" :disabled="saving" @click="save">{{ saving ? '正在保存…' : '确认保存并生效' }}</button>
+        <button v-if="step < 2" type="button" class="catalog-primary" :disabled="!database || !configured || !loaded" @click="step++">下一步</button>
+        <button v-else type="button" class="catalog-primary" :disabled="saving || !loaded" @click="save">{{ saving ? '正在保存…' : '确认保存并生效' }}</button>
       </div>
     </template>
   </section>

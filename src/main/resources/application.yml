@@ -15,15 +15,3 @@ spring:
   sql:
     init:
       mode: always
-dataask:
-  jwt-secret: ${DATAASK_JWT_SECRET:}
-  admin-password: ${DATAASK_ADMIN_PASSWORD:}
-  starrocks:
-    jdbc-url: ${DATAASK_STARROCKS_JDBC_URL:}
-    username: ${DATAASK_STARROCKS_USER:}
-    password: ${DATAASK_STARROCKS_PASSWORD:}
-    schema: ${DATAASK_STARROCKS_SCHEMA:ads}
-  ai:
-    base-url: ${DATAASK_AI_BASE_URL:https://api.deepseek.com}
-    api-key: ${DATAASK_AI_API_KEY:}
-    model: ${DATAASK_AI_MODEL:deepseek-flash}

@@ -29,13 +29,17 @@ public class InstallationSettings {
 
     @PostConstruct
     void initialize() {
+        // Idempotent upgrade: a catalog of many selected columns can exceed TEXT's 64 KiB.
+        String type = jdbc.queryForObject("SELECT DATA_TYPE FROM information_schema.COLUMNS " +
+            "WHERE TABLE_SCHEMA=DATABASE() AND TABLE_NAME='da_app_settings' AND COLUMN_NAME='setting_value'", String.class);
+        if (!"longtext".equalsIgnoreCase(type)) jdbc.execute("ALTER TABLE da_app_settings MODIFY setting_value LONGTEXT NOT NULL");
         tx.executeWithoutResult(status -> {
             insertAbsent("system.bootstrap.lock", "1");
             jdbc.queryForObject("SELECT setting_value FROM da_app_settings WHERE setting_key=? FOR UPDATE",
                 String.class, "system.bootstrap.lock");
             String stored = read("system.jwtSecret");
             if (stored == null) {
-                String legacy = env.getProperty("dataask.jwt-secret", "").trim();
+                String legacy = env.getProperty("dataask.jwt-secret", env.getProperty("DATAASK_JWT_SECRET", "")).trim();
                 if (legacy.isBlank()) {
                     Integer encrypted = jdbc.queryForObject("SELECT COUNT(*) FROM da_app_settings " +
                         "WHERE setting_key IN ('sr.password','ai.apiKey','embedding.apiKey')", Integer.class);

@@ -33,14 +33,14 @@ public class ColumnAccessGuard {
                 if (item.getAlias() != null) outputAliases.add(clean(item.getAlias().getName()));
             }
             expression(p.getWhere(), aliases, columns, Set.of());
-            expression(p.getHaving(), aliases, columns, outputAliases);
+            expression(p.getHaving(), aliases, columns, Set.of());
             if (p.getJoins() != null) for (Join join : p.getJoins())
                 if (join.getOnExpressions() != null) for (Expression on : join.getOnExpressions())
                     expression(on, aliases, columns, Set.of());
             if (p.getGroupBy() != null) {
                 if (p.getGroupBy().getGroupingSets() != null && !p.getGroupBy().getGroupingSets().isEmpty()) throw denied();
                 for (Object value : p.getGroupBy().getGroupByExpressions())
-                    expression((Expression) value, aliases, columns, outputAliases);
+                    expression((Expression) value, aliases, columns, Set.of());
             }
             if (p.getOrderByElements() != null) for (OrderByElement order : p.getOrderByElements())
                 expression(order.getExpression(), aliases, columns, outputAliases);
@@ -65,7 +65,7 @@ public class ColumnAccessGuard {
             Map<String,String> aliases, Map<String,Set<String>> columns) {
         if (!(item instanceof Table table)) throw denied();
         String name = clean(table.getFullyQualifiedName());
-        if (!name.contains(".")) name = clean(schema) + "." + name;
+        if (!name.contains(".")) throw denied(); // Explicit databases prevent JDBC-default/schema mismatches.
         String selected = null;
         for (String key : grants.keySet()) if (clean(key).equals(name)) {
             if (selected != null) throw denied(); selected = key;

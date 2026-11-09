@@ -219,6 +219,10 @@ public class MetricDictionaryService {
     }
 
     public String promptForQuestion(String question, Set<String> allowedTables) {
+        return promptForQuestion(question, allowedTables, null);
+    }
+    public String promptForQuestion(String question, Set<String> allowedTables,
+            List<com.dataask.data.StarRocksGateway.TableMeta> metadata) {
         var rows=jdbc.query(
             "SELECT metric_name,aliases,definition,ads_table,ads_field,time_field,dimensions,notes " +
             "FROM da_metric_definitions ORDER BY id DESC LIMIT 1000",
@@ -230,6 +234,7 @@ public class MetricDictionaryService {
         List<Ranked> ranked = new ArrayList<>();
         String normalizedQuestion=question.replaceAll("\\s+","");
         for (String[] row : rows) {
+            if (metadata != null && !com.dataask.semantic.MetricScope.permits(row[3], row[4], row[5], row[6], metadata)) continue;
             String rawTable=row[3].trim();
             if (!rawTable.isBlank() && allowedTables.stream().noneMatch(t ->
                     t.equalsIgnoreCase(rawTable) || t.toLowerCase(Locale.ROOT)

@@ -5,7 +5,7 @@ export default defineConfig({
   define: { __DATAASK_BUILD_SHA__: JSON.stringify(process.env.DATAASK_BUILD_SHA || 'dev') },
   server: {
     port: 5173,
-    proxy: { '/api': { target: 'http://127.0.0.1:8080', changeOrigin: true } }
+    proxy: { '/api': { target: 'http://127.0.0.1:8087', changeOrigin: true } }
   },
   build: { outDir: 'dist', emptyOutDir: true }
 })

@@ -3,7 +3,7 @@
   <modelVersion>4.0.0</modelVersion>
   <parent><groupId>org.springframework.boot</groupId><artifactId>spring-boot-starter-parent</artifactId><version>3.5.7</version><relativePath/></parent>
   <groupId>com.dataask</groupId><artifactId>dataask</artifactId><version>0.1.0-SNAPSHOT</version>
-  <name>DataAsk</name><properties><java.version>21</java.version></properties>
+  <name>DataAsk</name><properties><java.version>21</java.version><dataask.skipWeb>false</dataask.skipWeb></properties>
   <dependencies>
     <dependency><groupId>org.springframework.boot</groupId><artifactId>spring-boot-starter-web</artifactId></dependency>
     <dependency><groupId>org.springframework.boot</groupId><artifactId>spring-boot-starter-security</artifactId></dependency>
@@ -14,5 +14,22 @@
     <dependency><groupId>org.apache.poi</groupId><artifactId>poi-ooxml</artifactId><version>6.0.0</version></dependency>
     <dependency><groupId>org.springframework.boot</groupId><artifactId>spring-boot-starter-test</artifactId><scope>test</scope></dependency>
   </dependencies>
-  <build><plugins><plugin><groupId>org.springframework.boot</groupId><artifactId>spring-boot-maven-plugin</artifactId></plugin></plugins></build>
+  <build>
+    <resources>
+      <resource><directory>src/main/resources</directory><excludes><exclude>static/**</exclude></excludes></resource>
+      <resource><directory>web/dist</directory><targetPath>static</targetPath></resource>
+    </resources>
+    <plugins>
+      <plugin><groupId>org.springframework.boot</groupId><artifactId>spring-boot-maven-plugin</artifactId></plugin>
+      <plugin>
+        <groupId>org.codehaus.mojo</groupId><artifactId>exec-maven-plugin</artifactId><version>3.5.0</version>
+        <executions><execution><id>build-web</id><phase>generate-resources</phase><goals><goal>exec</goal></goals>
+          <configuration><skip>${dataask.skipWeb}</skip><executable>node</executable>
+            <workingDirectory>${project.basedir}</workingDirectory>
+            <arguments><argument>scripts/build-web.mjs</argument></arguments>
+          </configuration>
+        </execution></executions>
+      </plugin>
+    </plugins>
+  </build>
 </project>

@@ -86,7 +86,8 @@ public class EntityValueResolver {
     }
 
     private List<String> values(ColumnRef ref) {
-        String key = gateway.schema() + ":" + ref.table() + "." + ref.column();
+        String key = gateway.selectionRevision() + ":" + ref.table() + "." + ref.column();
+        if (cache.size() > 500) cache.clear();
         CacheEntry cached = cache.get(key);
         if (cached != null && cached.expiresAt().isAfter(Instant.now())) return cached.values();
         List<String> fetched = gateway.distinctDimensionValues(ref.table(), ref.column());

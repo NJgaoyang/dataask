@@ -162,12 +162,8 @@ public class AdminController {
 
     @PostMapping("/table-allow")
     Map<String,Object> allow(@Valid @RequestBody AllowTableRequest request) {
-        boolean exists=starrocks.discover().stream().anyMatch(x->x.name().equals(request.tableName()));
-        if(!exists) throw new ResponseStatusException(HttpStatus.BAD_REQUEST,"指定 ADS 表不存在");
-        jdbc.update("INSERT INTO da_allowed_tables(table_name,enabled) VALUES(?,?) "+
-            "ON DUPLICATE KEY UPDATE enabled=VALUES(enabled)",
-            request.tableName(),request.enabled()?1:0);
-        return Map.of("success",true);
+        throw new ResponseStatusException(HttpStatus.GONE,
+            "整表授权入口已停用，请在数据库 / 表 / 字段页面明确选择字段后保存");
     }
 
     @GetMapping("/users")

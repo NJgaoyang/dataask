@@ -154,6 +154,7 @@ public class EmbeddingSemanticService {
             (rs,n)->rs.getString(1)));
         if (allowed.isEmpty()) throw new ResponseStatusException(
             HttpStatus.BAD_REQUEST,"请先在 ADS 表管理中授权至少一张表");
+        String revision = starrocks.selectionRevision();
         List<Document> documents=new ArrayList<>();
         List<StarRocksGateway.TableMeta> tables=starrocks.discover();
         for (StarRocksGateway.TableMeta table : tables) {
@@ -170,9 +171,12 @@ public class EmbeddingSemanticService {
         }
 
         List<Map<String,Object>> metricRows=jdbc.queryForList(
-            "SELECT id,metric_name,aliases,definition,ads_table,ads_field,dimensions " +
+            "SELECT id,metric_name,aliases,definition,ads_table,ads_field,time_field,dimensions " +
             "FROM da_metric_definitions ORDER BY id DESC LIMIT 100");
         for (Map<String,Object> row : metricRows) {
+            if (!MetricScope.permits(Objects.toString(row.get("ads_table"),""),
+                Objects.toString(row.get("ads_field"),""), Objects.toString(row.get("time_field"),""),
+                Objects.toString(row.get("dimensions"),""), tables)) continue;
             String table=Objects.toString(row.get("ads_table"),"").trim();
             if(!table.isEmpty() && allowed.stream().noneMatch(t ->
                     t.equalsIgnoreCase(table) || t.endsWith("."+table))) continue;
@@ -193,6 +197,11 @@ public class EmbeddingSemanticService {
         }
 
         tx.executeWithoutResult(status -> {
+            jdbc.queryForObject("SELECT setting_value FROM da_app_settings WHERE setting_key='system.bootstrap.lock' FOR UPDATE", String.class);
+            if (!revision.equals(starrocks.selectionRevision()) || !cfg.equals(settings.embedding()))
+                throw new ResponseStatusException(HttpStatus.CONFLICT, "模型或表字段配置已变更，请重新构建索引");
+            jdbc.update("INSERT INTO da_app_settings(setting_key,setting_value) VALUES('semantic.revision',?) " +
+                "ON DUPLICATE KEY UPDATE setting_value=VALUES(setting_value)", revision);
             jdbc.update("DELETE FROM da_semantic_vectors");
             for (VectorDocument vector : output) {
                 try {
@@ -212,6 +221,9 @@ public class EmbeddingSemanticService {
     public String hints(String question, Set<String> allowedTables) {
         RuntimeConfigService.EmbeddingConfig cfg=settings.embedding();
         if (!cfg.configured()) return "";
+        String revision = starrocks.selectionRevision();
+        List<String> indexed = jdbc.query("SELECT setting_value FROM da_app_settings WHERE setting_key='semantic.revision'", (rs,n) -> rs.getString(1));
+        if (indexed.isEmpty() || !revision.equals(indexed.getFirst())) return "";
         Integer count=jdbc.queryForObject(
             "SELECT COUNT(*) FROM da_semantic_vectors WHERE model_name=?",
             Integer.class,cfg.model());
@@ -248,6 +260,7 @@ public class EmbeddingSemanticService {
                 sb.append(match.type()).append(" ").append(match.text()).append('\n');
                 kept++;
             }
+            if (!revision.equals(starrocks.selectionRevision()) || !cfg.equals(settings.embedding())) return "";
             return kept==0?"":sb.toString();
         } catch(Exception e) {
             org.slf4j.LoggerFactory.getLogger(getClass()).warn(

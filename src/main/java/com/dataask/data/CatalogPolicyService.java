@@ -42,6 +42,7 @@ public class CatalogPolicyService {
     public Policy saveDatabase(String sourceKey, String revision, String schema,
             Map<String,List<String>> selected, List<StarRocksGateway.TableMeta> actual) {
         identifier(schema);
+        jdbc.queryForObject("SELECT setting_value FROM da_app_settings WHERE setting_key='system.bootstrap.lock' FOR UPDATE", String.class);
         if (selected == null || selected.size() > 300) throw bad("一次最多选择300张表");
         jdbc.update("INSERT INTO da_app_settings(setting_key,setting_value) VALUES('catalog.policy','') " +
             "ON DUPLICATE KEY UPDATE setting_key=setting_key");
@@ -89,7 +90,7 @@ public class CatalogPolicyService {
             List<String> columns = policy.tables().get(table.name());
             if (columns == null) continue;
             var filtered = table.columns().stream().filter(c -> columns.contains(c.name())).toList();
-            if (!filtered.isEmpty()) result.add(new StarRocksGateway.TableMeta(table.name(), filtered));
+            if (!filtered.isEmpty()) result.add(new StarRocksGateway.TableMeta(table.name(), filtered, table.comment()));
         }
         return result;
     }
