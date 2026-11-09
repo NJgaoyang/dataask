@@ -1,0 +1,188 @@
+import { chromium } from 'playwright';
+import assert from 'node:assert/strict';
+import { mkdir } from 'node:fs/promises';
+
+const base = process.env.DATAASK_UI_URL || 'http://127.0.0.1:4173';
+const calls = [];
+const status = {
+  starrocksConfigured:true, schema:'ads', aiConfigured:true,
+  model:'qwen-plus', aiKeyConfigured:true, aiUrlConfigured:true,
+  embeddingConfigured:true, embeddingModel:'text-embedding-v3'
+};
+const settings = {
+  starrocks:{jdbcUrl:'jdbc:mysql://127.0.0.1:9030/ads',username:'readonly',schema:'ads',passwordSet:true},
+  ai:{baseUrl:'https://dashscope.aliyuncs.com/compatible-mode/v1',model:'qwen-plus',apiKeySet:true},
+  embedding:{baseUrl:'https://dashscope.aliyuncs.com/api/v1',model:'text-embedding-v3',enabled:true,dimensions:1024,apiKeySet:true}
+};
+let tables = [
+  {name:'ads.city_orders',enabled:true,columns:[{name:'city',type:'varchar',comment:'城市'},{name:'order_cnt',type:'bigint',comment:'订单数'}]},
+  {name:'ads.sales',enabled:true,columns:[{name:'city',type:'varchar',comment:'城市'},{name:'amount',type:'decimal',comment:'销售额'}]}
+];
+let users = [
+  {username:'admin',displayName:'系统管理员',role:'ADMIN'},
+  {username:'alice',displayName:'Alice',role:'USER'}
+];
+let rules = [];
+let metrics = {total:0,batches:[],definitions:[]};
+
+async function mockBackend(route) {
+  const req = route.request();
+  const url = new URL(req.url());
+  const path = url.pathname;
+  const method = req.method();
+  calls.push(method+' '+path);
+  const ok = payload => route.fulfill({status:200,json:payload});
+  const fail = () => route.fulfill({status:404,json:{message:'Mock endpoint missing: '+method+' '+path}});
+  if(path==='/api/auth/me') return ok({username:'admin',role:'ADMIN'});
+  if(path==='/api/chat/sessions') return ok([]);
+  if(path==='/api/chat/datasets') return ok(['ads.city_orders','ads.sales']);
+  if(path==='/api/mini/charts') return ok([]);
+  if(path==='/api/admin/status') return ok(status);
+  if(path==='/api/admin/settings') return ok(settings);
+  if(path==='/api/admin/semantic/status') return ok({count:2,indexedModel:'text-embedding-v3',configured:true});
+  if(path==='/api/admin/semantic/rebuild' && method==='POST') return ok({message:'语义索引已重建'});
+  if(path==='/api/admin/tables' && method==='GET') return ok(tables);
+  if(path==='/api/admin/table-allow' && method==='POST') {
+    const body=req.postDataJSON();tables=tables.map(t=>t.name===body.tableName?{...t,enabled:body.enabled}:t);return ok({success:true});
+  }
+  if(path==='/api/admin/join-rules' && method==='GET') return ok(rules);
+  if(path==='/api/admin/join-rules' && method==='POST'){
+    const input=req.postDataJSON();rules.push({...input,id:12,leftKeys:input.leftKeys.split(','),rightKeys:input.rightKeys.split(',')});return ok({success:true,id:12});
+  }
+  if(path.startsWith('/api/admin/join-rules/') && method==='DELETE') {
+    rules=[];return ok({success:true});
+  }
+  if(path==='/api/admin/metrics' && method==='GET') return ok(metrics);
+  if(path==='/api/admin/metrics/preview' && method==='POST')
+    return ok({filename:'demo-metrics.xlsx',count:1,samples:[{metricName:'营业额',definition:'销售净额',adsTable:'ads.sales'}],notices:[]});
+  if(path==='/api/admin/metrics/import' && method==='POST') {
+    metrics={total:1,batches:[{id:'batch1',filename:'demo-metrics.xlsx',count:1,createdAt:'2026-11-09'}],definitions:[]};
+    return ok({success:true,message:'导入成功'});
+  }
+  if(path==='/api/admin/metrics/template' && method==='GET')
+    return route.fulfill({status:200,body:'template-stub',headers:{'content-type':'application/octet-stream'}});
+  if(path.startsWith('/api/admin/metrics/batches/') && method==='DELETE') {
+    metrics={total:0,batches:[],definitions:[]};return ok({success:true});
+  }
+  if(path==='/api/admin/users' && method==='GET') return ok(users);
+  if(path==='/api/admin/users' && method==='POST') {
+    const body=req.postDataJSON();users.push({username:body.username,displayName:body.displayName,role:body.role});return ok({success:true});
+  }
+  const userMatch=path.match(/^\/api\/admin\/users\/([A-Za-z0-9_-]+)(\/reset-password)?$/);
+  if(userMatch && method==='PUT'){
+    const body=req.postDataJSON();
+    users=users.map(u=>u.username===userMatch[1]?{...u,displayName:body.displayName,role:body.role}:u);
+    return ok({success:true,message:'用户信息已更新'});
+  }
+  if(userMatch && method==='POST')return ok({success:true,message:'密码已重置'});
+  const settingsMatch=path.match(/^\/api\/admin\/settings\/(starrocks|ai|embedding)(\/test)?$/);
+  if(settingsMatch && method==='POST')return ok({success:true,message:settingsMatch[2]?'连接测试成功':'配置已保存'});
+  return fail();
+}
+
+async function visible(locator,label){
+  await locator.first().waitFor({state:'visible',timeout:10000});
+  assert(await locator.first().isVisible(),label+' not visible');
+}
+async function clickTile(page,label) {
+  await page.locator('.tb-single-admin-nav button').click();
+  await visible(page.locator('.tb-admin-overview-grid button').filter({hasText:label}),label+' tile');
+  await page.locator('.tb-admin-overview-grid button').filter({hasText:label}).click();
+  await visible(page.locator('.tb-admin-page h1'),label+' heading');
+}
+const browser=await chromium.launch({headless:true,args:['--no-sandbox']});
+try {
+  const ctx=await browser.newContext({viewport:{width:1366,height:768}});
+  await ctx.addInitScript(() => {
+    sessionStorage.setItem('dataask_token','ui-test-token');
+    sessionStorage.setItem('dataask_user',JSON.stringify({username:'admin',displayName:'系统管理员',role:'ADMIN'}));
+  });
+  const page=await ctx.newPage();
+  const errors=[];
+  page.on('pageerror', e => errors.push(e.message));
+  await page.route('**/api/**',mockBackend);
+  await page.goto(base,{waitUntil:'networkidle'});
+
+  await clickTile(page,'数据源配置');
+  await visible(page.locator('input[placeholder*="jdbc:mysql"]'),'StarRocks form');
+  await page.getByRole('button',{name:'测试连接'}).click();
+  await page.getByRole('button',{name:'保存配置'}).click();
+
+  await clickTile(page,'对话模型');
+  await visible(page.locator('input[placeholder="https://api.example.com/v1"]'),'AI URL');
+  await page.getByRole('button',{name:'测试连接'}).click();
+  await page.getByRole('button',{name:'保存配置'}).click();
+
+  await clickTile(page,'Embedding 模型');
+  await visible(page.locator('input[placeholder="qwen3.7-text-embedding-flash"]'),'Embedding model');
+  await page.getByRole('button',{name:'测试连接'}).click();
+  await page.getByRole('button',{name:'保存配置'}).click();
+  await page.getByRole('button',{name:'重建语义索引'}).click();
+
+  await clickTile(page,'ADS 表授权');
+  await visible(page.locator('.admin-table'),'ADS tables');
+  await page.locator('.admin-table .van-switch').first().click();
+  assert(calls.some(x=>x==='POST /api/admin/table-allow'),'ADS table toggle API not called');
+
+  await clickTile(page,'表关联规则');
+  await visible(page.locator('.join-editor'),'Join editor');
+  const selects=page.locator('.join-editor select');
+  await selects.nth(0).selectOption('ads.city_orders');
+  await selects.nth(1).selectOption('ads.sales');
+  await page.locator('.join-editor input[placeholder="city_name,dt"]').fill('city');
+  await page.locator('.join-editor input[placeholder="city,dt"]').fill('city');
+  await page.locator('.join-editor textarea').fill('两张表均按城市唯一汇总，键为城市字段');
+  await page.getByRole('button',{name:'保存关联规则'}).click();
+  assert(calls.some(x=>x==='POST /api/admin/join-rules'),'Join save API not called');
+
+  await clickTile(page,'指标口径');
+  await visible(page.locator('.tb-admin-metrics-page'),'Metric page');
+  await page.locator('.tb-admin-metrics-page input[type=file]').setInputFiles({
+    name:'demo-metrics.xlsx',mimeType:'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+    buffer:Buffer.from('mocked spreadsheet')});
+  await visible(page.locator('.metric-preview'),'Excel preview');
+  await page.getByRole('button',{name:/确认导入/}).click();
+  assert(calls.some(x=>x==='POST /api/admin/metrics/import'),'Metric import API not called');
+
+  await clickTile(page,'用户管理');
+  await visible(page.locator('.tb-user-row'),'User listing');
+  await page.locator('.tb-user-row').filter({hasText:'alice'}).getByRole('button',{name:/编辑/}).click();
+  await visible(page.locator('.tb-user-editor'),'User editor');
+  await page.locator('.tb-user-editor input[placeholder="请输入姓名"]').fill('Alice Zhang');
+  await page.getByRole('button',{name:'保存用户信息'}).click();
+  assert(calls.some(x=>x==='PUT /api/admin/users/alice'),'User edit API not called');
+  await page.locator('.tb-user-row').filter({hasText:'alice'}).getByRole('button',{name:/编辑/}).click();
+  await page.locator('.tb-user-reset input[type=password]').fill('new-password-123');
+  await page.getByRole('button',{name:'重置密码'}).click();
+  await page.getByRole('dialog').getByRole('button',{name:'确认'}).click();
+  assert(calls.some(x=>x==='POST /api/admin/users/alice/reset-password'),'Password reset API not called');
+
+  await clickTile(page,'配置状态');
+  await visible(page.locator('.tb-config-status-list'),'Configuration status page');
+  await page.getByRole('button',{name:/刷新状态/}).click();
+
+  await mkdir('artifacts',{recursive:true});
+  await page.screenshot({path:'artifacts/admin-desktop.png',fullPage:true});
+  assert.equal(errors.length,0,'Unexpected browser runtime errors: '+errors.join(' | '));
+  await ctx.close();
+
+  const ctxUser=await browser.newContext({viewport:{width:1366,height:768}});
+  await ctxUser.addInitScript(()=>{
+    sessionStorage.setItem('dataask_token','other-token');
+    sessionStorage.setItem('dataask_user',JSON.stringify({username:'alice',displayName:'Alice',role:'USER'}));
+  });
+  const userPage=await ctxUser.newPage();
+  await userPage.route('**/api/**',async route=>{
+    const url=new URL(route.request().url());
+    if(url.pathname==='/api/auth/me')return route.fulfill({json:{username:'alice',role:'USER'}});
+    if(url.pathname==='/api/chat/sessions'||url.pathname==='/api/mini/charts'||url.pathname==='/api/chat/datasets')
+      return route.fulfill({json:[]});
+    return route.fulfill({status:403,json:{message:'Forbidden'}});
+  });
+  await userPage.goto(base,{waitUntil:'networkidle'});
+  assert.equal(await userPage.locator('.tb-single-admin-nav').count(),0,'Regular users must not see admin modules');
+  await ctxUser.close();
+  console.log('PASS: eight admin tiles, real HTTP requests, role restrictions, editor and password reset, desktop browser');
+} finally {
+  await browser.close();
+}
