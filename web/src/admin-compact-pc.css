@@ -1,0 +1,244 @@
+/* Compact PC layout and second-level administrator pages.
+   Imported after TencentBI styles. Tablet/mobile and miniapp remain unchanged. */
+@media (min-width:1024px) {
+  /* Consistent compact section headers on every PC page */
+  .tencentbi-pc .tb-page-body{
+    padding-top:17px;
+    padding-bottom:24px;
+  }
+  .tencentbi-pc .tb-page-intro{
+    min-height:73px;align-items:center;
+    margin-bottom:13px;
+  }
+  .tencentbi-pc .tb-page-intro h1,
+  .tencentbi-pc .tb-page-heading h1{
+    font-size:21px;margin:0 0 5px;
+    line-height:1.35;
+  }
+  .tencentbi-pc .tb-page-intro p:not(.tb-eyebrow),
+  .tencentbi-pc .tb-page-heading p{
+    font-size:12px;line-height:1.45;
+  }
+  .tencentbi-pc .tb-eyebrow{font-size:9px;letter-spacing:1px;margin:0 0 4px}
+  .tencentbi-pc .tb-page-symbol{
+    width:42px;height:42px;border-radius:11px;
+  }
+  .tencentbi-pc .tb-page-symbol .van-icon{font-size:25px!important}
+  .tencentbi-pc .tb-welcome-panel{
+    min-height:150px;
+    padding:18px clamp(22px,2.8vw,35px);
+    margin-bottom:20px;border-radius:13px;
+    gap:8px;
+  }
+  .tencentbi-pc .tb-welcome-overline{font-size:11px;margin-bottom:6px}
+  .tencentbi-pc .tb-welcome-main h2{
+    font-size:clamp(20px,1.8vw,23px);margin:0 0 7px
+  }
+  .tencentbi-pc .tb-welcome-main p{
+    font-size:12px;line-height:1.5;margin-bottom:12px;
+  }
+  .tencentbi-pc .tb-primary-action{
+    padding:9px 17px;border-radius:8px;font-size:12px
+  }
+  .tencentbi-pc .tb-welcome-art{
+    flex:0 0 120px;height:110px;
+  }
+  .tencentbi-pc .tb-art-ring{
+    width:78px;height:78px;border-radius:25px;box-shadow:0 9px 22px rgba(46,120,222,.14)
+  }
+  .tencentbi-pc .tb-art-ring .van-icon{font-size:40px!important}
+  .tencentbi-pc .tb-spark-a{font-size:20px;right:6px;top:4px}
+  .tencentbi-pc .tb-spark-b{font-size:17px;left:1px;bottom:4px}
+  .tencentbi-pc .tb-section-heading{margin-bottom:10px}
+  .tencentbi-pc .tb-section-heading h3{font-size:15px}
+  .tencentbi-pc .tb-overview-cards{gap:12px}
+  .tencentbi-pc .tb-overview-cards button{min-height:120px;padding:15px 17px;gap:6px}
+  .tencentbi-pc .tb-overview-cards .tb-entry-icon{width:37px;height:37px;flex-basis:37px}
+  .tencentbi-pc .tb-overview-cards strong{font-size:13px}
+  .tencentbi-pc .tb-overview-cards small{font-size:11px}
+  .tencentbi-pc .tb-recent-heading{margin-top:20px}
+  .tencentbi-pc .tb-recent-list>button{padding:12px 17px}
+  .tencentbi-pc .tb-page-heading{margin-bottom:17px;min-height:56px}
+  .tencentbi-pc .tb-page-heading p{margin-top:2px}
+  .tencentbi-pc .tb-history-search{margin-bottom:13px;padding:10px 13px}
+  .tencentbi-pc.consumer-home .conversation{padding-top:16px}
+  .tencentbi-pc .qbi-welcome-brand{margin-bottom:4px;gap:4px}
+  .tencentbi-pc .qbi-welcome-orb{height:40px;width:40px;border-radius:11px}
+  .tencentbi-pc .qbi-welcome-orb .van-icon{font-size:22px!important}
+  .tencentbi-pc .welcome h2{font-size:24px}
+  .tencentbi-pc .welcome .qbi-welcome-description{margin:7px auto 13px}
+  .tencentbi-pc .qbi-dataset-surface{padding:11px 15px;margin-bottom:16px}
+  .tencentbi-pc .qbi-question-heading{margin-bottom:9px}
+  .tencentbi-pc .qbi-quick-grid button{min-height:59px;padding:10px 13px}
+  .tencentbi-pc .qbi-quick-grid .qbi-quick-icon{width:32px;height:32px;flex-basis:32px}
+  .tencentbi-pc .qbi-quick-grid .qbi-quick-icon .van-icon{font-size:18px}
+  .tencentbi-pc .composer{padding-top:7px;padding-bottom:12px}
+  .tencentbi-pc .composer-row{min-height:112px;padding-top:13px;padding-bottom:62px}
+  /* Admin navigation is a real nested sidebar, not a modal opener */
+  .tencentbi-pc .desktop-sidebar{
+    overflow-y:auto;overscroll-behavior:contain;scrollbar-width:thin;
+    scrollbar-color:#cbd7e8 transparent;
+  }
+  .tencentbi-pc .tb-sidebar-fill{min-height:4px}
+  .tencentbi-pc .tb-admin-nav{margin-bottom:9px}
+  .tencentbi-pc .tb-admin-parent{
+    display:flex;align-items:center;width:100%;
+  }
+  .tencentbi-pc .tb-admin-parent .tb-admin-chevron{
+    margin-left:auto;font-size:12px;color:#8b9db7;
+  }
+  .tencentbi-pc .tb-admin-submenu{
+    display:flex;flex-direction:column;gap:2px;
+    margin:2px 0 7px 23px;padding:3px 0 2px 11px;
+    border-left:1px solid #e0e8f4;
+  }
+  .tencentbi-pc .tb-admin-submenu button{
+    display:flex;align-items:center;gap:9px;min-height:31px;
+    border:0;border-radius:7px;background:transparent;
+    padding:7px 8px;color:#69809c;
+    font-size:11.5px;text-align:left;font-weight:500;
+  }
+  .tencentbi-pc .tb-admin-submenu button .van-icon{
+    color:#95a6ba;font-size:14px
+  }
+  .tencentbi-pc .tb-admin-submenu button:hover{
+    background:#f2f7ff;color:#2867c6
+  }
+  .tencentbi-pc .tb-admin-submenu button.active{
+    background:#e8f2ff;color:#206fe0;font-weight:700
+  }
+  .tencentbi-pc .tb-admin-submenu button.active .van-icon{color:#2e7ded}
+  /* Full-size admin content pages, with compact page headings. */
+  .tencentbi-pc .tb-admin-page{
+    background:#f7f9fc;padding-top:15px;
+  }
+  .tencentbi-pc .tb-admin-heading{
+    display:flex;align-items:center;justify-content:space-between;gap:12px;
+    max-width:1160px;margin:0 auto 13px;
+    min-height:68px;
+  }
+  .tencentbi-pc .tb-admin-heading-copy{min-width:0}
+  .tencentbi-pc .tb-admin-location{
+    display:flex;align-items:center;gap:6px;
+    font-size:10px;color:#7b97b7;margin-bottom:3px
+  }
+  .tencentbi-pc .tb-admin-location .van-icon{color:#4a8bdf}
+  .tencentbi-pc .tb-admin-heading h1{
+    color:#223a59;font-size:20px;line-height:1.35;margin:0 0 4px;font-weight:750
+  }
+  .tencentbi-pc .tb-admin-heading p{
+    color:#92a1b5;font-size:11px;margin:0;line-height:1.5
+  }
+  .tencentbi-pc .tb-admin-heading-badge{
+    display:inline-flex;align-items:center;gap:6px;
+    border-radius:7px;background:#edf5ff;color:#5786bb;
+    padding:7px 9px;font-size:11px;white-space:nowrap
+  }
+  .tencentbi-pc .tb-admin-overview-grid{
+    display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:13px;
+  }
+  .tencentbi-pc .tb-admin-overview-grid button{
+    display:flex;flex-direction:column;align-items:flex-start;gap:8px;
+    position:relative;min-height:144px;padding:19px;
+    border:1px solid #e3ebf5;border-radius:12px;
+    background:#fff;text-align:left;box-shadow:0 2px 8px rgba(34,75,132,.02)
+  }
+  .tencentbi-pc .tb-admin-overview-grid button:hover{
+    border-color:#bad6fa;background:#fcfdff
+  }
+  .tencentbi-pc .tb-admin-overview-icon{
+    display:flex;align-items:center;justify-content:center;
+    width:38px;height:38px;border-radius:10px;background:#edf5ff;color:#3283e6
+  }
+  .tencentbi-pc .tb-admin-overview-grid strong{font-size:13px;color:#364c6b}
+  .tencentbi-pc .tb-admin-overview-grid small{
+    max-width:100%;font-size:11px;color:#91a2b8;
+    overflow:hidden;text-overflow:ellipsis;white-space:nowrap
+  }
+  .tencentbi-pc .tb-admin-overview-arrow{
+    position:absolute;right:19px;top:22px;color:#a4b7d0
+  }
+  .tencentbi-pc .tb-admin-panel-card{
+    max-width:1160px;margin:0 auto;
+    border:1px solid #e3eaf5;border-radius:12px;background:#fff;
+    padding:18px 22px 24px;min-width:0;overflow:visible;
+  }
+  .tencentbi-pc .tb-admin-panel-intro{
+    display:flex;flex-direction:column;gap:6px;margin:0 0 13px;
+    padding:0 0 13px;border-bottom:1px solid #edf1f7;
+  }
+  .tencentbi-pc .tb-admin-panel-intro strong{font-size:14px;color:#334c6c}
+  .tencentbi-pc .tb-admin-panel-intro p{
+    margin:0;color:#91a0b5;line-height:1.55;font-size:11px
+  }
+  .tencentbi-pc .tb-admin-panel-intro-action{
+    flex-direction:row;justify-content:space-between;align-items:center;gap:12px
+  }
+  .tencentbi-pc .tb-admin-plain-action{
+    display:inline-flex;align-items:center;gap:6px;white-space:nowrap;
+    padding:9px 12px;border:1px solid #d9e6f8;border-radius:8px;
+    background:#f9fbff;color:#3c7cca;font-size:11px;
+  }
+  .tencentbi-pc .tb-admin-panel-card .muted{
+    font-size:11px;color:#90a0b5;line-height:1.7
+  }
+  .tencentbi-pc .tb-admin-panel-card h3{
+    font-size:14px;color:#3a5270;margin:12px 0 8px
+  }
+  .tencentbi-pc .tb-admin-config-fields{
+    max-width:850px;margin:0;
+  }
+  .tencentbi-pc .tb-admin-config-fields .van-cell,
+  .tencentbi-pc .tb-admin-users-page .van-cell,
+  .tencentbi-pc .tb-admin-metrics-page .van-cell{
+    border-radius:7px;background:#fcfdff;
+    padding:13px 10px;margin:3px 0;
+  }
+  .tencentbi-pc .tb-admin-config-fields .config-actions{
+    display:flex;flex-direction:row;flex-wrap:wrap;gap:9px;
+    margin-top:19px;
+  }
+  .tencentbi-pc .tb-admin-config-fields .config-actions .van-button{
+    width:auto;min-width:144px;max-width:100%;
+    border-radius:8px;
+  }
+  .tencentbi-pc .tb-admin-panel-card .admin-table{
+    padding:5px 0;border-bottom:1px solid #edf2f8
+  }
+  .tencentbi-pc .tb-admin-panel-card .table-head{
+    font-size:12px;color:#435a7b;padding:12px 0;
+  }
+  .tencentbi-pc .tb-admin-joins-page .metric-admin{
+    padding:0;margin:0;border:0
+  }
+  .tencentbi-pc .tb-admin-joins-page .join-editor{
+    max-width:800px;margin:15px 0 0
+  }
+  .tencentbi-pc .tb-admin-metrics-page .metric-admin{
+    padding:0;margin:0;border:0
+  }
+  .tencentbi-pc .tb-admin-users-page>.van-field{
+    max-width:850px
+  }
+  .tencentbi-pc .tb-admin-users-page>.van-button{
+    width:200px;margin:18px 0 4px
+  }
+  .tencentbi-pc .tb-admin-panel-card .metric-preview-table{
+    max-width:850px;
+  }
+  .tencentbi-pc .tb-admin-panel-card .metric-preview-table table{min-width:550px}
+  @media(max-height:720px){
+    .tencentbi-pc .tb-page-body{padding-top:12px}
+    .tencentbi-pc .tb-page-intro{margin-bottom:8px;min-height:58px}
+    .tencentbi-pc .tb-welcome-panel{min-height:130px;margin-bottom:14px;padding:13px 22px}
+    .tencentbi-pc .tb-welcome-art{height:87px}
+    .tencentbi-pc .tb-art-ring{width:65px;height:65px}
+    .tencentbi-pc .tb-overview-cards button{min-height:106px;padding:12px}
+    .tencentbi-pc .tb-recent-heading{margin-top:15px}
+    .tencentbi-pc .tb-admin-heading{min-height:56px;margin-bottom:9px}
+  }
+}
+@media (min-width:1024px) and (max-width:1250px){
+  .tencentbi-pc .tb-admin-overview-grid{grid-template-columns:repeat(2,minmax(0,1fr))}
+  .tencentbi-pc .tb-admin-heading-badge{display:none}
+}
