@@ -1,0 +1,404 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, viewport-fit=cover" />
+<meta name="theme-color" content="#f5f7ff" />
+<title>DataAsk 智能问数 · 小程序高清联调版 · 真实接口</title>
+<style>
+:root{--blue:#336dff;--indigo:#4d54e9;--purple:#7457fa;--ink:#111d3d;--sub:#76839f;--line:#e7ebf8;--soft:#f5f7ff;--green:#12b96b;--shadow:0 6px 22px rgba(68,81,171,.08)}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html,body{margin:0;height:100%;font-family:Inter,-apple-system,BlinkMacSystemFont,"PingFang SC","Microsoft YaHei","Helvetica Neue",sans-serif;color:var(--ink);-webkit-font-smoothing:antialiased}
+body{background:radial-gradient(ellipse at 20% 12%,#e8eaff 0,transparent 42%),radial-gradient(ellipse at 86% 80%,#e3eafb 0,transparent 40%),#f4f5fa;display:flex;align-items:center;justify-content:center;overflow:hidden}
+button,input,textarea{font:inherit}button{border:0;cursor:pointer;color:inherit}input{outline:none}
+#app{height:100%;width:100%;display:flex;justify-content:center;align-items:center}
+.device{width:420px;height:min(930px,96vh);background:#fff;border:9px solid #fff;border-radius:44px;box-shadow:0 30px 90px rgba(35,50,115,.16),0 0 0 1px rgba(181,194,229,.65);position:relative;overflow:hidden}
+.screen{height:100%;display:flex;flex-direction:column;position:relative;overflow:hidden;background:linear-gradient(155deg,#f1f4ff 0%,#f9faff 42%,#fff 100%)}
+.status{height:39px;flex:none;padding:12px 27px 2px;display:flex;align-items:center;justify-content:space-between;letter-spacing:-.3px;font-size:14px;font-weight:750;color:#10192d;z-index:5}
+.status-right{display:flex;align-items:center;gap:5px}.status svg{display:block}
+.appbar{height:62px;flex:none;display:flex;align-items:center;justify-content:space-between;padding:0 19px 5px;z-index:2}.brand{display:flex;align-items:center;gap:10px;font-size:18px;font-weight:820;letter-spacing:-.5px}.logo{width:36px;height:36px;display:inline-flex;flex:none}.logo svg{width:100%;height:100%}
+.capsule{display:flex;align-items:center;gap:11px;border:1px solid #dce4f5;background:rgba(255,255,255,.57);height:33px;border-radius:20px;padding:0 11px;box-shadow:0 1px 3px #b6c4ef18}.capsule svg{width:17px;height:17px}.capsule .cut{height:19px;border-left:1px solid #d6dcf0}
+.icon-btn{width:34px;height:34px;border-radius:50%;background:rgba(255,255,255,.72);display:grid;place-items:center;border:1px solid #e6ebfb}.icon{display:inline-block;width:19px;height:19px;flex:none;vertical-align:middle;fill:none;stroke:currentColor;stroke-width:1.85;stroke-linecap:round;stroke-linejoin:round}.icon.sm{width:16px;height:16px}.icon.lg{width:23px;height:23px}
+.page-title{font-size:17px;font-weight:780;letter-spacing:.2px}.back{display:grid;place-items:center;width:33px;height:34px;background:transparent;margin-left:-4px}.header-left{width:34px}.header-right{width:74px;display:flex;justify-content:end}
+.content{flex:1;overflow:auto;overscroll-behavior:contain;scrollbar-width:none;position:relative}.content::-webkit-scrollbar{display:none}
+.home{padding-bottom:25px}.hero{height:253px;position:relative;margin:0 12px 5px;border-radius:27px;overflow:hidden;background:radial-gradient(ellipse at 80% 30%,rgba(145,151,255,.30),transparent 44%),radial-gradient(ellipse at 18% 90%,#dce7ff 0,transparent 46%)}
+.hero:after{content:"";height:126px;position:absolute;left:-10%;right:-10%;bottom:-55px;border-radius:50% 48% 0 0;background:linear-gradient(125deg,rgba(205,219,255,.35),rgba(232,223,255,.13));transform:rotate(-7deg)}
+.hero-copy{position:absolute;top:52px;left:16px;z-index:2}.hero h1{font-size:22px;line-height:1.47;letter-spacing:.3px;margin:0;font-weight:850;color:#101c43}.hero-robot{position:absolute;right:-6px;top:15px;width:167px;height:174px;z-index:1;filter:drop-shadow(0 19px 23px rgba(89,100,228,.18))}.hero-robot svg{width:100%;height:100%}.hero-features{position:absolute;bottom:17px;left:13px;right:13px;z-index:3;display:flex;justify-content:space-between;gap:5px}.hero-features span{font-size:12px;font-weight:660;display:flex;align-items:center;gap:5px;white-space:nowrap}.hero-features .icon{color:#405eec;width:21px;height:21px}
+.ask-outer{margin:12px 16px 0;padding:4px;background:linear-gradient(110deg,#cfe0ff,#ded3ff);border-radius:39px;box-shadow:0 10px 24px rgba(82,102,224,.16)}.ask-box{height:58px;display:flex;align-items:center;background:#fff;border-radius:35px;padding:0 6px 0 15px;gap:8px}.ask-spark{color:#6b58f6}.ask-box input,.composer input{border:none;background:transparent;min-width:0;flex:1;color:#1e2b4a;font-size:14px}.ask-box input::placeholder,.composer input::placeholder{color:#929cb7}.mic{width:30px;height:36px;background:transparent;display:grid;place-items:center;color:#0e1b39}.send{width:43px;height:43px;border-radius:50%;display:grid;place-items:center;color:#fff;background:linear-gradient(135deg,#308aff,#6852f2);box-shadow:0 4px 11px #496afb41}.send .icon{width:20px;height:20px}
+.section{margin:28px 18px 0}.section-head{display:flex;align-items:center;justify-content:space-between;margin-bottom:13px}.section h2{margin:0;font-size:17px;font-weight:790}.muted-action{display:flex;align-items:center;gap:5px;background:transparent;color:#8590a9;font-size:12px;padding:6px 0}.examples{display:flex;flex-direction:column;gap:8px}.example{height:49px;display:flex;align-items:center;gap:12px;padding:0 14px;background:rgba(255,255,255,.86);border-radius:12px;box-shadow:var(--shadow);font-size:13.5px;text-align:left;border:1px solid rgba(224,229,250,.75);font-weight:530}.example:hover{background:#f9faff}.example .icon{color:#447aff;width:21px;height:21px}
+.quick-section{margin-top:29px}.quick-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:9px}.quick{height:84px;border-radius:15px;background:rgba(255,255,255,.9);border:1px solid #edf0fb;box-shadow:var(--shadow);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:8px;font-size:12px;font-weight:580}.quick .icon{width:25px;height:25px;color:#3575ff}.quick:first-child .icon{color:#f8b822}.quick:nth-child(3) .icon{color:#17c173}.quick:nth-child(4) .icon{color:#159bfa}
+.tabbar{height:68px;padding-bottom:env(safe-area-inset-bottom,0px);display:grid;grid-template-columns:repeat(4,1fr);background:rgba(255,255,255,.96);border-top:1px solid #edf0f7;flex:none;z-index:3;box-shadow:0 -10px 30px #e2e8ff21}.tab{background:transparent;color:#8790a6;display:flex;flex-direction:column;gap:3px;align-items:center;justify-content:center;font-size:11px;font-weight:550}.tab .icon{width:23px;height:23px}.tab.active{color:#346dff;font-weight:720}
+.chat-scroll{padding:8px 13px 26px}.user-msg{display:flex;align-items:flex-start;justify-content:flex-end;gap:8px;margin:13px 0 16px}.user-bubble{padding:13px 14px;background:linear-gradient(115deg,#d6e5ff,#ccdcff);max-width:270px;border-radius:17px 17px 5px 17px;font-size:13px;font-weight:570;line-height:1.5}.avatar{width:31px;height:31px;border-radius:50%;background:linear-gradient(145deg,#deebff,#c5d9ff);display:grid;place-items:center;color:#5589e8;flex:none}
+.answer-row{display:flex;gap:8px;align-items:flex-start;margin-bottom:12px}.ai-avatar{width:32px;height:32px;display:grid;place-items:center;flex:none;background:#fff;border-radius:11px;box-shadow:0 2px 7px #aabbe64d;border:1px solid #e4edff}.ai-avatar .logo{width:24px;height:24px}.answer{flex:1;min-width:0}.answer-top{padding:13px 15px;border:1px solid #e9ecfa;background:rgba(255,255,255,.93);border-radius:17px;box-shadow:var(--shadow)}.date-line{font-size:12px;color:#59647b}.main-number{font-size:30px;font-weight:840;letter-spacing:-1.1px;color:#2c72f7;margin:7px 0 6px;font-variant-numeric:tabular-nums}.comparison{font-size:12px;color:#46516a}.up{color:#0bbb65;font-weight:730}.down{color:#f35b6e;font-weight:730}.sample-note{font-size:10px;color:#a5aec1;margin:6px 1px 0}
+.kpi-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:0;border-radius:16px;background:#fff;border:1px solid #e9eefb;box-shadow:var(--shadow);margin:12px 0;padding:15px 7px}.kpi{padding:0 8px;border-right:1px solid #e9edf7}.kpi:last-child{border:0}.kpi-label{font-size:10px;color:#79839c}.kpi-value{font-weight:820;font-size:15px;margin:5px 0;white-space:nowrap;letter-spacing:-.4px}.kpi-change{font-size:10px;color:var(--green);font-weight:700}
+.chart-card{background:#fff;border:1px solid #e9edfa;border-radius:17px;padding:15px 12px 10px;box-shadow:var(--shadow);margin-top:10px}.chart-head{display:flex;justify-content:space-between;align-items:center;margin-bottom:7px}.chart-title{font-size:14px;font-weight:770;letter-spacing:-.1px}.chart-actions{display:flex;gap:5px;align-items:center}.chart-mode{background:#f0f4ff;border-radius:8px;padding:3px;display:flex}.chart-mode button{padding:4px 6px;display:grid;place-items:center;border-radius:6px;color:#8794b3;background:transparent}.chart-mode button.active{color:#326dff;background:#fff;box-shadow:0 2px 6px #cad5ef}.chart-mode .icon{width:15px;height:15px}.chart-download{display:grid;place-items:center;background:transparent;color:#8190a9;padding:4px}.chart-svg{display:block;width:100%;height:auto;overflow:visible}.table-data{width:100%;border-collapse:collapse;font-size:11px}.table-data th,.table-data td{text-align:left;padding:10px 6px;border-bottom:1px solid #edf1fa}.table-data th{color:#8c98af;font-weight:500}.table-data td:last-child{text-align:right;font-weight:650}.table-data tr:last-child td{border:none}
+.followups{margin:12px 0 3px}.follow-label{font-size:12px;color:#65718d;margin:8px 0 10px}.chips{display:flex;flex-wrap:wrap;gap:7px}.chip{background:#fff;border:1px solid #e9effb;border-radius:18px;box-shadow:0 3px 9px #8198da13;color:#495473;font-size:10.5px;white-space:nowrap;padding:9px 10px;display:flex;gap:5px;align-items:center}.chip .icon{color:#447aff;width:14px;height:14px}
+.rank-card{background:#fff;border:1px solid #e9edfa;border-radius:16px;padding:15px 14px;margin-top:9px;box-shadow:var(--shadow)}.rank-title{font-size:13px;font-weight:780;margin-bottom:14px}.rank-row{display:grid;grid-template-columns:42px 1fr 83px;gap:7px;align-items:center;margin:11px 0;font-size:11px}.rank-row span:last-child{text-align:right;font-variant-numeric:tabular-nums;font-weight:660}.rank-bar{height:10px;background:#f1f5ff;border-radius:7px;overflow:hidden}.rank-bar i{display:block;height:100%;background:linear-gradient(90deg,#65a1ff,#3d65ff);border-radius:7px}
+.composer-wrap{flex:none;padding:9px 11px calc(11px + env(safe-area-inset-bottom,0px));background:linear-gradient(0deg,#f8faff 80%,#f8faff00)}.composer{height:54px;background:#fff;display:flex;align-items:center;gap:8px;padding:0 6px 0 13px;border:1px solid #e8eefb;border-radius:32px;box-shadow:0 4px 15px #7389ca16}.composer .send{width:39px;height:39px}.composer .mic{width:23px}.composer input{font-size:13px}
+.toolbar{display:flex;justify-content:flex-end;margin-top:9px;gap:8px}.lite-btn{display:flex;align-items:center;gap:4px;padding:7px 10px;border:1px solid #e7edfa;background:#fff;border-radius:18px;font-size:10.5px;color:#65718b}.lite-btn.saved{color:#4773ed;background:#edf3ff}
+.inner-page{padding:14px 17px 30px}.inner-title{font-size:23px;font-weight:850;letter-spacing:-.5px;margin:10px 0 5px}.inner-desc{font-size:12px;color:#8994ab;margin-bottom:24px}.search-mini{height:44px;display:flex;align-items:center;gap:9px;background:#fff;border:1px solid #e7ecf9;border-radius:13px;padding:0 12px;margin-bottom:18px;color:#8b96ad}.search-mini input{border:none;background:none;min-width:0;flex:1;font-size:12px}.list-heading{font-size:12px;color:#8590a5;margin:22px 0 10px}.history-item{display:flex;align-items:center;gap:12px;text-align:left;width:100%;padding:16px 13px;border:1px solid #e9edfa;border-radius:14px;background:#fff;margin-bottom:9px;box-shadow:var(--shadow)}.history-icon{width:34px;height:34px;display:grid;place-items:center;border-radius:10px;background:#eff4ff;color:#4175fe}.history-main{flex:1;min-width:0}.history-main strong{font-size:13px;font-weight:680;display:block;overflow:hidden;white-space:nowrap;text-overflow:ellipsis}.history-main small{display:block;font-size:10px;color:#9ca6b9;margin-top:6px}.history-item>.icon{color:#a4aec1}
+.chart-list-item{background:#fff;border:1px solid #e8eef9;border-radius:17px;padding:15px 15px 12px;margin-bottom:13px;box-shadow:var(--shadow)}.chart-list-top{display:flex;justify-content:space-between;align-items:center}.chart-list-top strong{font-size:14px}.pill{border-radius:12px;background:#eff5ff;color:#4f7aff;font-size:10px;padding:5px 8px}.chart-list-sub{font-size:10px;color:#98a3b7;margin-top:5px}.mini-plot{width:100%;height:95px;margin:7px 0 2px}.chart-list-actions{display:flex;justify-content:space-between;border-top:1px solid #f0f2fa;padding-top:10px;margin-top:3px}.tiny-action{background:none;display:flex;align-items:center;gap:5px;font-size:11px;color:#697590}.tiny-action .icon{width:14px;height:14px}
+.profile-banner{border:1px solid #e6edfb;background:linear-gradient(130deg,#dfe9ff,#f7f5ff);border-radius:20px;padding:21px 18px;display:flex;align-items:center;gap:13px;margin:8px 0 20px}.profile-avatar{height:54px;width:54px;border-radius:18px;background:linear-gradient(145deg,#4e9bff,#6f5bec);color:white;display:grid;place-items:center;box-shadow:0 6px 13px #567de34a}.profile-avatar .icon{height:29px;width:29px}.profile-banner b{display:block;font-size:16px}.profile-banner small{display:block;font-size:11px;color:#76839b;margin-top:6px}.profile-group{background:#fff;border:1px solid #e9edf8;border-radius:17px;overflow:hidden;box-shadow:var(--shadow);margin-bottom:16px}.profile-row{display:flex;align-items:center;gap:12px;padding:17px 15px;width:100%;text-align:left;background:none;border-bottom:1px solid #f0f2fa;font-size:13px}.profile-row:last-child{border:0}.profile-row .icon:first-child{color:#5479ed}.profile-row span{flex:1}.profile-row .icon:last-child{color:#acb6c6;width:16px}
+.overlay{position:absolute;inset:0;background:rgba(19,31,68,.31);z-index:20;display:flex;align-items:flex-end;justify-content:center}.sheet{background:#fff;border-radius:24px 24px 0 0;width:100%;padding:23px 23px calc(22px + env(safe-area-inset-bottom,0px));box-shadow:0 -12px 40px #1d2b591e}.sheet h3{font-size:18px;margin:0 0 8px}.sheet p{color:#7c879f;font-size:12px;line-height:1.65;margin:0 0 18px}.sheet-options{display:flex;flex-direction:column;gap:10px}.sheet-option{background:#f7f9ff;border:1px solid #edf0fb;padding:15px 13px;border-radius:12px;display:flex;align-items:center;justify-content:space-between;font-size:13px}.sheet-option.selected{border-color:#6e90ff;background:#f0f5ff;color:#356cff}.sheet-input{margin-top:10px;width:100%;height:43px;border:1px solid #e3e8f8;border-radius:9px;padding:0 12px;font-size:12px}.sheet-actions{display:flex;gap:10px;margin-top:20px}.sheet-actions button{height:44px;border-radius:12px;flex:1;background:#f0f3fa;color:#5f6b83;font-size:13px;font-weight:700}.sheet-actions button.primary{background:linear-gradient(120deg,#367cff,#7258ed);color:#fff}
+.toast{position:absolute;z-index:31;bottom:94px;left:50%;transform:translateX(-50%);padding:12px 17px;background:#1e2a4f;color:white;font-size:12px;border-radius:20px;white-space:nowrap;box-shadow:0 6px 20px #08163b3d;max-width:95%;overflow:hidden;text-overflow:ellipsis}
+.demo-tag{font-size:10px;color:#98a4bd;background:#eef2ff;padding:4px 7px;border-radius:7px}
+@media(max-width:520px){body{background:#fff}#app{align-items:stretch}.device{width:100%;height:100%;border:0;border-radius:0;box-shadow:none}.screen{height:100dvh}.status{padding-top:max(9px,env(safe-area-inset-top,9px))}}
+@media(max-height:780px) and (min-width:521px){.device{height:98vh}}
+@media(prefers-reduced-motion:no-preference){.send,.example,.quick,.tab,.chip,.sheet-actions button{transition:transform .16s,filter .16s}.send:active,.example:active,.quick:active,.tab:active,.chip:active{transform:scale(.97)}.hero-robot{animation:float 5s ease-in-out infinite}@keyframes float{0%,100%{transform:translateY(0)}50%{transform:translateY(-7px)}}}
+
+/* v2.0 - 首页按确认的紧凑主视觉重新排版，保留其它页面和交互 */
+:root{--shadow:0 5px 20px rgba(67,79,165,.075)}
+.screen{background:linear-gradient(155deg,#f1f4ff 0%,#f7f9ff 44%,#ffffff 100%)}
+.home{padding-bottom:28px}
+.home .hero{
+  height:clamp(150px,22dvh,190px);
+  margin:0 13px 0;
+  border-radius:27px;
+  background:
+    radial-gradient(ellipse at 79% 50%,rgba(116,151,255,.33),transparent 50%),
+    radial-gradient(ellipse at 35% 108%,rgba(210,226,255,.84),transparent 57%),
+    linear-gradient(118deg,#eff7ff 0%,#eef0ff 48%,#dfddff 100%);
+  box-shadow:inset 0 1px rgba(255,255,255,.92);
+}
+.home .hero:after{height:92px;bottom:-62px;left:-10%;right:-15%;background:linear-gradient(110deg,rgba(204,221,255,.51),rgba(254,254,255,.18));transform:rotate(-8deg)}
+.home .hero-copy{left:18px;top:23%;z-index:3}
+.home .hero h1{font-size:21px;line-height:1.47;font-weight:840;letter-spacing:0;color:#0d1b44;text-wrap:balance}
+.home .hero-robot{right:1px;top:5%;width:48%;height:80%;max-width:194px;z-index:2;filter:drop-shadow(0 14px 18px rgba(70,87,221,.20))}
+.home .hero-robot svg{object-fit:contain}
+.home .hero-features{right:auto;left:13px;bottom:12px;gap:0;max-width:calc(100% - 28px);padding:7px 7px;background:rgba(255,255,255,.57);border:1px solid rgba(255,255,255,.7);border-radius:25px;backdrop-filter:blur(9px);box-shadow:0 5px 14px #7891e50e}
+.home .hero-features span{font-size:11.6px;font-weight:680;gap:4px;padding:0 8px;line-height:21px;border-right:1px solid rgba(117,137,195,.20)}
+.home .hero-features span:last-child{border-right:0}
+.home .hero-features .icon{width:17px;height:17px;color:#486cf4}
+.home .ask-outer{margin:14px 16px 0;padding:4px;border-radius:38px;background:linear-gradient(105deg,#c7dbff 0%,#d9c4ff 100%);box-shadow:0 9px 22px rgba(85,91,221,.14)}
+.home .ask-box{height:56px;padding-left:15px}
+.home .ask-box input{font-size:14px}
+.home .ask-box .send{width:42px;height:42px}
+.home .section{margin:21px 17px 0}
+.home .section-head{margin-bottom:10px}
+.home .section h2{font-size:17px;letter-spacing:-.3px}
+.home .examples{gap:9px}
+.home .example{min-height:60px;height:60px;padding:0 14px 0 12px;border:1px solid rgba(231,235,251,.84);border-radius:17px;box-shadow:0 7px 18px rgba(56,70,160,.065);gap:12px;background:rgba(255,255,255,.93);font-size:13.5px;font-weight:620;display:flex;line-height:1.3}
+.home .example .example-icon{width:39px;height:39px;border-radius:12px;background:linear-gradient(140deg,#e8f4ff,#ebe8ff);display:flex;align-items:center;justify-content:center;flex:none}
+.home .example .example-icon .icon{height:22px;width:22px;color:#4779ff}
+.home .example .example-label{flex:1;text-align:left}
+.home .example .example-arrow{color:#aab3c9;width:15px;height:15px;opacity:.8;flex:none}
+.home .quick-section{margin-top:23px}
+.home .quick{height:82px}
+.tabbar{background:rgba(255,255,255,.98)}
+@media (max-width:370px){
+ .home .hero h1{font-size:18.5px}.home .hero-robot{right:-13px;width:49%}
+ .home .hero-features{left:8px;bottom:8px;padding:5px}
+ .home .hero-features span{font-size:10.2px;padding:0 5px;gap:3px}
+ .home .hero-features .icon{width:15px;height:15px}
+ .home .example{height:57px;min-height:57px}
+}
+@media (max-height:745px){
+ .home .hero{height:clamp(140px,20dvh,164px)}
+ .home .hero-copy{top:18%}
+ .home .hero h1{font-size:19px}
+ .home .hero-features{bottom:8px}
+ .home .ask-outer{margin-top:11px}
+ .home .ask-box{height:52px}
+ .home .section{margin-top:15px}
+ .home .section-head{margin-bottom:7px}
+ .home .example{min-height:53px;height:53px}
+ .home .examples{gap:7px}
+}
+
+/* Live API edition: never substitute hard-coded sample measurements. */
+.sheet-input{width:100%;margin:5px 0;padding:13px 14px;border:1px solid #dbe3f7;border-radius:12px;outline:none;background:#fff;color:#1e2b4a}
+.sheet-input:focus{border-color:#678aff;box-shadow:0 0 0 3px #dbe6ff}
+.chart-card{overflow:hidden}.rank-row{display:flex;align-items:center;gap:8px}.rank-row>span:last-child{font-variant-numeric:tabular-nums}
+.history-item{display:flex;align-items:center;gap:9px}.history-main{display:flex;flex-direction:column;gap:4px}
+@media(max-width:600px){.sheet{max-height:85dvh;overflow-y:auto}}
+</style>
+</head>
+<body>
+<div id="app"></div>
+<script>
+(() => {
+'use strict';
+const icons={
+ home:'<path d="m3 10 9-7 9 7v10a1 1 0 0 1-1 1h-5v-7H9v7H4a1 1 0 0 1-1-1z"/>',
+ message:'<path d="M21 11.5a8.3 8.3 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.3 8.3 0 0 1-3.8-.9L3 21l1.9-5.7A8.3 8.3 0 0 1 4 11.5 8.5 8.5 0 0 1 8.7 3.9a8.3 8.3 0 0 1 3.8-.9h.5a8.5 8.5 0 0 1 8 8z"/><path d="M8.5 11.5h.01m4 0h.01m4 0h.01"/>',
+ chart:'<path d="M5 20V10M12 20V4M19 20v-9"/>',
+ user:'<circle cx="12" cy="8" r="4"/><path d="M4 21v-2a8 8 0 0 1 16 0v2"/>',
+ arrow:'<path d="m9 18 6-6-6-6"/>',
+ left:'<path d="m15 18-6-6 6-6"/>',
+ refresh:'<path d="M20 7v5h-5"/><path d="M4 17v-5h5"/><path d="M5.5 9a7.5 7.5 0 0 1 13-2L20 12M4 12l1.5 5a7.5 7.5 0 0 0 13-2"/>',
+ microphone:'<rect x="9" y="2" width="6" height="13" rx="3"/><path d="M5 11a7 7 0 0 0 14 0M12 18v4m-4 0h8"/>',
+ send:'<path d="m5 12 15-8-5 16-3-7-7-1z"/><path d="M12 13 20 4"/>',
+ sparkle:'<path d="m12 2 2.4 7.6L22 12l-7.6 2.4L12 22l-2.4-7.6L2 12l7.6-2.4z"/>',
+ layers:'<path d="m12 2 9 5-9 5-9-5 9-5zm-9 9 9 5 9-5M3 16l9 5 9-5"/>',
+ zap:'<path d="m13 2-9 12h7l-1 8 10-12h-7z"/>',
+ trending:'<path d="m3 17 6-6 4 4 8-8M15 7h6v6"/>',
+ pin:'<path d="M20 10c0 5-8 12-8 12S4 15 4 10a8 8 0 1 1 16 0z"/><circle cx="12" cy="10" r="2.5"/>',
+ pie:'<path d="M21 12a9 9 0 1 1-9-9v9z"/><path d="M12 3a9 9 0 0 1 9 9h-9z"/>',
+ star:'<path d="m12 2 3 6.5 7 1-5 5 1.2 7-6.2-3.4-6.2 3.4 1.2-7-5-5 7-1z"/>',
+ clock:'<circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/>',
+ share:'<circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><path d="m8.5 10.5 7-4M8.5 13.5l7 4"/>',
+ download:'<path d="M12 3v12m-5-5 5 5 5-5M4 17v3h16v-3"/>',
+ table:'<rect x="3" y="4" width="18" height="16" rx="2"/><path d="M3 9h18M9 9v11M14 9v11"/>',
+ search:'<circle cx="10.5" cy="10.5" r="6.5"/><path d="m16 16 5 5"/>',
+ settings:'<circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.9l-2 2a1.7 1.7 0 0 0-1.9-.3l-.9.4a1.7 1.7 0 0 0-1 1.6h-2.8a1.7 1.7 0 0 0-1-1.6l-.9-.4a1.7 1.7 0 0 0-1.9.3l-2-2a1.7 1.7 0 0 0 .3-1.9l-.4-.9a1.7 1.7 0 0 0-1.6-1V10a1.7 1.7 0 0 0 1.6-1l.4-.9a1.7 1.7 0 0 0-.3-1.9l2-2a1.7 1.7 0 0 0 1.9.3l.9-.4a1.7 1.7 0 0 0 1-1.6h2.8a1.7 1.7 0 0 0 1 1.6l.9.4a1.7 1.7 0 0 0 1.9-.3l2 2a1.7 1.7 0 0 0-.3 1.9l.4.9a1.7 1.7 0 0 0 1.6 1v2.8a1.7 1.7 0 0 0-1.6 1z"/>',
+ shield:'<path d="m12 2 8 4v6c0 5-3 8-8 10-5-2-8-5-8-10V6z"/><path d="m8.5 12 2.5 2.5 4.5-5"/>',
+ help:'<circle cx="12" cy="12" r="10"/><path d="M9.5 9a2.7 2.7 0 0 1 5.3.6c0 1.9-2.8 2.3-2.8 4.3M12 17.5h.01"/>',
+ check:'<path d="m4 12 5 5 11-11"/>',
+ calendar:'<rect x="3" y="5" width="18" height="16" rx="2"/><path d="M7 3v4M17 3v4M3 10h18"/>',
+ dots:'<circle cx="5" cy="12" r="1.6"/><circle cx="12" cy="12" r="1.6"/><circle cx="19" cy="12" r="1.6"/>',
+ target:'<circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="5"/><circle cx="12" cy="12" r="1"/>',
+ bell:'<path d="M18 8a6 6 0 0 0-12 0c0 7-3 7-3 9h18c0-2-3-2-3-9M10 21h4"/>',
+ close:'<path d="M5 5l14 14M19 5 5 19"/>',
+ link:'<path d="M10 13a5 5 0 0 0 7 .2l3-3a5 5 0 0 0-7-7l-1.6 1.6M14 11a5 5 0 0 0-7-.2l-3 3a5 5 0 0 0 7 7l1.5-1.5"/>',
+ copy:'<rect x="8" y="8" width="12" height="12" rx="2"/><path d="M16 8V5a2 2 0 0 0-2-2H5a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h3"/>'
+};
+const icon=(name,cl='')=>`<svg class="icon ${cl}" viewBox="0 0 24 24" aria-hidden="true">${icons[name]||icons.sparkle}</svg>`;
+const logo=()=>`<span class="logo"><svg viewBox="0 0 44 44" aria-hidden="true"><defs><linearGradient id="logoG" x1="0" y1="1" x2="1" y2="0"><stop stop-color="#55a9ff"/><stop offset=".55" stop-color="#3073f7"/><stop offset="1" stop-color="#5a4ce9"/></linearGradient></defs><rect x="2" y="2" width="40" height="40" rx="12" fill="url(#logoG)"/><path d="M12.5 10.5H23c8 0 12 4.8 12 11.5S31 33.5 23 33.5H12.5V10.5zm8.3 8v7h3.2c3.1 0 4.8-1.4 4.8-3.5s-1.7-3.5-4.8-3.5h-3.2z" fill="#fff"/><path d="M7 35 18 24v11H7z" fill="#a8d5ff"/></svg></span>`;
+const robot=()=>`<svg viewBox="0 0 238 210" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="DataAsk AI 助手"><defs><radialGradient id="rHalo"><stop stop-color="#fff"/><stop offset="1" stop-color="#dce3ff" stop-opacity=".1"/></radialGradient><linearGradient id="rShell" x1=".2" y1="0" x2=".9" y2="1"><stop stop-color="#fff"/><stop offset=".55" stop-color="#eff1ff"/><stop offset="1" stop-color="#a9b6fa"/></linearGradient><linearGradient id="rFace" x1=".2" y1="0" x2=".8" y2="1"><stop stop-color="#1d4db7"/><stop offset=".48" stop-color="#1c267c"/><stop offset="1" stop-color="#4a258e"/></linearGradient><linearGradient id="rSquare" x1="0" x2="1" y1="0" y2="1"><stop stop-color="#7db8ff"/><stop offset="1" stop-color="#685bf8"/></linearGradient><filter id="rBlur"><feGaussianBlur stdDeviation="12"/></filter></defs><ellipse cx="120" cy="106" rx="113" ry="95" fill="url(#rHalo)"/><ellipse cx="122" cy="184" rx="65" ry="13" fill="#7d90ec" opacity=".19" filter="url(#rBlur)"/><path d="M84 146q-21 12-20 36 24 8 42-18z" fill="#b6c6ff"/><path d="M153 146q21 12 19 36-25 8-42-18z" fill="#bac8ff"/><path d="M89 140q-2 43 29 42 33 0 32-41z" fill="url(#rShell)" stroke="#d4deff" stroke-width="2"/><rect x="34" y="85" width="24" height="55" rx="12" fill="url(#rShell)" stroke="#c6d4ff" stroke-width="2"/><rect x="180" y="85" width="24" height="55" rx="12" fill="url(#rShell)" stroke="#c6d4ff" stroke-width="2"/><rect x="45" y="36" width="147" height="119" rx="54" fill="url(#rShell)" stroke="#fff" stroke-width="4"/><rect x="61" y="57" width="116" height="82" rx="34" fill="url(#rFace)" stroke="#a4b6ff" stroke-width="3"/><path d="M82 103q8-14 20 0m35 0q8-14 20 0" fill="none" stroke="#8dd9ff" stroke-width="6.2" stroke-linecap="round"/><path d="M104 116q14 13 29 0" stroke="#98caff" stroke-width="3" fill="none" stroke-linecap="round"/><ellipse cx="84" cy="72" rx="22" ry="9" fill="#fff" opacity=".13" transform="rotate(-20 84 72)"/><rect x="13" y="138" width="75" height="61" rx="14" fill="url(#rSquare)" opacity=".91"/><rect x="28" y="171" width="8" height="15" rx="3" fill="#dcecff"/><rect x="42" y="161" width="8" height="25" rx="3" fill="#dcecff"/><rect x="56" y="151" width="8" height="35" rx="3" fill="#dcecff"/><path d="m194 36 4 9 9 4-9 4-4 9-4-9-9-4 9-4z" fill="#fff" opacity=".92"/></svg>`;
+const safe=(s)=>String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+
+const sets=[[['chart','昨日营业额是多少？'],['trending','近7天的订单量趋势如何？'],['pin','按城市看营业额TOP10'],['pie','本月新增用户数及环比？']],[['trending','本周营业额趋势怎么样？'],['pin','哪个城市的营业额最高？'],['chart','昨天订单总数是多少？'],['pie','近30天新增用户情况']]];
+const state={view:'home',tab:'home',sampleSet:0,chartMode:'chart',historySearch:'',chat:[],sessionId:null,lastMessageId:null,modal:null,shareScope:'PRIVATE',sharePerson:'',toast:'',scrollBottom:false,loggedIn:Boolean(sessionStorage.getItem('dataask_token')),profile:null,sessions:[],charts:[],shared:[],loading:false};
+function statusBar(){return `<div class="status"><span>10:24</span><div class="status-right"><svg width="17" height="13" viewBox="0 0 17 13"><rect x="0" y="9" width="3" height="4" rx=".7"/><rect x="5" y="6" width="3" height="7" rx=".7"/><rect x="10" y="3" width="3" height="10" rx=".7"/><rect x="15" y="0" width="2" height="13" rx=".7"/></svg><svg width="17" height="14" viewBox="0 0 17 14"><path d="M1 4Q8-2 16 4M4 7Q8 4 13 7M7 10Q8.5 9 10 10" stroke="#10192d" stroke-width="1.8" fill="none" stroke-linecap="round"/><circle cx="8.5" cy="12" r="1"/></svg><svg width="24" height="12" viewBox="0 0 24 12"><rect x=".5" y=".5" width="20" height="11" rx="2.6" stroke="#10192d" fill="none"/><rect x="2.3" y="2.2" width="16.3" height="7.6" rx="1.3" fill="#10192d"/><rect x="21" y="3.5" width="2.5" height="5" rx="1" fill="#10192d"/></svg></div></div>`}
+function capsule(){return `<div class="capsule"><button data-action="more" aria-label="更多">${icon('dots','sm')}</button><div class="cut"></div><button data-action="more" aria-label="小程序菜单">${icon('target','sm')}</button></div>`}
+function header(){if(state.view==='home')return `<div class="appbar"><div class="brand">${logo()}<span>DataAsk 智能问数</span></div>${capsule()}</div>`;
+if(state.view==='chat')return `<div class="appbar"><button class="back" data-action="back" aria-label="返回">${icon('left','lg')}</button><div class="page-title">智能问数</div>${capsule()}</div>`;
+const names={history:'历史会话',charts:'我的图表',profile:'个人中心'};return `<div class="appbar"><div class="brand">${logo()}<span>${names[state.view]||'DataAsk'}</span></div>${capsule()}</div>`}
+function homePage(){return `<div class="home"><section class="hero" aria-label="DataAsk 智能问数介绍"><div class="hero-copy"><h1>用自然语言，<br>快速获取业务数据</h1></div><div class="hero-robot">${robot()}</div><div class="hero-features"><span>${icon('message')}自然对话</span><span>${icon('layers')}自动分析</span><span>${icon('chart')}智能图表</span></div></section><div class="ask-outer"><div class="ask-box">${icon('sparkle','ask-spark')}<input id="home-query" enterkeyhint="send" aria-label="输入问题" placeholder="试试输入你的问题..."/><button class="mic" data-action="mic" aria-label="语音提问">${icon('microphone','lg')}</button><button class="send" data-action="ask-home" aria-label="发送问题">${icon('send')}</button></div></div><section class="section"><div class="section-head"><h2>你可以这样问</h2><button class="muted-action" data-action="shuffle">换一换 ${icon('refresh','sm')}</button></div><div class="examples">${sets[state.sampleSet].slice(0,3).map(([ic,q])=>`<button class="example" data-action="question" data-q="${safe(q)}"><span class="example-icon">${icon(ic)}</span><span class="example-label">${safe(q)}</span>${icon('arrow','example-arrow')}</button>`).join('')}</div></section><section class="section quick-section"><div class="section-head"><h2>我的常用</h2><button class="muted-action" data-action="tab" data-view="charts">查看全部 ${icon('arrow','sm')}</button></div><div class="quick-grid"><button class="quick" data-action="tab" data-view="charts">${icon('star')}我的收藏</button><button class="quick" data-action="tab" data-view="history">${icon('clock')}历史问答</button><button class="quick" data-action="tab" data-view="charts">${icon('chart')}我的图表</button><button class="quick" data-action="open-share">${icon('share')}分享给我</button></div></section></div>`}
+async function api(path,method='GET',body){
+ const token=sessionStorage.getItem('dataask_token');
+ const resp=await fetch(path,{method,headers:{'Accept':'application/json',...(body?{'Content-Type':'application/json'}:{}),...(token?{'Authorization':'Bearer '+token}:{})},...(body?{body:JSON.stringify(body)}:{})});
+ const raw=await resp.text();let data={};try{data=raw?JSON.parse(raw):{}}catch{data={message:raw.slice(0,200)}}
+ if(!resp.ok){if(resp.status===401){state.loggedIn=false;sessionStorage.removeItem('dataask_token');state.modal={type:'login'}}throw Error(data.message||('请求失败 HTTP '+resp.status))}
+ return data;
+}
+
+async function bootstrap(){
+ if(!state.loggedIn){state.modal={type:'login'};render();return}
+ try{const data=await api('/api/mini/bootstrap');state.profile=data.user;state.modal=null;state.loggedIn=true;render();await Promise.all([loadHistory(false),loadCharts(false)])}
+ catch(e){state.modal={type:'login'};state.loggedIn=false;render()}
+}
+
+async function login(){
+ const username=document.getElementById('login-user')?.value?.trim();
+ const password=document.getElementById('login-pass')?.value;
+ if(!username||!password){showToast('请输入账号和密码');return}
+ try{const data=await api('/api/auth/login','POST',{username,password});sessionStorage.setItem('dataask_token',data.token);state.loggedIn=true;state.profile={username:data.username,display_name:data.displayName,role:data.role};state.modal=null;render();await bootstrap();showToast('登录成功')}
+ catch(e){showToast(e.message)}
+}
+
+function logout(){
+ sessionStorage.removeItem('dataask_token');state.loggedIn=false;state.profile=null;state.sessionId=null;state.lastMessageId=null;state.chat=[];state.charts=[];state.sessions=[];state.modal={type:'login'};state.view='home';render();
+}
+
+async function loadHistory(redraw=true){
+ try{state.sessions=await api('/api/chat/sessions');if(redraw)render()}catch(e){showToast(e.message)}
+}
+
+async function loadCharts(redraw=true){
+ try{state.charts=await api('/api/mini/charts?view=mine');state.shared=await api('/api/mini/charts?view=shared');if(redraw)render()}catch(e){showToast(e.message)}
+}
+
+function querySummary(a){
+ if(a.unsupported)return safe(a.summary||'当前问题不支持，请找管理员“许愿”');
+ return safe(a.summary||'已返回真实查询结果');
+}
+
+function numericColumn(a){
+ const cols=a.columns||[],rows=a.rows||[];return cols.find(c=>rows.some(r=>r[c]!==null&&r[c]!==''&&Number.isFinite(Number(r[c]))))||'';
+}
+
+function resultTable(a){
+ const cols=a.columns||[],rows=a.rows||[];
+ if(!cols.length)return '<p class="inner-desc">当前没有返回数据行</p>';
+ return '<div style="overflow-x:auto"><table class="table-data"><thead><tr>'+cols.map(c=>'<th>'+safe(a.columnLabels?.[c]||c)+'</th>').join('')+'</tr></thead><tbody>'+
+ rows.slice(0,200).map(r=>'<tr>'+cols.map(c=>'<td>'+safe(r[c]??'—')+'</td>').join('')+'</tr>').join('')+'</tbody></table></div>';
+}
+
+function resultChart(a){
+ const cols=a.columns||[],rows=(a.rows||[]).slice(0,20),num=numericColumn(a);
+ if(!num||rows.length<2||cols.length<2)return resultTable(a);
+ const dim=cols.find(c=>c!==num)||cols[0],values=rows.map(r=>Number(r[num])||0);
+ const max=Math.max(...values.map(Math.abs),1), W=340,H=178;
+ if(a.chartType==='line'){
+   const xp=i=>24+(W-46)*i/Math.max(1,values.length-1),yp=v=>144-(v/max)*115;
+   const line=values.map((v,i)=>(i?'L':'M')+xp(i)+','+yp(v)).join(' ');
+   const labels=[0,Math.floor((values.length-1)/2),values.length-1].filter((i,k,x)=>x.indexOf(i)===k);
+   return '<svg class="chart-svg" viewBox="0 0 340 178" role="img" aria-label="真实数据趋势图"><path d="M24 144H318M24 87H318M24 30H318" stroke="#e8edf8"/><path d="'+line+'" stroke="#397aff" stroke-width="3" fill="none" stroke-linecap="round"/>'+
+   values.map((v,i)=>'<circle cx="'+xp(i)+'" cy="'+yp(v)+'" r="3.5" fill="#fff" stroke="#397aff" stroke-width="2"/>').join('')+
+   labels.map(i=>'<text x="'+xp(i)+'" y="169" font-size="10" fill="#8190ae" text-anchor="middle">'+safe(String(rows[i][dim]??''))+'</text>').join('')+'</svg>';
+ }
+ const showing=rows.slice(0,8);
+ return '<div class="rank-card"><div class="rank-title">'+safe(a.columnLabels?.[dim]||dim)+' · '+safe(a.columnLabels?.[num]||num)+'</div>'+
+ showing.map((row,i)=>'<div class="rank-row"><span style="max-width:30%;overflow:hidden;text-overflow:ellipsis">'+safe(row[dim]??'—')+'</span><div class="rank-bar"><i style="width:'+Math.max(0,(Math.abs(Number(row[num])||0)/max*100)).toFixed(1)+'%"></i></div><span>'+safe(row[num]??'—')+'</span></div>').join('')+'</div>';
+}
+
+function answerCard(item){
+ if(item.pending)return '<div class="answer-row"><div class="ai-avatar">'+logo()+'</div><div class="answer"><div class="answer-top"><div class="date-line">正在分析真实业务数据…</div></div></div></div>';
+ if(item.error)return '<div class="answer-row"><div class="ai-avatar">'+logo()+'</div><div class="answer"><div class="answer-top"><div class="date-line">'+safe(item.error)+'</div></div></div></div>';
+ const a=item.answer||{},single=a.rows?.length===1&&a.columns?.length===1;
+ const value=single?a.rows[0][a.columns[0]]:null;
+ const saved=state.charts.some(c=>c.sourceMessageId===a.id);
+ return '<div class="answer-row"><div class="ai-avatar">'+logo()+'</div><div class="answer"><div class="answer-top"><div class="date-line">'+safe(a.title||'数据查询')+'</div>'+
+ (single&&!a.unsupported?'<div class="main-number">'+safe(value??'—')+'</div>':'')+
+ '<div class="comparison">'+querySummary(a)+'</div>'+(a.timeLabel?'<div class="sample-note">'+safe(a.timeLabel)+'</div>':'')+'</div>'+
+ (!a.unsupported&&a.rows?.length?'<div class="chart-card"><div class="chart-head"><div class="chart-title">'+safe(a.metricLabel||'业务分析')+'</div><div class="chart-actions"><div class="chart-mode"><button class="'+(state.chartMode==='chart'?'active':'')+'" data-action="chart-mode" data-mode="chart">'+icon('chart')+'</button><button class="'+(state.chartMode==='table'?'active':'')+'" data-action="chart-mode" data-mode="table">'+icon('table')+'</button></div><button class="chart-download" data-action="export" data-mid="'+safe(a.id)+'">'+icon('download','sm')+'</button></div></div>'+
+ (state.chartMode==='table'?resultTable(a):resultChart(a))+'</div><div class="toolbar"><button class="lite-btn '+(saved?'saved':'')+'" data-action="save" data-mid="'+safe(a.id)+'">'+icon('star','sm')+(saved?'已收藏':'收藏图表')+'</button><button class="lite-btn" data-action="share" data-mid="'+safe(a.id)+'">'+icon('share','sm')+'共享</button></div>':'')+
+ (a.followUps?.length?'<div class="followups"><div class="follow-label">你还可以继续问：</div><div class="chips">'+a.followUps.map(q=>'<button class="chip" data-action="follow" data-q="'+safe(q)+'">'+icon('sparkle','sm')+safe(q)+'</button>').join('')+'</div></div>':'')+
+ '</div></div>';
+}
+
+function chatPage(){
+ return '<div class="chat-scroll">'+state.chat.map(item=>item.type==='user'?'<div class="user-msg"><div class="user-bubble">'+safe(item.text)+'</div><div class="avatar">'+icon('user')+'</div></div>':answerCard(item)).join('')+'</div>';
+}
+
+function historyPage(){
+ const items=state.sessions.filter(s=>(s.title||'').includes(state.historySearch));
+ return '<div class="inner-page"><h1 class="inner-title">每次探索，都有记录</h1><div class="inner-desc">查看自己的真实问数会话，点击继续追问</div><div class="search-mini">'+icon('search')+'<input id="history-search" placeholder="搜索历史问题" value="'+safe(state.historySearch)+'"/></div><div class="list-heading">最近会话</div>'+
+ (items.length?items.map(s=>'<div class="history-item"><button class="history-main" style="text-align:left;background:none;flex:1;min-width:0" data-action="session" data-id="'+safe(s.id)+'"><strong>'+safe(s.title)+'</strong><small>'+safe(s.updatedAt||'')+'</small></button><button class="muted-action" data-action="remove-session" data-id="'+safe(s.id)+'">'+icon('close','sm')+'</button></div>').join(''):'<p class="inner-desc">暂无历史问答，试着在首页输入一个问题</p>')+'</div>';
+}
+
+function chartTile(c,owned=true){
+ return '<div class="chart-list-item"><div class="chart-list-top"><strong>'+safe(c.title)+'</strong><span class="pill">'+safe(c.chartType||'table')+'</span></div><div class="chart-list-sub">'+safe(c.question)+' · '+safe(c.ownerUsername)+'</div><div class="chart-list-actions"><button class="tiny-action" data-action="open-chart" data-id="'+safe(c.id)+'">'+icon('refresh')+'实时查询</button>'+
+ (owned?'<button class="tiny-action" data-action="share" data-chart="'+safe(c.id)+'">'+icon('share')+'共享</button><button class="tiny-action" data-action="remove-chart" data-id="'+safe(c.id)+'">'+icon('close')+'取消收藏</button>':'')+
+ '</div></div>';
+}
+
+function chartsPage(){
+ return '<div class="inner-page"><h1 class="inner-title">让数据持续产生价值</h1><div class="inner-desc">保存查询口径，打开时重新从 StarRocks 取数</div>'+
+ (state.charts.length?state.charts.map(c=>chartTile(c,true)).join(''):'<p class="inner-desc">暂无收藏图表。请先完成一次问数，然后收藏结果。</p>')+
+ '<div class="list-heading" style="margin-top:28px">共享给我的图表</div>'+
+ (state.shared.length?state.shared.map(c=>chartTile(c,false)).join(''):'<p class="inner-desc">暂无其他成员分享的图表</p>')+'</div>';
+}
+
+function profilePage(){
+ const p=state.profile||{},admin=p.role==='ADMIN';
+ return '<div class="inner-page"><div class="profile-banner"><div class="profile-avatar">'+icon('user')+'</div><div><b>'+safe(p.display_name||p.username||'未登录')+'</b><small>'+safe(p.username||'')+' · '+(admin?'管理员':'普通成员')+'</small></div></div><div class="profile-group"><button class="profile-row" data-action="tab" data-view="charts">'+icon('star')+'<span>我的收藏与图表</span>'+icon('arrow')+'</button><button class="profile-row" data-action="tab" data-view="history">'+icon('clock')+'<span>历史会话</span>'+icon('arrow')+'</button><button class="profile-row" data-action="tab" data-view="charts">'+icon('share')+'<span>共享给我的图表</span>'+icon('arrow')+'</button></div><div class="profile-group"><button class="profile-row" data-action="config">'+icon('settings')+'<span>模型与数据配置说明</span>'+icon('arrow')+'</button><button class="profile-row" data-action="about">'+icon('shield')+'<span>隐私与数据权限</span>'+icon('arrow')+'</button><button class="profile-row" data-action="logout">'+icon('left')+'<span>退出登录</span>'+icon('arrow')+'</button></div><p class="inner-desc" style="text-align:center">DataAsk · 小程序 H5 接口联调版</p></div>';
+}
+
+function nav(){
+ const tabs=[['home','home','首页'],['history','message','会话'],['charts','chart','图表'],['profile','user','我的']];
+ return '<nav class="tabbar" aria-label="底部导航">'+tabs.map(([view,ic,name])=>'<button class="tab '+(state.view===view?'active':'')+'" data-action="tab" data-view="'+view+'">'+icon(ic)+name+'</button>').join('')+'</nav>';
+}
+
+function composer(){return '<div class="composer-wrap"><div class="composer">'+icon('sparkle','ask-spark')+'<input id="chat-query" enterkeyhint="send" aria-label="继续提问" placeholder="继续追问..."/><button class="mic" data-action="mic">'+icon('microphone','lg')+'</button><button class="send" data-action="ask-chat">'+icon('send')+'</button></div></div>'}
+
+function modal(){
+ if(!state.modal)return '';
+ let body='',type=state.modal.type;
+ if(type==='login'){
+ body='<h3>登录 DataAsk</h3><p>使用企业内部系统账号登录。这里不会预填任何默认账号或密码。</p><div class="sheet-options"><input class="sheet-input" id="login-user" autocomplete="username" placeholder="用户名"/><input class="sheet-input" type="password" autocomplete="current-password" id="login-pass" placeholder="密码"/></div><div class="sheet-actions"><button class="primary" data-action="login">登录</button></div>';
+ } else if(type==='share'){
+ body='<h3>共享图表</h3><p>共享权限将保存至 MySQL，仅允许图表所有者或管理员修改。</p><div class="sheet-options">'+
+ [['PRIVATE','仅自己可见'],['ALL','所有系统用户'],['SELECTED','指定成员']].map(([code,label])=>'<button class="sheet-option '+(state.shareScope===code?'selected':'')+'" data-action="scope" data-scope="'+code+'">'+label+(state.shareScope===code?icon('check'):'')+'</button>').join('')+'</div>'+
+ (state.shareScope==='SELECTED'?'<input id="share-member" class="sheet-input" placeholder="成员用户名，多个用逗号隔开" value="'+safe(state.sharePerson)+'"/>':'')+
+ '<div class="sheet-actions"><button data-action="close">取消</button><button class="primary" data-action="apply-share">确认共享</button></div>';
+ } else{
+ body='<h3>'+ (type==='voice'?'语音功能':type==='config'?'模型与数据配置':'关于 DataAsk')+'</h3><p>'+(type==='voice'?'此页面为 H5 接口版，语音录入需在微信原生小程序接入录音和语音识别。':type==='config'?'请在 PC 管理端配置阿里云 Qwen 模型 API Key、指标口径和 StarRocks ADS 数据源。配置未完成时问数接口会返回明确错误。':'数据由登录用户访问已授权 ADS 表获得；共享图表只保存问题与口径，展示时重新执行查询。')+'</p><div class="sheet-actions"><button class="primary" data-action="close">知道了</button></div>';
+ }
+ return '<div class="overlay" data-action="close-overlay"><div class="sheet" role="dialog" aria-modal="true">'+body+'</div></div>';
+}
+
+function render(){
+ const root=document.getElementById('app');
+ root.innerHTML='<div class="device"><div class="screen">'+statusBar()+header()+'<main class="content" id="scroll-area">'+(state.view==='home'?homePage():state.view==='chat'?chatPage():state.view==='history'?historyPage():state.view==='charts'?chartsPage():profilePage())+'</main>'+(state.view==='chat'?composer():nav())+modal()+(state.toast?'<div class="toast">'+safe(state.toast)+'</div>':'')+'</div></div>';
+ if(state.scrollBottom){const el=document.getElementById('scroll-area');if(el)el.scrollTop=el.scrollHeight;state.scrollBottom=false}
+}
+
+function showToast(str){state.toast=str;render();clearTimeout(showToast.t);showToast.t=setTimeout(()=>{state.toast='';render()},2600)}
+
+async function openChat(q){state.view='chat';state.chat=[];state.sessionId=null;state.lastMessageId=null;state.chartMode='chart';await askText(q,false)}
+
+async function followChat(q){await askText(q,true)}
+
+async function askText(question,follow){
+ const q=String(question||'').trim();if(!q){showToast('请输入业务问题');return}if(!state.loggedIn){state.modal={type:'login'};render();return}
+ if(state.loading)return;
+ if(!follow){state.chat=[];state.sessionId=null;state.lastMessageId=null;state.chartMode='chart'}
+ state.view='chat';state.chat.push({type:'user',text:q});const pending={type:'answer',pending:true};state.chat.push(pending);state.loading=true;state.scrollBottom=true;render();
+ try {
+  const body={question:q,sessionId:state.sessionId,sourceMessageId:follow?state.lastMessageId:null};
+  const answer=await api('/api/chat/ask','POST',body);
+  state.sessionId=answer.sessionId;state.lastMessageId=answer.id;Object.assign(pending,{pending:false,answer});await loadHistory(false);
+ }catch(e){Object.assign(pending,{pending:false,error:e.message})}finally{state.loading=false;state.scrollBottom=true;render()}
+}
+
+function ask(inputId,follow){const val=document.getElementById(inputId)?.value;askText(val,follow)}
+
+async function openSession(id){
+ try{const answers=await api('/api/chat/sessions/'+encodeURIComponent(id)+'/messages');state.chat=[];state.sessionId=id;state.chartMode='chart';for(const a of answers){state.chat.push({type:'user',text:a.question},{type:'answer',answer:a});state.lastMessageId=a.id}state.view='chat';render()}
+ catch(e){showToast(e.message)}
+}
+
+async function saveAnswer(id){
+ if(!id)return null;
+ const current=state.charts.find(c=>c.sourceMessageId===id);if(current)return current;
+ const item=state.chat.find(i=>i.answer?.id===id);if(!item){showToast('找不到问数结果');return null}
+ try{const chart=await api('/api/mini/charts','POST',{sourceMessageId:id,title:item.answer.title});await loadCharts(false);showToast('已收藏至我的图表');return chart}catch(e){showToast(e.message);return null}
+}
+
+async function openSaved(id){try{const c=await api('/api/mini/charts/'+encodeURIComponent(id));await openChat(c.question)}catch(e){showToast(e.message)}}
+
+async function removeChart(id){if(!window.confirm('确定取消收藏这个图表吗？'))return;try{await api('/api/mini/charts/'+encodeURIComponent(id),'DELETE');await loadCharts();showToast('已取消收藏')}catch(e){showToast(e.message)}}
+
+async function removeSession(id){if(!window.confirm('删除此会话及其消息吗？'))return;try{await api('/api/mini/sessions/'+encodeURIComponent(id),'DELETE');await loadHistory();showToast('会话已删除')}catch(e){showToast(e.message)}}
+
+function exportCSV(id){
+ const a=state.chat.find(m=>m.answer?.id===id)?.answer;
+ if(!a)return showToast('暂无结果可导出');
+ const columns=a.columns||[],rows=[columns.map(c=>a.columnLabels?.[c]||c),...(a.rows||[]).map(r=>columns.map(c=>r[c]??''))];
+ const cell=x=>{let s=String(x);if(/^[=+@\\-\\t\\r]/.test(s))s="'"+s;return '"'+s.replace(/"/g,'""')+'"'}
+ const csv='\\ufeff'+rows.map(r=>r.map(cell).join(',')).join('\\r\\n');
+ const link=document.createElement('a');const url=URL.createObjectURL(new Blob([csv],{type:'text/csv;charset=utf-8'}));link.href=url;link.download='DataAsk-result.csv';link.click();setTimeout(()=>URL.revokeObjectURL(url),1500);
+}
+
+function openModal(type,id=''){state.modal={type,id};state.shareScope='PRIVATE';state.sharePerson='';render()}
+
+async function applyShare(){
+ let id=state.modal?.id;if(!id){showToast('请先收藏图表');return}
+ const users=state.shareScope==='SELECTED'?String(document.getElementById('share-member')?.value||'').split(/[，,]/).map(s=>s.trim()).filter(Boolean):[];
+ try{await api('/api/mini/charts/'+encodeURIComponent(id)+'/share','PUT',{scope:state.shareScope,users});state.modal=null;await loadCharts();showToast('共享权限已保存')}catch(e){showToast(e.message)}
+}
+
+async function handleClick(e){
+ const target=e.target.closest('[data-action]');if(!target)return;const a=target.dataset.action;
+ switch(a){
+ case 'tab':state.view=target.dataset.view;state.tab=state.view;state.modal=null;render();if(state.view==='history')loadHistory();if(state.view==='charts')loadCharts();break;
+ case 'back':state.view='home';render();break;
+ case 'question':openChat(target.dataset.q);break;
+ case 'follow':followChat(target.dataset.q);break;
+ case 'ask-home':ask('home-query',false);break;
+ case 'ask-chat':ask('chat-query',true);break;
+ case 'shuffle':state.sampleSet=(state.sampleSet+1)%sets.length;render();break;
+ case 'mic':openModal('voice');break;
+ case 'chart-mode':state.chartMode=target.dataset.mode;render();break;
+ case 'export':exportCSV(target.dataset.mid);break;
+ case 'save':await saveAnswer(target.dataset.mid);break;
+ case 'share':{let id=target.dataset.chart;if(!id&&target.dataset.mid){const chart=await saveAnswer(target.dataset.mid);id=chart?.id}if(id)openModal('share',id);break}
+ case 'open-share':state.view='charts';render();loadCharts();break;
+ case 'scope':state.shareScope=target.dataset.scope;render();break;
+ case 'apply-share':await applyShare();break;
+ case 'session':openSession(target.dataset.id);break;
+ case 'remove-session':removeSession(target.dataset.id);break;
+ case 'open-chart':openSaved(target.dataset.id);break;
+ case 'remove-chart':removeChart(target.dataset.id);break;
+ case 'login':await login();break;
+ case 'logout':logout();break;
+ case 'config':openModal('config');break;
+ case 'about':case 'more':openModal('about');break;
+ case 'close':if(state.modal?.type!=='login'){state.modal=null;render()}break;
+ case 'close-overlay':if(e.target===target&&state.modal?.type!=='login'){state.modal=null;render()}break;
+ }
+}
+
+function startApp(){
+ document.addEventListener('click',handleClick);
+ document.addEventListener('keydown',e=>{if(e.key==='Enter'&&e.target.id==='home-query'){e.preventDefault();ask('home-query',false)}else if(e.key==='Enter'&&e.target.id==='chat-query'){e.preventDefault();ask('chat-query',true)}else if(e.key==='Enter'&&['login-user','login-pass'].includes(e.target.id)){e.preventDefault();login()}else if(e.key==='Escape'&&state.modal?.type!=='login'){state.modal=null;render()}});
+ document.addEventListener('input',e=>{if(e.target.id==='history-search'){state.historySearch=e.target.value;const sel=e.target.selectionStart;render();const next=document.getElementById('history-search');if(next){next.focus();next.setSelectionRange(sel,sel)}}else if(e.target.id==='share-member'){state.sharePerson=e.target.value}});
+ render();bootstrap();
+}
+startApp();
+})();
+</script>
+</body>
+</html>
