@@ -1,0 +1,253 @@
+/* DataAsk PC · V5 light-blue navigation + top-right account + edge-to-edge workspace.
+   Scoped to desktop only. Loaded LAST to resolve prior layout/theme accumulation. */
+@media (min-width:1024px) {
+  .app-shell.tencentbi-pc.quickbi-pc.consumer-pc {
+    --da-sidebar-width: clamp(225px, 16vw, 264px);
+    --da-gutter: 12px;
+    display:grid;
+    grid-template-columns:var(--da-sidebar-width) minmax(0,1fr)!important;
+    grid-template-rows:52px minmax(0,1fr) auto!important;
+    grid-template-areas:"sidebar topbar" "sidebar conversation" "sidebar composer"!important;
+    width:100%;height:100dvh;min-width:0;min-height:0;
+    margin:0;border:0;overflow:hidden;background:#f7faff;
+  }
+  /* One unbroken, pale blue-white left rail all the way to the viewport bottom. */
+  .app-shell.tencentbi-pc .desktop-sidebar {
+    grid-area:sidebar;grid-row:1 / -1;min-height:0;height:100%;
+    width:100%;display:flex;flex-direction:column;overflow:hidden;
+    background:linear-gradient(160deg,#fff 0%,#fcfdff 39%,#f2f7ff 80%,#e8f2ff 100%);
+    border-right:1px solid #e0eaf7;box-shadow:none;
+  }
+  .app-shell.tencentbi-pc .sidebar-brand {padding:20px 17px 24px}
+  .app-shell.tencentbi-pc .sidebar-brand .brand-title strong {
+    color:#213c64;font-size:18px;
+  }
+  .app-shell.tencentbi-pc .sidebar-brand .brand-title small {
+    color:#94a6be;
+  }
+  .app-shell.tencentbi-pc .tb-nav-category {color:#8d9db5}
+  .app-shell.tencentbi-pc .desktop-main-nav button {
+    color:#607897;background:transparent;border-radius:9px;
+    transition:background .14s,color .14s;
+  }
+  .app-shell.tencentbi-pc .desktop-main-nav button .van-icon {color:#7292bd}
+  .app-shell.tencentbi-pc .desktop-main-nav button.active {
+    background:#e3efff;color:#266cdb;
+    box-shadow:inset 3px 0 0 #3985f2;
+    font-weight:750;
+  }
+  .app-shell.tencentbi-pc .desktop-main-nav button.active .van-icon {color:#2b75e4}
+  .app-shell.tencentbi-pc .desktop-main-nav button:hover:not(.active) {
+    background:#eef5ff;color:#2c70cb;
+  }
+  .app-shell.tencentbi-pc .desktop-main-nav button:hover:not(.active) .van-icon {
+    color:#2c70cb;
+  }
+  .app-shell.tencentbi-pc .tb-single-admin-nav {
+    border-top:1px solid #e6edf8;
+  }
+  .app-shell.tencentbi-pc .tb-sidebar-fill {flex:1 1 auto;min-height:0}
+  /* User avatar is in the top header, never in the sidebar bottom. */
+  .app-shell.tencentbi-pc .sidebar-bottom {display:none!important}
+
+  .app-shell.tencentbi-pc .topbar {
+    position:relative;z-index:15;grid-area:topbar;
+    display:flex;align-items:center;justify-content:space-between;
+    width:100%;height:52px;min-height:52px;
+    padding:0 17px 0 16px;background:#fff;
+    border-bottom:1px solid #e6edf8;
+    margin:0;overflow:visible;
+  }
+  .app-shell.tencentbi-pc .tb-header-breadcrumb {flex:0 1 auto;max-width:65%}
+  .app-shell.tencentbi-pc .da-account-menu {
+    position:relative;display:flex;align-items:center;
+    margin-left:auto;align-self:stretch;z-index:50;
+  }
+  .app-shell.tencentbi-pc .da-account-trigger {
+    display:inline-flex;align-items:center;gap:9px;
+    border:0;background:transparent;
+    padding:5px 10px;border-radius:10px;color:#375172;
+    cursor:pointer;font-size:12px;font-weight:650;
+    white-space:nowrap;
+  }
+  .app-shell.tencentbi-pc .da-account-trigger:hover,
+  .app-shell.tencentbi-pc .da-account-trigger[aria-expanded="true"] {
+    background:#f0f6ff;color:#2473d8;
+  }
+  .app-shell.tencentbi-pc .da-account-trigger .van-icon {color:#8ca1bc}
+  .app-shell.tencentbi-pc .da-account-avatar {
+    display:flex;align-items:center;justify-content:center;flex:0 0 29px;
+    width:29px;height:29px;border-radius:50%;
+    color:#fff;background:linear-gradient(145deg,#74b5ff,#397df0);
+    font-size:12px;font-weight:750;
+  }
+  .app-shell.tencentbi-pc .da-account-label {
+    display:block;max-width:125px;
+    text-overflow:ellipsis;white-space:nowrap;overflow:hidden;
+  }
+  .app-shell.tencentbi-pc .da-account-dropdown {
+    position:absolute;right:1px;top:calc(100% + 5px);
+    width:215px;min-width:190px;
+    padding:7px;border:1px solid #dce8f7;
+    background:#fff;box-shadow:0 12px 32px rgba(40,78,141,.16);
+    border-radius:12px;z-index:60;
+  }
+  .app-shell.tencentbi-pc .da-account-dropdown-heading {
+    display:flex;flex-direction:column;gap:5px;
+    padding:11px 10px 13px;border-bottom:1px solid #edf2fa;
+    margin:0 0 5px;min-width:0;
+  }
+  .app-shell.tencentbi-pc .da-account-dropdown-heading strong {
+    font-size:13px;color:#294567;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
+  }
+  .app-shell.tencentbi-pc .da-account-dropdown-heading small {
+    color:#96a8bc;font-size:11px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;
+  }
+  .app-shell.tencentbi-pc .da-account-dropdown>button {
+    display:flex;align-items:center;gap:9px;width:100%;
+    padding:11px 10px;text-align:left;border:0;background:#fff;
+    border-radius:8px;font-size:12px;color:#516d8d;cursor:pointer;
+  }
+  .app-shell.tencentbi-pc .da-account-dropdown>button .van-icon {
+    color:#7094ca;font-size:16px;
+  }
+  .app-shell.tencentbi-pc .da-account-dropdown>button:hover {
+    color:#2275df;background:#f1f7ff;
+  }
+  .app-shell.tencentbi-pc .da-account-trigger:focus-visible,
+  .app-shell.tencentbi-pc .da-account-dropdown>button:focus-visible {
+    outline:3px solid #a6cbff;outline-offset:2px;
+  }
+  .da-password-dialog {
+    padding:25px 25px 23px;box-sizing:border-box;
+    color:#294461;
+  }
+  .da-password-dialog h2 {
+    font-size:20px;font-weight:750;margin:0 0 8px;
+  }
+  .da-password-dialog>p {
+    font-size:12px;color:#90a2b9;line-height:1.6;margin:0 0 15px;
+  }
+  .da-password-dialog .van-cell {
+    background:#fbfdff;border:1px solid #e6edf7;
+    border-radius:8px;margin:9px 0;font-size:13px;
+  }
+  .da-password-actions {
+    display:flex;justify-content:flex-end;gap:10px;margin-top:18px;
+  }
+  .da-password-actions .van-button {
+    min-width:90px;border-radius:9px;
+  }
+
+  /* Remove blank horizontal bands between the left navigation and every right page. */
+  .app-shell.tencentbi-pc .tb-page-body,
+  .app-shell.tencentbi-pc .tb-page-body.ds-home,
+  .app-shell.tencentbi-pc .tb-admin-page,
+  .app-shell.tencentbi-pc .tb-charts-page,
+  .app-shell.tencentbi-pc .conversation {
+    grid-area:conversation;
+    width:100%;height:100%;min-width:0;min-height:0;
+    margin:0!important;
+    padding-left:0!important;padding-right:0!important;
+    overflow-x:hidden;overflow-y:auto;
+    background:#f8fbff;
+    box-shadow:none;
+  }
+  .app-shell.tencentbi-pc .tb-page-body > *,
+  .app-shell.tencentbi-pc .tb-page-body.ds-home > * {
+    max-width:none;
+    box-sizing:border-box;
+  }
+  /* Titles retain internal breathing room; workspace itself begins at x=sidebar width. */
+  .app-shell.tencentbi-pc .ds-home-intro,
+  .app-shell.tencentbi-pc .tb-page-heading,
+  .app-shell.tencentbi-pc .tb-admin-heading,
+  .app-shell.tencentbi-pc .tb-history-search {
+    margin-left:var(--da-gutter)!important;
+    margin-right:var(--da-gutter)!important;
+    width:calc(100% - 2 * var(--da-gutter))!important;
+    box-sizing:border-box;
+  }
+  .app-shell.tencentbi-pc .ds-home-shortcuts,
+  .app-shell.tencentbi-pc .ds-home-recent,
+  .app-shell.tencentbi-pc .tb-chart-workspace,
+  .app-shell.tencentbi-pc .tb-admin-overview,
+  .app-shell.tencentbi-pc .tb-admin-panel-card,
+  .app-shell.tencentbi-pc .tb-history-list {
+    margin-left:var(--da-gutter)!important;
+    margin-right:var(--da-gutter)!important;
+    width:calc(100% - 2 * var(--da-gutter))!important;
+    max-width:none!important;
+  }
+
+  /* Narrower + shorter promotional banner; body panels still occupy full right workspace. */
+  .app-shell.tencentbi-pc .ds-home-banner {
+    width:calc(100% - 2 * var(--da-gutter))!important;
+    max-width:1240px!important;
+    height:114px!important;min-height:114px!important;
+    margin:0 var(--da-gutter) 12px!important;
+    padding:11px 23px!important;
+    border-radius:11px;
+    overflow:hidden;
+  }
+  .app-shell.tencentbi-pc .ds-home-banner h2 {
+    font-size:clamp(19px,1.55vw,24px);margin:0 0 5px;
+  }
+  .app-shell.tencentbi-pc .ds-home-banner p {
+    font-size:11px;line-height:1.5;margin:0 0 8px;
+  }
+  .app-shell.tencentbi-pc .ds-home-banner .ds-home-cta {
+    font-size:11px;min-height:30px;padding:6px 12px;
+  }
+  .app-shell.tencentbi-pc .ds-home-banner-illustration {
+    min-height:100px;height:112px;max-width:42%;
+  }
+  .app-shell.tencentbi-pc .ds-home-heading-copy h1 {font-size:22px}
+  .app-shell.tencentbi-pc .ds-home-intro {
+    min-height:48px;margin-bottom:7px!important;
+  }
+  .app-shell.tencentbi-pc .ds-home-shortcuts {margin-bottom:11px!important}
+
+  /* All PC chat content inherits the same edge-to-edge workspace. */
+  .app-shell.tencentbi-pc .conversation > .turn,
+  .app-shell.tencentbi-pc .conversation > .welcome,
+  .app-shell.tencentbi-pc .conversation > .loading-bubble,
+  .app-shell.tencentbi-pc .conversation > .end-marker {
+    width:calc(100% - 2 * var(--da-gutter));
+    margin-left:var(--da-gutter);margin-right:var(--da-gutter);
+    max-width:none;
+  }
+  .app-shell.tencentbi-pc .composer {
+    grid-area:composer;
+    padding:9px var(--da-gutter) 11px;
+    margin:0;background:#f8fbff;
+  }
+  .app-shell.tencentbi-pc .composer-row {width:100%;max-width:none}
+
+  /* Full-width management and data grids, no extra margin band. */
+  .app-shell.tencentbi-pc .tb-admin-heading {
+    margin-bottom:10px!important;
+  }
+  .app-shell.tencentbi-pc .tb-admin-overview-grid {
+    grid-template-columns:repeat(4,minmax(0,1fr));
+  }
+  .app-shell.tencentbi-pc .tb-chart-workspace {gap:10px}
+  .app-shell.tencentbi-pc .tb-page-heading {margin-bottom:10px!important}
+}
+@media (min-width:1024px) and (max-width:1250px) {
+  .app-shell.tencentbi-pc.quickbi-pc.consumer-pc {
+    --da-sidebar-width:220px;
+    --da-gutter:10px;
+  }
+  .app-shell.tencentbi-pc .ds-home-banner {
+    max-width:none!important;
+  }
+}
+@media (min-width:1024px) and (max-height:700px) {
+  .app-shell.tencentbi-pc .ds-home-banner {
+    height:98px!important;min-height:98px!important;
+  }
+  .app-shell.tencentbi-pc .ds-home-banner-illustration {
+    min-height:86px;height:98px;
+  }
+}
