@@ -1257,11 +1257,8 @@ onBeforeUnmount(() => desktopMedia?.removeEventListener('change', window.__dataA
             <div class="answer-heading"><span class="answer-mark">{{ isDesktop ? 'Q' : '数' }}</span><b>{{ msg.title }}</b>
               <span v-if="msg.timeLabel" class="answer-time">{{ msg.timeLabel }}</span>
             </div>
-            <div v-if="isDesktop" class="qbi-answer-source">
-              <span><van-icon name="cluster-o"/> {{ msg.dataset || '全部已授权数据' }}</span>
-              <span><van-icon name="shield-o"/> 已按授权数据查询</span>
-            </div>
-            <p class="answer-summary" :class="{ 'unsupported-text': msg.unsupported }">{{ msg.summary }}</p>
+            <p v-if="!isDesktop || !msg.rows?.length || !isRedundantSummary(msg)"
+              class="answer-summary" :class="{ 'unsupported-text': msg.unsupported }">{{ msg.summary }}</p>
             <template v-if="msg.rows?.length">
               <div v-if="isDesktop" class="desktop-result-header">
                 <div class="desktop-result-heading"><van-icon name="chart-trending-o"/> 查询结果 <span>共 {{ msg.rows.length }} 行</span></div>
@@ -1284,7 +1281,7 @@ onBeforeUnmount(() => desktopMedia?.removeEventListener('change', window.__dataA
                 <button v-if="pieSupported(msg)" type="button" :class="{active:chartStyle(msg)==='pie'}" @click="setChartStyle(msg,'pie')">饼图</button>
               </div>
               <AnswerChart v-if="['bar','line','pie'].includes(msg.chartType) && msg.rows.length > 1 && (!isDesktop || resultView(msg)==='chart')"
-                :message="msg" :chart-type-override="isDesktop ? chartStyle(msg) : ''"/>
+                :message="msg" :desktop-expanded="isDesktop" :chart-type-override="isDesktop ? chartStyle(msg) : ''"/>
               <div v-if="!isDesktop || resultView(msg)==='table'" class="result-table-scroll" role="region" tabindex="0" aria-label="数据结果表格，可独立上下滚动">
                 <table class="result-table">
                   <thead><tr><th v-for="(col, idx) in msg.columns" :key="col" :title="col">{{ columnLabel(msg, col, idx) }}</th></tr></thead>
