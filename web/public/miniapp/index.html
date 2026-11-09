@@ -428,7 +428,8 @@ function answerCard(item){
  const views='<div class="chart-mode" role="group" aria-label="数据展示">'+
    (canPlot?'<button aria-label="图表" class="'+(view==='chart'?'active':'')+'" data-action="chart-mode" data-mode="chart" data-mid="'+safe(data.id)+'">'+icon('chart')+'</button>':'')+
    '<button aria-label="表格" class="'+(view==='table'?'active':'')+'" data-action="chart-mode" data-mode="table" data-mid="'+safe(data.id)+'">'+icon('table')+'</button></div>';
- const chartTypes=(canPlot&&view==='chart')?'<div class="mobile-chart-types">'+
+ // Keep the type switch row present in both chart and table modes so the card's outer height never jumps.
+ const chartTypes=canPlot?'<div class="mobile-chart-types">'+
    ['bar','line',...(pieAllowed(data)?['pie']:[])].map(t=>'<button class="'+(type===t?'active':'')+'" data-action="chart-style" data-style="'+t+'" data-mid="'+safe(data.id)+'">'+({bar:'柱状图',line:'折线图',pie:'饼图'})[t]+'</button>').join('')+'</div>':'';
  return '<div class="answer-row'+(visual?' mobile-result-row':'')+'"><div class="ai-avatar">'+logo()+'</div><div class="answer">'+
  '<div class="answer-top"><div class="date-line">'+safe(data.title||'数据查询')+'</div>'+
