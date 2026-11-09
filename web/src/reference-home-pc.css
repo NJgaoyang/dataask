@@ -122,7 +122,13 @@
     transform:translate(13px,5px);
     filter:drop-shadow(0 8px 13px rgba(73,127,221,.065));
   }
-  .tencentbi-pc .ds-home-shortcuts{margin-bottom:22px}
+  .tencentbi-pc .ds-home-shortcuts{margin-bottom:24px}
+  /* The approved reference places the shortcut cards directly below the banner.
+     Keep an accessible heading without adding another visible 35px band. */
+  .tencentbi-pc .ds-home-shortcuts>.ds-home-section-title{
+    position:absolute;width:1px;height:1px;overflow:hidden;
+    clip-path:inset(50%);white-space:nowrap;margin:0;padding:0;border:0
+  }
   .tencentbi-pc .ds-home-section-title{
     display:flex;align-items:center;justify-content:space-between;
     min-height:27px;gap:12px;margin-bottom:12px;
@@ -177,6 +183,13 @@
     line-height:1.5;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
   }
   .tencentbi-pc .ds-shortcut-chevron{color:#60738c;flex:0 0 auto}
+  .tencentbi-pc .ds-home-recent{
+    padding:20px 20px 22px;
+    background:#fff;border:1px solid #e1eaf6;
+    border-radius:14px;
+    box-shadow:0 5px 22px rgba(42,83,156,.035)
+  }
+  .tencentbi-pc .ds-home-history-table{border-radius:9px;box-shadow:none}
   .tencentbi-pc .ds-home-recent-title{
     margin-bottom:13px;
   }
@@ -252,6 +265,7 @@
   .tencentbi-pc .ds-home-banner p{font-size:12px;margin-bottom:12px}
   .tencentbi-pc .ds-home-banner-illustration{min-height:140px}
   .tencentbi-pc .ds-home-shortcuts{margin-bottom:12px}
+  .tencentbi-pc .ds-home-recent{padding:15px 15px 16px}
   .tencentbi-pc .ds-home-shortcut{min-height:88px;padding-top:12px;padding-bottom:12px}
   .tencentbi-pc .ds-shortcut-icon{height:43px;width:43px;flex-basis:43px;border-radius:12px}
   .tencentbi-pc .ds-shortcut-content strong{font-size:15px}
