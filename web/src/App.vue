@@ -33,6 +33,12 @@ const answerViews = ref({})
 const desktopQuestionRef = ref(null)
 const chartsVisible = ref(false)
 const savedCharts = ref([])
+const sharedCharts = ref([])
+const chartsBusy = ref(false)
+const desktopSection = ref('overview')
+const desktopSectionTitle = computed(() => ({
+  overview:'工作台',ask:'智能问数',charts:'我的图表',history:'历史会话'
+})[desktopSection.value] || '工作台')
 const sharingVisible = ref(false)
 const sharingChart = ref(null)
 const shareScope = ref('PRIVATE')
@@ -234,7 +240,8 @@ async function login() {
     sessionStorage.setItem('dataask_user', JSON.stringify(user))
     verifiedRole.value = data.role === 'ADMIN' ? 'ADMIN' : 'USER'
     me.value = user; loggedIn.value = true; loginForm.value.password = ''
-    await Promise.all([loadSessions(), loadApprovedDatasets()])
+    await Promise.all([loadSessions(), loadApprovedDatasets(), loadSavedCharts()])
+    if (isDesktop.value) desktopSection.value = 'overview'
   } catch (e) { showFailToast(errorText(e)) }
   finally { loggingIn.value = false }
 }
@@ -247,6 +254,9 @@ function logout() {
   configVisible.value = false
   messages.value = []; sessionId.value = ''; historyVisible.value = false; adminVisible.value = false
   desktopFeedback.value = null
+  desktopSection.value = 'overview'
+  savedCharts.value = []
+  sharedCharts.value = []
   datasetPickerVisible.value = false
   datasetPreview.value = null
   selectedDataset.value = ''
@@ -256,11 +266,33 @@ async function loadSessions() {
   try { sessions.value = (await api.get('/chat/sessions')).data }
   catch (e) { showFailToast(errorText(e)) }
 }
+function switchDesktopSection(section) {
+  if (!['overview','ask','charts','history'].includes(section)) return
+  if (isDesktop.value && busy.value && section !== 'ask') stopAsk()
+  desktopSection.value = section
+  if (section === 'charts') loadSavedCharts()
+  if (section === 'history') loadSessions()
+  if (section === 'ask') focusDesktopQuestion()
+}
+async function loadSavedCharts() {
+  if (!loggedIn.value) return
+  chartsBusy.value = true
+  try {
+    const [mine, shared] = await Promise.all([
+      api.get('/mini/charts?view=mine'),
+      api.get('/mini/charts?view=shared')
+    ])
+    savedCharts.value = Array.isArray(mine.data) ? mine.data : []
+    sharedCharts.value = Array.isArray(shared.data) ? shared.data : []
+  } catch (e) { showFailToast(errorText(e)) }
+  finally { chartsBusy.value = false }
+}
 async function openSession(item) {
   if (isDesktop.value && busy.value) stopAsk()
   try {
     messages.value = (await api.get('/chat/sessions/' + item.id + '/messages')).data
     sessionId.value = item.id
+    if (isDesktop.value) desktopSection.value = 'ask'
     const lastDataset = messages.value.at(-1)?.dataset || ''
     selectedDataset.value = lastDataset
     historyVisible.value = false
@@ -271,10 +303,15 @@ async function openSession(item) {
 function newConversation() {
   if (busy.value) stopAsk()
   sessionId.value = ''; messages.value = []; historyVisible.value = false
+  if (isDesktop.value) desktopSection.value = 'ask'
   desktopFeedback.value = null
   focusDesktopQuestion()
 }
 async function openSavedCharts() {
+  if (isDesktop.value) {
+    switchDesktopSection('charts')
+    return
+  }
   try {
     const { data } = await api.get('/mini/charts?view=mine')
     savedCharts.value = data
@@ -335,6 +372,7 @@ function stopAsk() {
 async function ask(text = question.value, sourceMessageId = null) {
   text = (text || '').trim()
   if (!text || busy.value) return
+  if (isDesktop.value) desktopSection.value = 'ask'
   if (text.length > 800) return showToast('提问不能超过800字')
   const sequence = ++askSequence
   const controller = new AbortController()
@@ -623,6 +661,7 @@ onMounted(() => {
     refreshAuthenticatedRole()
     loadSessions()
     loadApprovedDatasets()
+    loadSavedCharts()
   }
 })
 onBeforeUnmount(() => desktopMedia?.removeEventListener('change', window.__dataAskDesktopListener))
