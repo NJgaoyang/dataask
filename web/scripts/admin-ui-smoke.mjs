@@ -24,6 +24,7 @@ let users = [
 ];
 let rules = [];
 let metrics = {total:0,batches:[],definitions:[]};
+let failNextAdminSettings = false;
 
 async function mockBackend(route) {
   const req = route.request();
@@ -38,7 +39,13 @@ async function mockBackend(route) {
   if(path==='/api/chat/datasets') return ok(['ads.city_orders','ads.sales']);
   if(path==='/api/mini/charts') return ok([]);
   if(path==='/api/admin/status') return ok(status);
-  if(path==='/api/admin/settings') return ok(settings);
+  if(path==='/api/admin/settings') {
+    if(failNextAdminSettings){
+      failNextAdminSettings=false;
+      return route.fulfill({status:503,json:{message:'配置服务暂时不可用'}});
+    }
+    return ok(settings);
+  }
   if(path==='/api/admin/semantic/status') return ok({count:2,indexedModel:'text-embedding-v3',configured:true});
   if(path==='/api/admin/semantic/rebuild' && method==='POST') return ok({message:'语义索引已重建'});
   if(path==='/api/admin/tables' && method==='GET') return ok(tables);
@@ -175,6 +182,17 @@ try {
   await clickTile(page,'配置状态');
   await visible(page.locator('.tb-config-status-list'),'Configuration status page');
   await page.getByRole('button',{name:/刷新状态/}).click();
+
+  // Regression: an API failure must not block navigation into a module.
+  await page.locator('.tb-single-admin-nav button').click();
+  await visible(page.locator('.tb-admin-overview-grid'),'Admin overview');
+  await page.waitForTimeout(200);
+  failNextAdminSettings = true;
+  await page.locator('.tb-admin-overview-grid button').filter({hasText:'数据源配置'}).click();
+  await visible(page.locator('.tb-admin-load-error'),'Configuration load error');
+  await page.getByRole('button',{name:'重试加载'}).click();
+  await page.locator('.tb-admin-load-error').waitFor({state:'hidden',timeout:10000});
+  await visible(page.locator('input[placeholder*="jdbc:mysql"]'),'Configuration retry success');
 
   await mkdir('artifacts',{recursive:true});
   await page.screenshot({path:'artifacts/admin-desktop.png',fullPage:true});
