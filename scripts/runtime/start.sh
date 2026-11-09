@@ -1,50 +1,46 @@
 #!/usr/bin/env bash
 set -euo pipefail
-ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-mkdir -p "$ROOT/logs"
-PID_FILE="$ROOT/logs/dataask.pid"
-
-if [ -f "$PID_FILE" ] && kill -0 "$(cat "$PID_FILE")" 2>/dev/null; then
-  echo "DataAsk 已运行 PID=$(cat "$PID_FILE")"
-  exit 0
-fi
-
-command -v java >/dev/null || { echo "未找到 java，请安装 Java 21"; exit 1; }
-if ! java -version 2>&1 | head -1 | grep -Eq '"21([.+-]|")'; then
-  echo "DataAsk 需要 Java 21；当前环境："
-  java -version 2>&1 | head -1
-  exit 1
-fi
-
-if [ ! -f "$ROOT/conf/application.yml" ]; then
-  echo "未找到 $ROOT/conf/application.yml，请先填写 MySQL、StarRocks 和 AI 配置"
-  exit 1
-fi
-
-# First-run convenience: generate an installation-specific persistent signing secret
-# only when neither an environment variable nor an inline YAML secret is configured.
-CFG_SECRET="$(awk -F: '/^[[:space:]]*jwt-secret:[[:space:]]*/ { gsub(/[[:space:]"\047]/, "", $2); print $2; exit }' "$ROOT/conf/application.yml")"
-if [ -z "${DATAASK_JWT_SECRET:-}" ] && [ -z "$CFG_SECRET" ]; then
-  SECRET_FILE="$ROOT/conf/.dataask-jwt-secret"
-  if [ ! -s "$SECRET_FILE" ]; then
-    command -v openssl >/dev/null || {
-      echo "JWT 密钥未配置且 openssl 不可用。请将至少32字节的随机字符串配置到 conf/application.yml 的 dataask.jwt-secret"
-      exit 1
-    }
-    (umask 077; openssl rand -hex 32 > "$SECRET_FILE")
-    echo "已生成持久化 JWT 密钥：conf/.dataask-jwt-secret（请备份此文件）"
+source "$(dirname "${BASH_SOURCE[0]}")/runtime.sh"
+control_lock
+for tool in java curl unzip; do command -v "$tool" >/dev/null || { fail "缺少运行工具 $tool"; exit 1; }; done
+VERSION="$(java -version 2>&1)"
+[[ "$VERSION" =~ \"21[.\"+-] ]] || { fail 'DataAsk 需要 Java 21'; exit 1; }
+[ -f "$ROOT/conf/application.yml" ] && [ -s "$JAR" ] || { fail '缺少 conf/application.yml 或 lib/dataask.jar'; exit 1; }
+PORT="$(service_port)"
+BASE="http://127.0.0.1:$PORT"
+EXPECTED="$(jar_build_sha)"
+[ -n "$EXPECTED" ] || { fail 'JAR 未包含前端版本信息，请使用 bash package.sh 或 mvn clean package 重新打包'; exit 1; }
+PID="$(installation_pid)"
+if [ -n "$PID" ]; then
+  INFO="$(curl -fsS --max-time 3 "$BASE/api/build-info" 2>/dev/null || true)"
+  if [[ ( "$INFO" == *'"pid":'"$PID"','* || "$INFO" == *'"pid":'"$PID"'}'* ) && "$INFO" == *'"buildSha":"'"$EXPECTED"'"'* ]]; then
+    echo "DataAsk 已运行 PID=$PID，版本=$EXPECTED，端口=$PORT"; exit 0
   fi
-  chmod 600 "$SECRET_FILE"
-  export DATAASK_JWT_SECRET="$(cat "$SECRET_FILE")"
+  fail "旧进程 PID=$PID 仍在运行或版本不一致，请使用 bin/upgrade.sh，不能只覆盖 JAR 后再次 start"; exit 1
 fi
-
-if [ -n "${DATAASK_JWT_SECRET:-}" ] && [ "${#DATAASK_JWT_SECRET}" -lt 32 ]; then
-  echo "DATAASK_JWT_SECRET 至少需要32字节，请重新配置"
-  exit 1
+if command -v ss >/dev/null && [ -n "$(ss -ltnH "sport = :$PORT" 2>/dev/null)" ]; then
+  fail "端口 $PORT 已被占用，新版本尚未启动；请核对正在运行的安装目录"; exit 1
 fi
-
-nohup java ${JAVA_OPTS:--Xms256m -Xmx1024m} -Duser.timezone=Asia/Shanghai \
-  -jar "$ROOT/lib/dataask.jar" --spring.config.additional-location="file:$ROOT/conf/" \
-  >> "$ROOT/logs/dataask.log" 2>&1 &
-echo $! > "$PID_FILE"
-echo "DataAsk 启动请求已提交 PID=$(cat "$PID_FILE")。如未能访问，请检查 logs/dataask.log 最末尾的 Caused by"
+# Import an old installation's key exactly once. New installations store their generated key in MySQL.
+if [ -z "${DATAASK_JWT_SECRET:-}" ] && [ -s "$ROOT/conf/.dataask-jwt-secret" ]; then
+  export DATAASK_JWT_SECRET="$(cat "$ROOT/conf/.dataask-jwt-secret")"
+fi
+read -r -a JVM_OPTIONS <<< "${JAVA_OPTS:--Xms128m -Xmx1024m}"
+nohup java "${JVM_OPTIONS[@]}" -Duser.timezone=Asia/Shanghai -jar "$JAR" \
+  --spring.config.additional-location="file:$ROOT/conf/" --server.port="$PORT" \
+  >> "$ROOT/logs/dataask.log" 2>&1 9>&- &
+PID=$!
+printf '%s\n' "$PID" > "$PID_FILE"
+for ((i=0;i<${DATAASK_START_TIMEOUT:-90};i++)); do
+  if ! kill -0 "$PID" 2>/dev/null; then
+    rm -f "$PID_FILE"; tail -n 50 "$ROOT/logs/dataask.log" >&2
+    fail '新进程启动失败，不能视为发布成功'; exit 1
+  fi
+  INFO="$(curl -fsS --max-time 2 "$BASE/api/build-info" 2>/dev/null || true)"
+  if [[ ( "$INFO" == *'"pid":'"$PID"','* || "$INFO" == *'"pid":'"$PID"'}'* ) && "$INFO" == *'"buildSha":"'"$EXPECTED"'"'* ]]; then
+    echo "DataAsk 启动成功 PID=$PID，版本=$EXPECTED，端口=$PORT"
+    echo "$INFO"; exit 0
+  fi
+  sleep 1
+done
+fail "进程 PID=$PID 仍未通过版本和健康校验，请检查 $ROOT/logs/dataask.log"; exit 1
