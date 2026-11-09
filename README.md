@@ -1,281 +1,125 @@
 # DataAsk · 数问
 
-独立的企业经营数据问答 MVP，供领导使用手机浏览器 / 企业内部 H5 页面自然语言查询 StarRocks ADS 数据，支持连续追问和基本图表。**与 DataLens、DataForge、Datart 无代码或数据库依赖。**
+面向企业管理者的独立智能问数应用：直接询问经营数据，查询外接 StarRocks ADS 表，展示中文指标、表格和图表。Java 21 / Spring Boot 3.5.7 / MySQL 8 / Vue 3。**与 DataLens、DataForge 无运行时或数据库依赖；表字段选择只参考 DataForge 的交互方式。**
 
-> 状态：第一版源码骨架已经提交；需要按本文配置实际 MySQL、StarRocks、AI 模型后联调。尚未完成真实 ADS 指标口径验收、微信/钉钉免登和按人员的数据行级权限校验，**不可直接作为生产系统向领导开放**。
+## 当前配置方式
 
-## 技术栈
+业务配置统一存入 MySQL。管理员登录后进入 **系统管理 · MySQL 配置中心**：
 
-- Java **21**、Spring Boot **3.5.7**、Spring Security、Spring JDBC
-- MySQL **8**：用户、授权表、会话、SQL 和查询记录
-- StarRocks：**外部 ADS 数据源**；不复制数据到 MySQL
-- Vue 3 + Vant + ECharts：单页移动端 H5
-- OpenAI 兼容的 `/chat/completions` 模型接口
-- 部署：独立 JAR，附 Linux `tar.gz` 打包和启停脚本；不依赖 Docker、Redis 或 Nginx
+| 模块 | 可配置内容 |
+| --- | --- |
+| 模型与连接 | 对话模型、Embedding 模型的 Base URL / 模型名 / API Key；StarRocks FE 连接、账号、密码；测试连接与保存 |
+| 数据库 / 表 / 字段 | 选择真实数据库、搜索并勾选表、逐字段选择、确认保存；表列表10条/页，字段区域固定高度滚动 |
+| 表关联 | 选择已开放表，维护关联键、一对一/多对一及统计粒度说明 |
+| 指标口径 | 上传 .xlsx / .xls，预览后导入，保留批次并可删除 |
+| 账号管理 | 创建管理员及普通内部账号 |
 
-## V0.1 已实现功能
+配置保存后立即生效，不需要重新打包或重启。切换数据库不会覆盖其他数据库的已保存选择。未选择的字段不进入问数元数据，也不能用于 SELECT、筛选、关联或聚合。新增物理字段不会自动开放。取消表字段或切换模型会清除对应旧向量索引，需要重新构建。
 
-1. 首次管理员账号初始化、JWT 登录、账号创建和会话归属校验。
-2. 自动从 StarRocks `information_schema.COLUMNS` 读取 ADS 表字段及注释。
-3. 管理员选择允许 AI 查询的 ADS 表，默认无授权表。
-4. 提问 → AI 生成 JSON 查询计划 → JSqlParser 只读 SQL / 表白名单验证 → StarRocks 查询。
-5. 展示指标、表格、柱状/折线/饼图；保存会话；点击“按城市看 / 按门店看 / 查看近7天趋势”进行多轮追问（沿用上一条问题及 SQL 作为 AI 上下文）。
-6. Java 21 + Web GitHub Actions 构建校验。
+**启动前必须提供元数据库 MySQL 的连接信息**：程序需要先连上该库才能读取其余配置，所以这项引导连接以及 HTTP 端口保留在 `conf/application.yml` 或环境变量中。模型、StarRocks 分析连接、表字段、系统签名密钥等不再要求人工写进配置文件。
 
-**注意：** 当前连续追问通过上下文提示词实现，尚未做结构化、可证明保留日期/维度的查询规划器。自然语言 SQL 仍需要与 ADS 正式报表逐项对账。暂未实现 SSE 流式返回、微信小程序免登、钉钉免登、行级权限策略及生产级审计。
+默认预填值（模型是否可调用以服务商及当前账号的连接测试为准）：
 
-## 服务器环境
+| 项目 | 初始值 |
+| --- | --- |
+| 服务端口 | `8087` |
+| 对话模型 Base URL / 模型 | `https://api.deepseek.com` / `deepseek-flash` |
+| Embedding Base URL / 模型 | `https://dashscope.aliyuncs.com/api/v1` / `qwen3.7-text-embedding-flash` |
+| Embedding 维度 / 启用 | `1024` / 默认关闭 |
 
-- JDK 21
-- Maven 3.9+
-- Node.js 22（只用于打包；运行时不需要）
-- MySQL 8（预建 `dataask` 库、提供独立元数据库账号）
-- 已开放可访问的 StarRocks FE MySQL 协议端口（通常是 9030）
-- 可访问的 OpenAI 兼容模型 API
+DashScope `/api/v1` 自动使用原生文本向量请求协议；其他兼容地址使用 `/embeddings`。管理员在网页中填写各自 Key，测试、保存，再重建语义索引。没有 Key 的已知云端模型不会显示为已配置；本地无密钥兼容服务可留空。
 
-首次创建 MySQL 库（按实际情况调整账户及密码）：
+## 构建与首次安装
+
+构建机器需要 **Java 21、Maven 3.9+、Node.js 22或更高版本、npm、tar、unzip、sha256sum**。运行机器需要 Java 21、MySQL 8，以及 Linux 的 bash、flock、curl、unzip；不需要 Node、Redis、Nginx 或 Docker。
+
+```bash
+bash package.sh
+# 或 bash scripts/package.sh
+# mvn clean package 也会自动构建 Vue 前端并嵌入 JAR，不再单独复用旧静态文件。
+```
+
+产物：`release/dataask-0.1.0-<构建提交号>.tar.gz`，同时提供兼容名称 `release/dataask-0.1.0.tar.gz` 和版本化 SHA256 文件。
+
+先在 MySQL 创建元数据库：
 
 ```sql
-CREATE DATABASE IF NOT EXISTS dataask CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+CREATE DATABASE IF NOT EXISTS dataask CHARACTER SET utf8mb4;
 ```
 
-在 MySQL 中为 DataAsk 提供该库的建表、读写权限；不要让 DataAsk 使用业务库超级管理员账号。
-
-## 本地启动
+元数据库账号需要该库的建表、修改表结构和读写权限。分析数据源账号只需相应 ADS 的读取权限。
 
 ```bash
-git clone https://github.com/NJgaoyang/dataask.git
-cd dataask
-export DATAASK_MYSQL_URL='jdbc:mysql://127.0.0.1:3306/dataask?useUnicode=true&characterEncoding=utf8'
-export DATAASK_MYSQL_USER='dataask'
-export DATAASK_MYSQL_PASSWORD='替换为实际密码'
-export DATAASK_JWT_SECRET="$(openssl rand -hex 32)"
-export DATAASK_ADMIN_PASSWORD='首次启动管理员强密码至少10位'
-export DATAASK_STARROCKS_JDBC_URL='jdbc:mysql://starrocks-fe:9030/ads?useUnicode=true&characterEncoding=utf8'
-export DATAASK_STARROCKS_USER='只读账号'
-export DATAASK_STARROCKS_PASSWORD='替换为实际密码'
-export DATAASK_STARROCKS_SCHEMA='ads'
-export DATAASK_AI_BASE_URL='https://your-model-api.example/v1'
-export DATAASK_AI_API_KEY='替换为API Key'
-export DATAASK_AI_MODEL='替换为模型名'
-mvn spring-boot:run
-```
-
-另开终端运行前端开发服务器：
-
-```bash
-cd web
-npm install
-npm run dev
-```
-
-访问 `http://127.0.0.1:5173`。初次登录账号为 `admin`，密码为环境变量 `DATAASK_ADMIN_PASSWORD` 指定的值。首次启动时自动建表，不会覆盖已有记录。
-
-管理员先进入“系统管理”，查看 ADS 表字段注释，并开放经过核对的表，再测试“昨天的营业额是多少”。如果字段注释存在多种营业额口径，AI 必须提示确认口径，不能自行猜测。
-
-## Linux TAR 打包和直接运行
-
-```bash
-bash scripts/package.sh
-# 生成 release/dataask-0.1.0.tar.gz
-tar -xzf release/dataask-0.1.0.tar.gz
-cd release/dataask-0.1.0
+tar -xzf dataask-0.1.0.tar.gz
+cd dataask-0.1.0
 vi conf/application.yml
-chmod 600 conf/application.yml
+# 只填写 MySQL 引导连接及服务端口。
+export DATAASK_ADMIN_PASSWORD='安装时自行指定的初始密码'
 bash bin/start.sh
-tail -f logs/dataask.log
-bash bin/stop.sh
+bash bin/status.sh
 ```
 
-后端已将构建好的前端静态页面一起打包进 JAR，部署后直接访问 `http://服务器IP:8087`。
+通过 `http://服务器IP:8087` 访问。全新数据库的管理员账号是 `admin`；未指定初始密码时，启动日志会仅在初始化时输出一次自动生成的密码。已有账号不会因升级或重新设置该环境变量而重置。
 
-**微信小程序 WebView / 钉钉企业内部应用正式接入时**，需要使用 HTTPS、对应平台域名和免登流程。当前是账号密码登录的 H5 内测版，请不要把 HTTP 明文登录页面暴露到公网。
+管理员按顺序配置：**模型与连接 → 保存 StarRocks → 数据库 / 表 / 字段 → 选择数据库 → 选择表与字段 → 确认保存**。日期、城市、指标及 JOIN 所需字段也需要勾选。普通用户不需要接触这些配置，只进入问数工作台。
 
-## API 摘要
+## 旧安装升级与“发布后没变化”排查
 
-| API | 说明 |
-| --- | --- |
-| `POST /api/auth/login` | 登录，获取 Bearer Token |
-| `GET /api/auth/me` | 当前身份 |
-| `GET /api/chat/sessions` | 当前用户的会话 |
-| `GET /api/chat/sessions/{id}/messages` | 恢复会话消息 |
-| `POST /api/chat/ask` | 提问或带 `sourceMessageId` 追问 |
-| `GET /api/admin/status` | 配置状态 |
-| `GET /api/admin/tables` | 读取 StarRocks ADS 元数据 |
-| `POST /api/admin/table-allow` | 对指定 ADS 表授权/禁用 |
-| `GET /api/admin/users` / `POST /api/admin/users` | 管理内部账号 |
-| `GET /api/health` | 健康探针 |
+升级前备份元数据库。**首次从旧版迁移时保留原 `conf/application.yml` 和 `conf/.dataask-jwt-secret`（存在时）**，不要更换旧 JWT 密钥；系统需要它读取原有加密配置。第一次迁移只补齐缺失配置，不覆盖已经通过网页保存的值。迁移后，以 MySQL 为唯一业务配置来源，旧 YAML 模型字段不再覆盖网页配置。
 
-## 数据安全与后续增强
+旧版只有整表授权，没有明确字段清单：升级后请在新选择器中确认一次表和字段并保存，系统不会自动扩大字段范围。更换分析连接会撤销旧连接的表授权、关联规则及向量索引。
 
-目前 SQL 有单条 SELECT、语法解析、ADS 表授权、最大 200 行、20 秒查询超时等保护，但**仍必须配合 StarRocks 最小 SELECT 权限账号及网络隔离使用**。MVP 是表级授权，并非按员工、部门、城市的数据行级权限管理。
-
-下一阶段必须补齐：真实 ADS 口径校验、行级权限、企业微信/小程序和钉钉 SSO、服务端 SQL 执行审计、SQL 资源组和限流、上下文结构化解析与趋势下钻一致性测试。
-
-## 常见启动失败：Unable to start embedded Tomcat
-
-如果日志显示 `ApplicationContextException: Unable to start web server`，请继续查看 **最后一层 `Caused by`**，不能仅凭 Tomcat 外层异常判定为端口占用。
-
-- **JWT 密钥为空/不足 32 字节**：可在 `conf/application.yml` 的 `dataask.jwt-secret` 填写 `openssl rand -hex 32` 生成的密钥，或者使用新版 `bin/start.sh`。新版脚本会在没有配置 JWT 密钥时首次生成 `conf/.dataask-jwt-secret`（权限 600），之后复用此文件；注意备份，切勿提交仓库。
-- **首次管理员密码缺失**：初始化空库时，`dataask.admin-password` 必须至少 10 个字符；后续重启不会覆盖已有管理员密码。
-- **MySQL 无法连接**：检查 `dataask` 库是否存在、账号权限及 `spring.datasource` 参数。
-- **端口冲突**：`ss -lntp | grep ':8087'`，若端口被占用，可通过 `DATAASK_PORT` 更换端口。
-
-诊断命令：
+在源码目录更新并打包后，使用**新源码中的升级脚本**，第二个参数是实际运行安装目录，而不是源码目录：
 
 ```bash
-grep -n 'Caused by:' logs/dataask.log | tail -n 15
-tail -n 120 logs/dataask.log
-ss -lntp | grep ':8087'
+git switch main
+git pull --ff-only origin main
+bash package.sh
+
+# /opt/dataask 仅为示例，替换为现有安装目录。
+bash scripts/runtime/upgrade.sh \
+  "$PWD/release/dataask-0.1.0.tar.gz" \
+  /opt/dataask
+
+bash /opt/dataask/bin/status.sh
+curl -fsS http://127.0.0.1:8087/api/build-info
 ```
 
-如果使用的是之前打包的 TAR，修改仓库中的启动脚本不会自动更新旧 TAR；需要重新运行 `bash scripts/package.sh` 并部署新包。也可以直接按照上面步骤配置 JWT 密钥后重启，无需重新打包。
+升级只替换 JAR 和脚本，保留配置文件、用户和 MySQL 数据。脚本等待旧进程真正退出，备份原程序，原子替换文件，再检查**新进程 PID 与构建版本一致**后才报告启动成功。启动失败会尝试恢复原程序，不会回滚或删除数据库数据。
 
+版本诊断接口 `/api/build-info` 返回：
 
-## 旧版模型配置故障排查（历史说明；新版已支持 Web 配置）
+```json
+{
+  "buildSha": "实际源码提交号",
+  "uiLayout": "desktop-three-pane",
+  "configStorage": "mysql",
+  "catalogVersion": "table-column-selector-v1",
+  "pid": 12345,
+  "startedAt": "实际进程启动时间"
+}
+```
 
-- 系统管理的“AI 模型”行可以点击，进入“AI 模型配置检查”。新版本可在 Web 中配置并保存 Key、Base URL 和模型名，旧版本只能读取运行中服务的配置文件。
-- 完整可用状态需要 `dataask.ai.api-key`、`dataask.ai.base-url` 和 `dataask.ai.model` **三项同时存在**；只配置前两项，会显示“检查模型名称”。
-- Linux TAR 部署优先读取解压目录 `conf/application.yml`。这个外部文件中的空值也会覆盖 JAR 自带 `application.yml` 的非空值，因此要检查**实际运行目录**的配置，而不只是 Git 仓库源码里的文件。
-- 若使用 `${DATAASK_AI_API_KEY:}`、`${DATAASK_AI_BASE_URL:}` 等占位符，必须给启动进程设置相应环境变量。
-- 修改 `conf/application.yml` 中的模型配置后，应通过 `bash bin/stop.sh`、`bash bin/start.sh` 重启；页面的“测试连接”能够给出 HTTP 状态错误，不会暴露 Key。
-- StarRocks 的“未配置”也是可点击入口，可以填写 FE JDBC 地址、执行连接测试并保存；管理员开放 ADS 表后，用户才能问数。
-- 由于前端资源包含在 JAR 中，**更新仓库代码后需要重新执行 `bash scripts/package.sh` 并部署新 TAR**，否则旧页面仍然无法点击。
+页面仍不变化时，先核对实际安装目录、端口和该接口，不要只看打包成功日志。管理页同时显示前端与后端版本，二者不同会提示刷新。手工覆盖 JAR 后直接执行 start，不会自动替换已经运行的旧进程，请使用 upgrade。
 
+## 问数、语义与界面
 
-## 城市简称与 ADS 实际值自动对齐（已实现的轻量语义层）
+PC 宽屏使用历史会话 / 对话 / 数据结果三栏工作台；手机使用单列对话和自适应管理面板。结果表格、字段选择和指标文档预览均有独立滚动区域。
 
-为了避免用户说“西安”但 ADS 字段存储“西安市”而导致空结果，后端现在含有
-\`EntityValueResolver\`。
+中文列名根据当前问题的业务含义展示。例如“前一天的总金额”可以使用注释为“当日金额”的物理字段，但显示名称仍为“总金额”，时间落实为日期筛选。无法支持的问题统一返回：`对不起当前问题不支持，请找管理员"许愿"`。
 
-1. 仅检查管理员开放的 ADS 表，识别名称、字段注释中明确表示城市名称的文本列。
-2. 对这些列按需执行 **SELECT DISTINCT ... LIMIT 500**，最多检查 12 个城市字段，每列查询超时 8 秒，并在内存中缓存 15 分钟。
-3. 依据实际取出的城市名称生成短名称映射。例如检测到“西安市”以后，识别“西安”。
-4. 只把与当前用户问题匹配的标准值和来源字段发送给大模型，提示其使用真实维度值；若大模型仍生成 \`city_name = '西安'\` 等明确等值条件，服务端对确认过的城市列进行有范围的修正，随后执行原有 SQL 白名单校验。
-5. 问数结果会在成功命中标准值时标注“西安 → 西安市”。这不依赖向量数据库或 Embedding 模型。
+城市别名从已选字段的真实维度值建立映射，例如“西安”匹配“西安市”；歧义映射不自动猜测。Embedding 增强表和指标口径检索，不负责保证业务计算正确。
 
-**限制与安全：** 这是面向中文“城市名称”的轻量 MVP，不覆盖所有城市别名、区县、门店、业务术语或拼音；存在同名或歧义的数据值必须先由业务确认。字段值采样对大型明细表可能有成本，生产前应优先使用维表/汇总表或提前维护缓存并压测。只允许 StarRocks 的只读账号查询，尚未实现行级权限隔离。未来可增加实体别名词典、指标语义模型、Embedding 表/字段召回、Reranker、错问 SQL 示例库，但 Embedding 不应代替数据值精确校验或业务口径审核。
+跨表查询必须有管理员批准的 JOIN 键与粒度规则。当前字段校验支持直接 SELECT、常用聚合、CASE、日期函数和批准的 JOIN；暂不放行无法完整校验字段范围的 CTE、子查询、窗口函数或 `SELECT *`。接口结果最多200行，查询有超时限制。多表聚合仍需核对事实粒度，不能把各表汇总值相乘。
 
-相关源码：
-- \`src/main/java/com/dataask/semantic/EntityValueResolver.java\`
-- \`src/main/java/com/dataask/data/StarRocksGateway.java\`
-- \`src/main/java/com/dataask/chat/ChatController.java\`
-- \`src/test/java/com/dataask/semantic/EntityValueResolverTest.java\`
+连续追问按钮携带 `sourceMessageId`，在同一会话中沿用上一轮问题和 SQL 上下文。当前不是结构化语义规划器，正式上线前需要对典型指标、时间范围和连续追问与数仓报表逐项对账。
 
+## API 与验证
 
-## 指标 Excel、结果表格与 ADS 多表关联（最新版本）
+主要接口：`POST /api/auth/login`、`POST /api/chat/ask`、`GET /api/admin/settings`、`POST /api/admin/settings/{ai|embedding|starrocks}`、对应 `/test`、`GET /api/admin/catalog/databases`、`GET /api/admin/catalog/tables?database=...`、`POST /api/admin/catalog/selection`、`POST /api/admin/semantic/rebuild`。
 
-### 指标口径 Excel
+`POST /api/admin/table-allow` 旧整表入口已停用，返回410，引导使用明确表字段选择。目录保存包含 sourceKey/revision，冲突返回409，避免旧页面覆盖新连接或新选择。
 
-管理员进入 **系统管理 → 指标口径 · Excel → 上传 Excel**。支持 .xlsx/.xls、最多 5 MB，导入前预览前 10 条，确认后写入 MySQL，支持导入历史和按批次删除。点击“下载模板”可以获得规范格式。Excel 必须至少包括“指标名称”和“指标口径”；可选“指标别名、ADS表名、来源字段、时间字段、分析维度、备注”。AI 在生成 SQL 时会参考已上传口径，但不直接执行 Excel 中的指令。
+CI 在隔离 MySQL 8 上构建完整 TAR，并测试首次启动、网页登录配置、表字段保存、多库选择、问数 SQL、Mock Embedding 索引失效、重启持久化、原生升级及 Chromium PC/手机页面。模型使用本地确定性响应，分析库使用 MySQL 协议测试数据，**不能替代用户实际 StarRocks、云模型、业务口径及微信/钉钉容器的联调验收**。
 
-### 中文列名与固定高度表格
-
-表格最多占用约 **320px** 高度，在内部上下/左右滚动，表头固定；后端仍限制最多返回 200 行。结果列名优先使用 AI 返回的中文业务标签，然后查找已授权 ADS 字段的中文注释和已知业务字段。无法确定含义时会显示“字段N”并保留原始技术列名作为鼠标悬停提示，避免误译。
-
-ECharts 已调整为多色图例、横向排行条、渐变趋势图、环形图。在合适的两列数据场景可自动生成排行/趋势图。图表仅显示前 8～12 项以保证手机可读性；完整查询结果显示在下方表格区域。
-
-### 多张 ADS 汇总表关联
-
-系统管理中新增“**ADS 跨表关联规则**”，可配置已授权的两张 ADS 表、主表与关联表的关联键（支持多个字段，以英文逗号分隔）、一对一/多对一类型和至少 8 字的业务粒度说明。
-
-规则保存在 MySQL；AI 可使用审核过的关联规则。多表 SQL 在执行前会检查是否仅使用批准的 JOIN 等值关联键，拒绝不完整的关联条件、无审批关系和隐式关联。**管理员仍需核实 ADS 汇总表在关联粒度上是否真正唯一；仅审核键名无法证明不会重复计数。** 跨不同粒度的多个事实表建议先预聚合，避免乘法放大。
-
-### 部署升级
-
-仓库代码提交在 main 分支。应用的前端资源在 JAR 内，更新后需重新打包并部署：
-
-    git pull origin main
-    bash scripts/package.sh
-
-升级时保留原有部署目录的 conf/application.yml、JWT 密钥和 MySQL 数据库，停止旧服务并替换新版 JAR；首次运行 schema.sql 将以 CREATE TABLE IF NOT EXISTS 新增指标和关联规则表，无需清空已有数据。新版本优先读取 Web 管理页面保存的模型配置；原 application.yml 保留为对话模型的兼容默认值。
-
-这仍是 MVP：上线供领导使用前需要验证实际 ADS 数据、指标口径、用户行级权限及关联键唯一性。
-
-
-## PC / H5 自适应及指标口径显示（2026-11）
-
-### 问数结果的动态中文名称
-
-- 结果标题和指标列名优先来自**用户本轮提问的业务指标词**；数据库真实字段名只负责计算，不负责决定业务展示名。
-- 时间和指标名称分别处理：用户问“前一天的总金额”，即使 ADS 物理字段注释是“当日金额”，结果名称也显示“总金额”，时间标签单独显示“前一天”。
-- 对昨天、昨日、前一天和前天等常用日期，SQL 必须包含对应绝对日期；生成 SQL 和提问日期不一致时拒绝作为可信答案。
-- 如果无法确认业务口径、模型没有返回合法查询计划，或生成 SQL 违反只读/授权/关联限制，回答统一为 **对不起，当前问题不支持，请找管理员“许愿”。**
-- 数据库、网络、AI 服务不可用属于系统错误，仍返回明确的配置或服务异常，避免误报成业务不支持。
-- 完整结果仍来自 StarRocks，指标展示名与查询数据是两条独立的校验路径；指标值必须与公司 ADS 官方口径核对，不因显示名称变化而修改 SQL 计算。
-
-### PC 的 WorkBuddy 风格工作台
-
-桌面宽屏（宽度 >= 1024px）采用三栏布局：
-
-1. 左侧：产品标识、新建对话、历史搜索、个人与管理入口。
-2. 中间：AI 对话、结果卡片、连续追问和固定底部输入栏。
-3. 右侧：数据结果详情，可切换概览/完整表格，也可收起。
-
-手机和平板使用响应式布局。微信小程序 WebView、钉钉 H5 应用和手机浏览器共用一套 Vue 3 页面，窄屏自动切换单栏，不增加独立前端。**此版本仅完成响应式 H5；微信/钉钉免登接入、正式 HTTPS 域名和移动端实机兼容测试仍需独立实施。**
-
-### 更新
-
-本次改动已提交 main，重新拉取、打包和部署才能看到新 PC 界面和动态指标标题：
-
-    git pull origin main
-    bash scripts/package.sh
-
-部署更新时必须保留原来的 conf/application.yml、JWT 密钥和 MySQL 数据，不要用空白配置模板覆盖真实密钥。
-
-
-## 最新：Web 模型管理、Embedding 语义索引与 PC 新版可见性
-
-### 一、模型密钥全部在 Web 配置
-
-管理员打开 **系统管理**，分别点击 **对话模型** 和 **Embedding 模型**。
-
-- 对话模型：Base URL、模型名称、API Key 可以直接在网页填写、测试、保存，立即生效。
-- Embedding：可启用模型、填写 Base URL、模型名称、API Key（本地免密可留空）和向量维度；默认使用阿里云 qwen3.7-text-embedding-flash（1024 维）。
-- Embedding 保存后必须点击 **重建语义索引** 才开始参与问数；当前最多索引 120 条已授权 ADS 表元数据与 Excel 指标描述，每批 20 条。
-- 语义检索失败时，问数仍使用 ADS 字段注释及 Excel 指标定义回退；不会把向量结果当作业务口径的唯一真相。
-- Key 由后端加密存储到 MySQL 8，前端保存后不再明文回显。原 JWT 加密密钥需要长期保留，否则旧的数据源密钥和模型密钥无法解密。
-
-### 二、为什么 PC 没看到新布局
-
-前端静态资源打包在 Spring Boot JAR 里。只执行 git pull 不会更换服务器上运行的 JAR。
-
-新版桌面浏览器视口宽度 >= 1024px 时，会显示左侧历史会话、中间 AI 对话、右侧数据结果三栏；手机、小程序和钉钉 H5 保持单栏。
-
-在源码目录执行：
-
-    git pull origin main
-    bash scripts/package.sh
-
-假设现有安装目录为 /opt/dataask（请换成你的真实路径），建议执行：
-
-    bash scripts/runtime/upgrade.sh "$PWD/release/dataask-0.1.0.tar.gz" /opt/dataask
-
-升级脚本仅替换旧安装目录的 JAR 与启停脚本，保留原 conf/application.yml、JWT 密钥与 MySQL 数据库。服务启动后检查：
-
-    curl -s http://127.0.0.1:8087/build-info.json
-
-新版本应该返回 buildSha、builtAt、uiLayout 为 desktop-three-pane、modelManagement 为 web 的 JSON，并在 PC 左侧底部显示构建号。返回 404 说明运行的可能是旧 JAR 或访问了错误的服务器。
-
-浏览器可尝试 Ctrl+Shift+R，或用无痕窗口排除旧缓存；新版本已为 HTML 和构建信息添加无缓存响应头。
-
-### 三、验收边界
-
-这次提交已由 GitHub CI 检查，但还没有在你的实际服务器和真实 StarRocks 中进行连通性、浏览器和微信/钉钉实机验证。企业免登、行级数据权限和指标口径对账仍需独立验收。
-
-
-### 默认配置、阿里云 Embedding 和部署验证（2026-11）
-
-**服务默认端口 8087**。已有 conf/application.yml 配置了端口时，以现有配置为准。
-
-- 对话模型默认地址：https://api.deepseek.com；模型名：deepseek-flash；API Key 在系统管理 Web 页面填写。
-- Embedding 默认地址：https://dashscope.aliyuncs.com/api/v1；模型：qwen3.7-text-embedding-flash；维度：1024。
-- Embedding 默认关闭，需要在 Web 模型管理中填写 Key、启用、测试连接、保存后执行“重建语义索引”。如果之前已保存其他模型，该配置优先于新默认值。
-- DashScope /api/v1 使用原生同步接口 /services/embeddings/text-embedding/text-embedding；OpenAI 兼容地址仍使用 /embeddings。DataAsk 会根据 URL 自动选择正确的请求与响应格式。
-- StarRocks FE 的 jdbc:starrocks://HOST:9030 简写会适配到 MySQL Connector/J 可以使用的 jdbc:mysql://HOST:9030/ads。
-
-请保留已有的服务器 conf/application.yml、JWT 密钥、MySQL 数据，不要将真实密码和 API Key 提交到 GitHub。最新版本可用以下地址核对：
-
-    curl -fsS http://127.0.0.1:8087/build-info.json
-
-如果网页还是旧界面，请先确认已使用新 JAR 启动，再打开构建信息核对 buildSha，并强制刷新浏览器。
+微信小程序 / 钉钉内嵌应用目前提供自适应 H5，平台免登、平台域名配置和按人员的行级权限尚未实现。图表为问数结果展示；独立图表收藏与按人共享仍需后续迭代，不能与已有会话保存混为一谈。
