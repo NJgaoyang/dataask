@@ -97,6 +97,14 @@ const sessions = ref([])
 const sessionSearch = ref('')
 const resultPanelOpen = ref(true)
 const resultTab = ref('overview')
+function fullSessionTime(value) {
+  if (!value) return '—'
+  const raw = String(value).replace('T',' ')
+  const normalized = raw.match(/^(\d{4}-\d{2}-\d{2}) (\d{2}:\d{2})/)
+  if (normalized) return normalized[1] + ' ' + normalized[2]
+  const timestamp = new Date(value)
+  return Number.isNaN(timestamp.getTime()) ? raw.slice(0,16) : timestamp.toLocaleString('zh-CN',{hour12:false})
+}
 function sessionTimeLabel(updatedAt) {
   if (!updatedAt) return ''
   const text = String(updatedAt)
@@ -1062,59 +1070,109 @@ onBeforeUnmount(() => desktopMedia?.removeEventListener('change', window.__dataA
           <p class="muted">管理员可创建新账号并分配角色。普通用户不能修改模型、数据源或系统授权。</p>
         </div>
       </main>
-      <main v-if="isDesktop && desktopSection==='overview'" class="tb-page-body tb-overview">
-        <div class="tb-page-intro">
-          <div><p class="tb-eyebrow">WELCOME TO DATAASK</p><h1>工作台</h1>
-            <p>把经营问题交给数据，用智能问数快速获得答案。</p></div>
-          <span class="tb-page-symbol"><van-icon name="bar-chart-o" size="30"/></span>
-        </div>
-        <section class="tb-welcome-panel">
-          <div class="tb-welcome-main">
-            <span class="tb-welcome-overline">智能数据分析助手</span>
-            <h2>你好，今天想了解哪些经营数据？</h2>
-            <p>用自然语言提问，直接获取授权 ADS 数据的查询结果与可视化分析。</p>
-            <button type="button" class="tb-primary-action" @click="switchDesktopSection('ask')">
-              进入智能问数 <van-icon name="arrow"/>
+      <main v-if="isDesktop && desktopSection==='overview'" class="tb-page-body tb-overview ds-home" aria-label="DataAsk 工作台">
+        <header class="ds-home-intro">
+          <div class="ds-home-heading-copy">
+            <p class="ds-home-kicker"><span aria-hidden="true"></span> WELCOME TO DATAASK</p>
+            <h1>工作台</h1>
+            <p>基于自然语言的智能数据分析平台，让数据查询与分析更简单、更高效。</p>
+          </div>
+        </header>
+        <section class="ds-home-banner" aria-label="欢迎使用 DataAsk">
+          <div class="ds-home-banner-copy">
+            <h2>欢迎使用 <span>DataAsk</span></h2>
+            <p>用自然语言提问，快速获取数据、图表与业务洞察，助力高效决策。</p>
+            <button type="button" class="ds-home-cta" @click="switchDesktopSection('ask')">
+              <van-icon name="magic-stick" size="17"/> 进入智能问数 <van-icon name="arrow" size="17"/>
             </button>
           </div>
-          <div class="tb-welcome-art" aria-hidden="true">
-            <div class="tb-art-ring"><van-icon name="chart-trending-o" size="57"/></div>
-            <span class="tb-art-spark tb-spark-a">✦</span><span class="tb-art-spark tb-spark-b">✧</span>
+          <svg class="ds-home-banner-illustration" viewBox="0 0 510 213" role="img" aria-label="数据分析图表示意">
+            <defs>
+              <linearGradient id="ds-home-wave" x1="0" y1="0" x2="1" y2="1">
+                <stop offset="0" stop-color="#b5d7ff" stop-opacity=".04"/>
+                <stop offset="1" stop-color="#70a8fa" stop-opacity=".43"/>
+              </linearGradient>
+              <linearGradient id="ds-home-window" x1="0" y1="0" x2="1" y2="1">
+                <stop offset="0" stop-color="#f9fcff"/>
+                <stop offset="1" stop-color="#c7deff"/>
+              </linearGradient>
+              <linearGradient id="ds-home-window-bar" x1="0" y1="1" x2="0" y2="0">
+                <stop offset="0" stop-color="#4d8bef"/><stop offset="1" stop-color="#a2cafa"/>
+              </linearGradient>
+              <filter id="ds-home-shadow" x="-35%" y="-40%" width="170%" height="190%">
+                <feDropShadow dx="0" dy="10" stdDeviation="11" flood-color="#5390e6" flood-opacity=".18"/>
+              </filter>
+            </defs>
+            <path d="M0 188 Q128 105 242 160 T510 99 L510 213 L0 213 Z" fill="url(#ds-home-wave)" opacity=".55"/>
+            <ellipse cx="314" cy="193" rx="165" ry="16" fill="#83b1f8" opacity=".12"/>
+            <g transform="translate(188 15) rotate(-3 132 87)" filter="url(#ds-home-shadow)">
+              <rect x="0" y="0" width="275" height="168" rx="16" fill="url(#ds-home-window)" stroke="#fff" stroke-width="3"/>
+              <rect x="0" y="0" width="275" height="28" rx="14" fill="#7caaf1"/>
+              <path d="M0 18 L275 18 L275 29 L0 29Z" fill="#7caaf1"/>
+              <circle cx="15" cy="14" r="4" fill="#fff" opacity=".9"/>
+              <circle cx="29" cy="14" r="4" fill="#fff" opacity=".7"/>
+              <circle cx="43" cy="14" r="4" fill="#fff" opacity=".6"/>
+              <rect x="17" y="42" width="146" height="108" rx="9" fill="#fff" opacity=".83"/>
+              <line x1="29" y1="126" x2="154" y2="126" stroke="#cbdcf6" stroke-width="1.7"/>
+              <rect x="37" y="104" width="19" height="22" rx="4" fill="url(#ds-home-window-bar)"/>
+              <rect x="64" y="90" width="19" height="36" rx="4" fill="url(#ds-home-window-bar)"/>
+              <rect x="91" y="71" width="19" height="55" rx="4" fill="url(#ds-home-window-bar)"/>
+              <rect x="118" y="57" width="19" height="69" rx="4" fill="url(#ds-home-window-bar)"/>
+              <rect x="175" y="43" width="82" height="67" rx="11" fill="#f4f8ff"/>
+              <circle cx="214" cy="76" r="23" fill="none" stroke="#bed9fd" stroke-width="11"/>
+              <path d="M214 53 A23 23 0 0 1 237 76 L214 76Z" fill="#2e7ce9"/>
+              <path d="M214 76 L237 76 A23 23 0 0 1 206 98 Z" fill="#6aa8fa"/>
+              <rect x="178" y="122" width="71" height="7" rx="3.5" fill="#aacaf4"/>
+              <rect x="178" y="137" width="50" height="6" rx="3" fill="#c1d8f7"/>
+            </g>
+            <g transform="translate(112 100) rotate(5 53 37)" filter="url(#ds-home-shadow)">
+              <rect x="0" y="0" width="110" height="70" rx="15" fill="#fff" stroke="#d8e8fd" stroke-width="2"/>
+              <path d="M24 70 L34 70 L29 82Z" fill="#fff"/>
+              <path d="M21 41 L36 23 L49 33 L64 15" stroke="#378cf7" stroke-width="4" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
+              <circle cx="64" cy="15" r="4" fill="#5aa2ff"/>
+              <rect x="21" y="51" width="62" height="5" rx="2.5" fill="#bed6fa"/>
+            </g>
+            <g fill="#fff" stroke="#fff" stroke-width="1.7" opacity=".97">
+              <path d="M469 36 l6 12 12 6 -12 6 -6 12 -6 -12 -12 -6 12 -6Z"/>
+              <path d="M91 47 l3 7 7 3 -7 3 -3 7 -3 -7 -7 -3 7 -3Z" opacity=".75"/>
+            </g>
+          </svg>
+        </section>
+        <section class="ds-home-shortcuts" aria-labelledby="ds-shortcut-label">
+          <div class="ds-home-section-title"><h3 id="ds-shortcut-label">快捷入口</h3></div>
+          <div class="ds-home-shortcut-grid">
+            <button type="button" class="ds-home-shortcut" @click="switchDesktopSection('ask')">
+              <span class="ds-shortcut-icon ds-shortcut-ask"><van-icon name="chat-o" size="25"/></span>
+              <span class="ds-shortcut-content"><strong>智能问数</strong><small>用自然语言提问，获取数据分析结果</small></span>
+              <van-icon name="arrow" class="ds-shortcut-chevron" size="17"/>
+            </button>
+            <button type="button" class="ds-home-shortcut" @click="switchDesktopSection('charts')">
+              <span class="ds-shortcut-icon ds-shortcut-chart"><van-icon name="chart-trending-o" size="25"/></span>
+              <span class="ds-shortcut-content"><strong>我的图表</strong><small>查看和管理已创建的图表及分析看板</small></span>
+              <van-icon name="arrow" class="ds-shortcut-chevron" size="17"/>
+            </button>
+            <button type="button" class="ds-home-shortcut" @click="switchDesktopSection('history')">
+              <span class="ds-shortcut-icon ds-shortcut-history"><van-icon name="clock-o" size="25"/></span>
+              <span class="ds-shortcut-content"><strong>历史会话</strong><small>查看过往提问记录，快速复用分析</small></span>
+              <van-icon name="arrow" class="ds-shortcut-chevron" size="17"/>
+            </button>
           </div>
         </section>
-        <div class="tb-section-heading">
-          <h3>快捷入口</h3><span>常用功能一键直达</span>
-        </div>
-        <div class="tb-overview-cards">
-          <button type="button" @click="switchDesktopSection('ask')">
-            <span class="tb-entry-icon tb-entry-blue"><van-icon name="chat-o" size="23"/></span>
-            <strong>智能问数</strong><small>通过对话查询经营数据</small>
-            <van-icon name="arrow" class="tb-entry-arrow"/>
-          </button>
-          <button type="button" @click="switchDesktopSection('charts')">
-            <span class="tb-entry-icon tb-entry-cyan"><van-icon name="chart-trending-o" size="23"/></span>
-            <strong>我的图表</strong><small>查看已收藏的数据分析</small>
-            <van-icon name="arrow" class="tb-entry-arrow"/>
-          </button>
-          <button type="button" @click="switchDesktopSection('history')">
-            <span class="tb-entry-icon tb-entry-purple"><van-icon name="clock-o" size="23"/></span>
-            <strong>历史会话</strong><small>继续之前的数据探索</small>
-            <van-icon name="arrow" class="tb-entry-arrow"/>
-          </button>
-        </div>
-        <div class="tb-section-heading tb-recent-heading">
-          <h3>最近问数</h3>
-          <button type="button" @click="switchDesktopSection('history')">查看全部 <van-icon name="arrow"/></button>
-        </div>
-        <div class="tb-recent-list">
-          <button v-for="item in sessions.slice(0, 4)" :key="item.id" type="button" @click="openSession(item)">
-            <van-icon name="chat-o" class="tb-recent-icon"/><span>{{ item.title }}</span>
-            <small>{{ sessionTimeLabel(item.updatedAt) }}</small><van-icon name="arrow"/>
-          </button>
-          <div v-if="!sessions.length" class="tb-empty-hint">
-            还没有问数记录，点击“智能问数”开始探索。
+        <section class="ds-home-recent" aria-labelledby="ds-recent-label">
+          <div class="ds-home-section-title ds-home-recent-title">
+            <h3 id="ds-recent-label">最近提问</h3>
+            <button type="button" @click="switchDesktopSection('history')">查看更多 <van-icon name="arrow" size="14"/></button>
           </div>
-        </div>
+          <div class="ds-home-history-table">
+            <div class="ds-home-history-head"><span>问数内容</span><span>提问时间</span><span></span></div>
+            <button v-for="item in sessions.slice(0,5)" :key="item.id" type="button" class="ds-home-history-row" @click="openSession(item)">
+              <span class="ds-history-question"><van-icon name="chat-o" size="18"/><span>{{ item.title }}</span></span>
+              <time>{{ fullSessionTime(item.updatedAt) }}</time>
+              <van-icon name="arrow" size="15" class="ds-history-arrow"/>
+            </button>
+            <div v-if="!sessions.length" class="ds-home-history-empty">暂无历史问数。选择“智能问数”即可开始探索。</div>
+          </div>
+        </section>
       </main>
       <main v-if="isDesktop && desktopSection==='charts'" class="tb-page-body tb-content-page tb-charts-page">
         <div class="tb-page-heading">
