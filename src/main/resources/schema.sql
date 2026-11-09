@@ -101,3 +101,31 @@ CREATE TABLE IF NOT EXISTS da_semantic_vectors (
   INDEX idx_da_semantic_type (source_type),
   INDEX idx_da_semantic_model (model_name)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+-- Miniapp chart collection. Saved charts persist the original question, not a frozen
+-- synthetic result: reopening performs a fresh authorized NL2SQL query.
+CREATE TABLE IF NOT EXISTS da_saved_charts (
+ id VARCHAR(36) NOT NULL PRIMARY KEY,
+ owner_username VARCHAR(64) NOT NULL,
+ source_message_id VARCHAR(36) NOT NULL,
+ question TEXT NOT NULL,
+ title VARCHAR(180) NOT NULL,
+ chart_type VARCHAR(20) NOT NULL,
+ share_scope VARCHAR(16) NOT NULL DEFAULT 'PRIVATE',
+ created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+ updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+ UNIQUE KEY uq_da_chart_source(owner_username,source_message_id),
+ INDEX idx_da_chart_owner(owner_username,updated_at),
+ INDEX idx_da_chart_scope(share_scope,updated_at),
+ CONSTRAINT fk_da_chart_user FOREIGN KEY(owner_username) REFERENCES da_users(username)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+CREATE TABLE IF NOT EXISTS da_chart_acl (
+ chart_id VARCHAR(36) NOT NULL,
+ username VARCHAR(64) NOT NULL,
+ created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+ PRIMARY KEY(chart_id,username),
+ INDEX idx_da_chart_acl_user(username),
+ CONSTRAINT fk_da_acl_chart FOREIGN KEY(chart_id) REFERENCES da_saved_charts(id) ON DELETE CASCADE,
+ CONSTRAINT fk_da_acl_user FOREIGN KEY(username) REFERENCES da_users(username)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
