@@ -15,7 +15,7 @@ assert(!html.includes('data-action="export"')&&!html.includes('exportCSV(')&&!ht
 const initializer = /startApp\(\);\s*\}\)\(\);\s*$/;
 assert(initializer.test(inline),'Miniapp bootstrap pattern changed: chart smoke tests need updating');
 const probe = inline.replace(initializer,
-  'globalThis.__charts = {resultChart, resultTable, chartable, pieAllowed, answerCard, setType: (id,type) => {state.chartStyles[id]=type}}; })();');
+  'globalThis.__charts = {resultChart, resultTable, chartable, pieAllowed, answerCard, setType: (id,type) => {state.chartStyles[id]=type}, setMode: (id,mode) => {state.chartModes[id]=mode}}; })();');
 const context = { sessionStorage: {getItem:() => null},console };
 runInNewContext(probe,context,{timeout:2000});
 const fn=context.__charts;
@@ -37,9 +37,20 @@ assert(!plot.includes('下载'),'Unexpected download affordance');
 let card=fn.answerCard({type:'answer',answer:a});
 assert(card.includes('chart-plot'),'Result card must display graphical plot, not plain numbers');
 assert(card.includes('mobile-result-row'),'Chart results must use the mobile full-width grid layout');
+assert(card.includes('<div class="chart-viewport"'),'Chart result missing fixed-size scrolling viewport');
+const fixedViewportCss = html.match(/\.mobile-result-row \.chart-viewport\s*\{([^}]*)\}/)?.[1] || '';
+assert(/height:\s*clamp\(/.test(fixedViewportCss),'Chart viewport must use a fixed responsive height');
+assert(/overflow-y:\s*auto/.test(fixedViewportCss),'Long chart rows must scroll inside the chart viewport');
+assert(/overscroll-behavior:\s*contain/.test(fixedViewportCss),'Scroll should not chain to the whole page');
+fn.setMode(a.id,'table');
+const tableCard=fn.answerCard({type:'answer',answer:a});
+assert(tableCard.includes('class="chart-viewport"') && tableCard.includes('class="table-data"'),
+  'Chart and table modes must share the same fixed-height viewport');
+fn.setMode(a.id,'chart');
 assert(html.includes('.mobile-result-row .chart-card') && html.includes('grid-column:1 / -1'),
   'Mobile result card must span the avatar and answer columns');
 assert(!card.includes('data-action="export"'),'Result card exposes download');
+assert(html.includes('area.scrollTop=scroll'),'Chart switch should preserve the outer chat position');
 fn.setType(a.id,'line');
 assert(fn.resultChart(a).includes('<path'),'Line chart missing');
 fn.setType(a.id,'pie');
@@ -47,4 +58,4 @@ assert(fn.pieAllowed(a),'Positive-value pie chart expected');
 assert(fn.resultChart(a).includes('<circle'),'Pie chart missing');
 const table=fn.resultTable(a);
 assert(table.includes('城市21')&&table.includes('订单数'),'Full table missing rows/Chinese labels');
-console.log('Miniapp: syntax, API, all 21 chart rows, bar/line/pie, table and no-download checks OK');
+console.log('Miniapp: chart/table same fixed-height viewport, internal scroll, stable chat scroll, 21 rows, labels, no download OK');
