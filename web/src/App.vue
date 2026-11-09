@@ -567,11 +567,14 @@ onBeforeUnmount(() => desktopMedia?.removeEventListener('change', window.__dataA
       <main class="conversation">
         <section v-if="!messages.length" class="welcome">
           <div class="welcome-icon"><van-icon name="chart-trending-o" size="27"/></div>
+          <div v-if="isDesktop" class="desktop-welcome-kicker">DATAASK · 智能问数</div>
           <h2>今天想了解哪些经营数据？</h2>
-          <p>直接提问，系统会根据已授权的 ADS 数据计算真实结果。</p>
+          <p>用自然语言提问，查看指标、趋势和经营表现。</p>
+          <div v-if="isDesktop" class="desktop-examples-label">试试这样问 <span>点击问题即可开始查询</span></div>
           <div class="quick-grid">
-            <button v-for="item in quickQuestions" :key="item" :disabled="busy" @click="ask(item)">
-              {{ item }} <van-icon name="arrow" />
+            <button v-for="(item, idx) in quickQuestions" :key="item" :disabled="busy" @click="ask(item)">
+              <span v-if="isDesktop" class="desktop-question-icon"><van-icon :name="['chart-trending-o','bar-chart-o','chart-trending-o','balance-o'][idx]"/></span>
+              <span class="quick-question-text">{{ item }}</span> <van-icon name="arrow" />
             </button>
           </div>
           <p class="data-notice"><van-icon name="shield-o"/> 仅查询管理员开放的 ADS 表，结果来自真实数据库</p>
@@ -584,13 +587,22 @@ onBeforeUnmount(() => desktopMedia?.removeEventListener('change', window.__dataA
             </div>
             <p class="answer-summary" :class="{ 'unsupported-text': msg.unsupported }">{{ msg.summary }}</p>
             <template v-if="msg.rows?.length">
-              <div v-if="msg.chartType === 'metric' && msg.rows.length === 1" class="metric-data">
+              <div v-if="isDesktop" class="desktop-result-header">
+                <div class="desktop-result-heading"><van-icon name="chart-trending-o"/> 查询结果 <span>共 {{ msg.rows.length }} 行</span></div>
+                <div class="desktop-result-switch" role="group" :aria-label="'图表视图切换：'+msg.title">
+                  <button v-if="msg.chartType === 'metric' && msg.rows.length === 1" type="button" :class="{active:resultView(msg)==='summary'}" @click="setResultView(msg,'summary')">指标</button>
+                  <button v-if="['bar','line','pie'].includes(msg.chartType) && msg.rows.length > 1" type="button"
+                    :class="{active:resultView(msg)==='chart'}" @click="setResultView(msg,'chart')">图表</button>
+                  <button type="button" :class="{active:resultView(msg)==='table'}" @click="setResultView(msg,'table')">表格</button>
+                </div>
+              </div>
+              <div v-if="msg.chartType === 'metric' && msg.rows.length === 1 && (!isDesktop || resultView(msg)==='summary')" class="metric-data">
                 <div v-for="col in msg.columns" :key="col">
                   <small :title="col">{{ columnLabel(msg, col, msg.columns.indexOf(col)) }}</small><strong>{{ pretty(msg.rows[0][col]) }}</strong>
                 </div>
               </div>
-              <AnswerChart v-if="['bar','line','pie'].includes(msg.chartType) && msg.rows.length > 1" :message="msg"/>
-              <div class="result-table-scroll" role="region" tabindex="0" aria-label="数据结果表格，可独立上下滚动">
+              <AnswerChart v-if="['bar','line','pie'].includes(msg.chartType) && msg.rows.length > 1 && (!isDesktop || resultView(msg)==='chart')" :message="msg"/>
+              <div v-if="!isDesktop || resultView(msg)==='table'" class="result-table-scroll" role="region" tabindex="0" aria-label="数据结果表格，可独立上下滚动">
                 <table class="result-table">
                   <thead><tr><th v-for="(col, idx) in msg.columns" :key="col" :title="col">{{ columnLabel(msg, col, idx) }}</th></tr></thead>
                   <tbody><tr v-for="(row, idx) in msg.rows" :key="idx">
@@ -598,11 +610,13 @@ onBeforeUnmount(() => desktopMedia?.removeEventListener('change', window.__dataA
                   </tr></tbody>
                 </table>
               </div>
-              <p class="table-foot">当前显示 {{ msg.rows.length }} 行，表格区域可独立上下滚动（最多200行）。</p>
+              <p v-if="!isDesktop || resultView(msg)==='table'" class="table-foot">当前显示 {{ msg.rows.length }} 行，表格区域可独立上下滚动（最多200行）。</p>
             </template>
-            <div v-if="isDesktop && !msg.unsupported && msg.rows?.length" class="desktop-answer-tools">
-              <button type="button" @click="saveChart(msg)"><van-icon name="star-o"/> 收藏</button>
-              <button type="button" @click="shareChart(msg)"><van-icon name="share-o"/> 分享</button>
+            <div v-if="isDesktop" class="desktop-answer-tools">
+              <button type="button" @click="copyAnswer(msg)"><van-icon name="description"/> 复制结果</button>
+              <button v-if="!msg.unsupported && msg.rows?.length" type="button" @click="saveChart(msg)"><van-icon name="star-o"/> 收藏</button>
+              <button v-if="!msg.unsupported && msg.rows?.length" type="button" @click="shareChart(msg)"><van-icon name="share-o"/> 分享</button>
+              <button type="button" :disabled="busy" @click="ask(msg.question)"><van-icon name="replay"/> 重新查询</button>
             </div>
             <div v-if="msg.followUps?.length" class="followups">
               <button v-for="item in msg.followUps" :key="item" :disabled="busy"
@@ -618,6 +632,19 @@ onBeforeUnmount(() => desktopMedia?.removeEventListener('change', window.__dataA
           </div>
         </template>
         <div v-else-if="busy" class="loading-bubble"><van-loading size="16px"/> 正在理解问题并查询 ADS 数据...</div>
+        <section v-if="isDesktop && !busy && desktopFeedback" class="turn desktop-feedback-turn" aria-live="polite">
+          <div class="user-bubble">{{ desktopFeedback.question }}</div>
+          <div class="desktop-feedback-card" :class="'feedback-'+desktopFeedback.type">
+            <van-icon :name="desktopFeedback.type==='stopped' ? 'pause-circle-o' : 'warning-o'" size="20"/>
+            <div class="desktop-feedback-content">
+              <strong>{{ desktopFeedback.type==='stopped' ? '查询已停止' : '查询未完成' }}</strong>
+              <p>{{ desktopFeedback.message }}</p>
+            </div>
+            <button type="button" :disabled="busy" @click="ask(desktopFeedback.question)">
+              <van-icon name="replay"/> 重新尝试
+            </button>
+          </div>
+        </section>
         <div ref="footerRef" class="end-marker"></div>
       </main>
       <aside class="desktop-insights" aria-label="数据结果面板">
@@ -670,9 +697,13 @@ onBeforeUnmount(() => desktopMedia?.removeEventListener('change', window.__dataA
       </aside>
       <footer class="composer">
         <div class="composer-row">
-          <textarea v-model="question" :rows="isDesktop ? 3 : 1" maxlength="800"
+          <textarea ref="desktopQuestionRef" v-model="question" :rows="isDesktop ? 3 : 1" maxlength="800"
             :placeholder="isDesktop ? '请输入你的问题，例如：昨天的营业额是多少？' : '问问经营数据，例如：昨日营业额'"
-            @keydown.enter.exact.prevent="ask()"></textarea>
+            aria-label="输入经营数据问题" @keydown.enter.exact.prevent="ask()"></textarea>
+          <div v-if="isDesktop" class="desktop-composer-hints">
+            <span>Enter 发送 <i>·</i> Shift + Enter 换行</span>
+            <span :class="{ 'near-limit': question.length > 700 }">{{ question.length }}/800</span>
+          </div>
           <button v-if="isDesktop && busy" class="send-btn stop-btn" type="button"
             title="停止查询" aria-label="停止查询" @click="stopAsk"><span class="stop-square"></span></button>
           <button v-else class="send-btn" type="button" :disabled="busy || !question.trim()"
