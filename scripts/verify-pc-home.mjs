@@ -43,7 +43,7 @@ for(const section of allDesktopSections){
 }
 for(const rule of [
   'grid-area:sidebar', 'grid-row:1 / -1', 'height:100dvh',
-  'linear-gradient(155deg,#11285f', 'sidebar-bottom',
+  'sidebar-bottom',
   '.tb-page-body', '.tb-page-heading', '.tb-admin-heading',
   '.tb-admin-panel-intro', '.ds-home-intro', '.qbi-welcome-brand',
   '.conversation', '.tb-history-search'
@@ -57,5 +57,26 @@ assert(entry.includes("import './pc-global-layout-v4.css'"),
 assert(entry.indexOf("import './pc-global-layout-v4.css'") >
   entry.indexOf("import './reference-home-pc.css'"),
   'Global PC geometry must load after all legacy PC styles');
+const v5 = readFileSync('web/src/pc-layout-v5.css','utf8');
+for(const token of [
+  'linear-gradient(160deg,#fff', '.desktop-sidebar',
+  '.da-account-menu', '.da-account-dropdown',
+  '.da-password-dialog', 'padding-left:0!important',
+  '.ds-home-banner', '.tb-page-body', '.conversation'
+]){
+  assert(v5.includes(token),'Latest desktop layout token missing: '+token);
+}
+assert(!globalLayout.includes('#11285f'),
+  'Dark navy sidebar override must be removed');
+assert(entry.indexOf("import './pc-layout-v5.css'") >
+  entry.indexOf("import './pc-global-layout-v4.css'"),
+  'Blue-white layout V5 must have final CSS precedence');
+for(const token of ['class="da-account-menu"', 'openPasswordChange',
+  'submitPasswordChange', 'desktopLogout', 'changePasswordOpen']){
+  assert(vue.includes(token),'Top-right account action missing: '+token);
+}
+assert(!vue.includes('class="sidebar-profile-card"'),
+  'Desktop account controls must not remain in the sidebar');
 
-console.log('Approved PC workbench, full-height global sidebar, compact headers on every PC section, CSS precedence and mobile isolation OK');
+
+console.log('PC: full-height pale navigation, top-right account, password UI, edge-to-edge workspace, small banner, all page sections and mobile isolation OK');
