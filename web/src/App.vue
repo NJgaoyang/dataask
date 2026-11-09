@@ -178,7 +178,7 @@ async function ask(text = question.value, sourceMessageId = null) {
   if (text.length > 800) return showToast('提问不能超过800字')
   const sequence = ++askSequence
   const controller = new AbortController()
-  const requestId = crypto.randomUUID()
+  const requestId = globalThis.crypto?.randomUUID?.() || ('pc-' + Date.now() + '-' + Math.random().toString(36).slice(2))
   activeController = controller
   activeRequestId = requestId
   busy.value = true
@@ -576,7 +576,7 @@ onBeforeUnmount(() => desktopMedia?.removeEventListener('change', window.__dataA
         <template v-if="busy && isDesktop">
           <div class="turn desktop-pending-turn"><div class="user-bubble">{{ pendingQuestion }}</div>
             <div class="loading-bubble"><span class="answer-mark">D</span><van-loading size="18px"/> 正在分析问题、生成 SQL 并查询数据…
-              <button type="button" @click="stopAsk" title="停止查询" class="desktop-inline-stop"><van-icon name="stop"/></button>
+              <button type="button" @click="stopAsk" title="停止查询" class="desktop-inline-stop" aria-label="停止查询"><span class="stop-square"></span></button>
             </div>
           </div>
         </template>
