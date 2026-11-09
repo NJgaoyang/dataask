@@ -12,7 +12,7 @@
   /* Fixed-height full-window shell; one sidebar spanning header, body and footer. */
   .app-shell.tencentbi-pc.quickbi-pc.consumer-pc,
   .app-shell.tencentbi-pc.quickbi-pc.consumer-pc.desktop-no-result {
-    --da-sidebar-width:clamp(254px,17.4vw,292px);
+    --da-sidebar-width:clamp(254px,18.4vw,306px);
     --da-content-pad:clamp(14px,1.45vw,24px);
     display:grid;
     grid-template-columns:var(--da-sidebar-width) minmax(0,1fr)!important;
@@ -543,5 +543,80 @@
 @media (prefers-reduced-motion:reduce) and (min-width:1024px) {
   .app-shell.tencentbi-pc .desktop-main-nav button {
     transition:none;
+  }
+}
+
+/* Reference-image sidebar, consistently across ALL desktop sections.
+   The latest visual target uses a continuous deep-blue column, including
+   the empty area beneath navigation and behind the account footer. */
+@media (min-width:1024px) {
+  .app-shell.tencentbi-pc .desktop-sidebar {
+    background:
+      radial-gradient(ellipse 130% 48% at 4% 103%,rgba(48,120,255,.53),transparent 78%),
+      linear-gradient(155deg,#11285f 0%,#142f72 49%,#1b49a7 100%);
+    border-right:1px solid #1c4d9c;
+  }
+  .app-shell.tencentbi-pc .sidebar-brand .brand-title strong {
+    color:#fff;
+  }
+  .app-shell.tencentbi-pc .sidebar-brand .brand-title small {
+    color:#c5d9ff;
+  }
+  .app-shell.tencentbi-pc .tb-nav-category {
+    color:rgba(224,235,255,.66);
+  }
+  .app-shell.tencentbi-pc .desktop-main-nav button {
+    color:#e4edff;
+    background:transparent;
+    box-shadow:none;
+  }
+  .app-shell.tencentbi-pc .desktop-main-nav button .van-icon {
+    color:#e4edff;
+  }
+  .app-shell.tencentbi-pc .desktop-main-nav button.active {
+    background:linear-gradient(100deg,#2d65f6,#1950cf);
+    box-shadow:0 4px 15px rgba(3,30,99,.12);
+    color:#fff;
+    font-weight:720;
+  }
+  .app-shell.tencentbi-pc .desktop-main-nav button.active .van-icon {
+    color:#fff;
+  }
+  .app-shell.tencentbi-pc .desktop-main-nav button:hover:not(.active) {
+    background:rgba(211,229,255,.12);
+    color:#fff;
+  }
+  .app-shell.tencentbi-pc .desktop-main-nav button:hover:not(.active) .van-icon {
+    color:#fff;
+  }
+  .app-shell.tencentbi-pc .tb-single-admin-nav {
+    border-top:1px solid rgba(233,242,255,.18);
+  }
+  .app-shell.tencentbi-pc .sidebar-bottom {
+    background:transparent;
+    border-top:1px solid rgba(223,235,255,.14);
+  }
+  .app-shell.tencentbi-pc .sidebar-profile-card {
+    background:rgba(244,249,255,.10);
+    border:1px solid rgba(225,240,255,.19);
+    box-shadow:none;
+  }
+  .app-shell.tencentbi-pc .sidebar-profile-card .sidebar-avatar {
+    background:linear-gradient(135deg,#75b8ff,#3878ef);
+    color:#fff;
+  }
+  .app-shell.tencentbi-pc .sidebar-profile-meta strong {
+    color:#f6f9ff;
+  }
+  .app-shell.tencentbi-pc .sidebar-profile-meta small {
+    color:#bbd1f8;
+  }
+  .app-shell.tencentbi-pc .sidebar-bottom .sidebar-logout {
+    background:rgba(255,255,255,.09);
+    color:#e6efff;
+  }
+  .app-shell.tencentbi-pc .sidebar-bottom .sidebar-logout:hover {
+    background:rgba(255,255,255,.19);
+    color:#fff;
   }
 }
