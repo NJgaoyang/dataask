@@ -641,7 +641,16 @@ async function reloadJoinRules() {
   catch (e) { showFailToast('读取关联规则失败：' + errorText(e)) }
 }
 async function saveJoinRule() {
-  if (joinSaving.value) return
+  if (!requireAdmin() || joinSaving.value) return
+  if (!joinForm.value.leftTable || !joinForm.value.rightTable ||
+      joinForm.value.leftTable===joinForm.value.rightTable)
+    return showFailToast('请选择两张不同且已授权的 ADS 数据表')
+  const leftKeys=joinForm.value.leftKeys.split(/[,，]/).map(x=>x.trim()).filter(Boolean)
+  const rightKeys=joinForm.value.rightKeys.split(/[,，]/).map(x=>x.trim()).filter(Boolean)
+  if (!leftKeys.length || leftKeys.length>5 || leftKeys.length!==rightKeys.length)
+    return showFailToast('请填写1至5组左右数量相同的关联字段')
+  if (joinForm.value.grainNote.trim().length<8)
+    return showFailToast('请填写至少8字的业务粒度和唯一性说明')
   joinSaving.value = true
   try {
     await api.post('/admin/join-rules', joinForm.value)
@@ -1143,15 +1152,23 @@ onBeforeUnmount(() => {
         <div v-else-if="desktopSection==='admin-tables'" class="tb-admin-panel-card">
           <div class="tb-admin-panel-intro tb-admin-panel-intro-action">
             <div><strong>ADS 表授权</strong><p>仅开启业务审核通过的 ADS 表。关闭授权后，普通用户将无法使用该表问数。</p></div>
-            <button type="button" class="tb-admin-plain-action" @click="openAdminSection('admin-source')"><van-icon name="cluster-o"/> 数据源配置</button>
+            <div class="tb-admin-table-actions">
+              <button type="button" class="tb-admin-plain-action" :disabled="adminSectionBusy"
+                @click="loadAdminSectionData('admin-tables')"><van-icon name="replay"/> 刷新表列表</button>
+              <button type="button" class="tb-admin-plain-action" @click="openAdminSection('admin-source')">
+                <van-icon name="cluster-o"/> 数据源配置
+              </button>
+            </div>
           </div>
           <h3>开放给 AI 的 ADS 表</h3>
           <p class="muted">默认不开放任何表。仅授权通过审核的经营数据表。</p>
           <div v-for="table in allowedTables" :key="table.name" class="admin-table">
             <div class="table-head">
-              <span @click="expandedTable = expandedTable === table.name ? '' : table.name">
-                <van-icon name="arrow-down"/> {{ table.name }}
-              </span>
+              <button type="button" class="tb-table-expand"
+                :aria-expanded="expandedTable === table.name"
+                @click="expandedTable = expandedTable === table.name ? '' : table.name">
+                <van-icon :name="expandedTable === table.name ? 'arrow-up' : 'arrow-down'"/> {{ table.name }}
+              </button>
               <van-switch v-model="table.enabled" size="19px" @change="toggleAllowed(table)"/>
             </div>
             <div v-if="expandedTable === table.name" class="columns-list">
