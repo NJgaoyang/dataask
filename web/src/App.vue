@@ -446,6 +446,15 @@ async function openAdmin() {
   catch (e) { showFailToast('读取账号失败：' + errorText(e)) }
   await Promise.all([reloadTables(), reloadMetrics(), reloadJoinRules(), reloadSemanticStatus()])
 }
+function toggleAdminNavigation() {
+  if (!isAdmin.value) return
+  if (!adminExpanded.value) {
+    openAdmin()
+    return
+  }
+  adminExpanded.value = false
+  if (desktopIsAdminSection.value) switchDesktopSection('overview')
+}
 async function openAdminSection(section) {
   if (!requireAdmin() || !desktopAdminSections.includes(section)) return
   if (['admin-source','admin-model','admin-embedding'].includes(section)) {
@@ -665,6 +674,7 @@ async function saveConfig() {
     if (kind === 'ai') { aiForm.value.apiKey = ''; aiForm.value.clearKey = false }
     if (kind === 'embedding') { embeddingForm.value.apiKey = ''; embeddingForm.value.clearKey = false }
     if (kind === 'starrocks') {
+      await refreshAdminStatus()
       await reloadTables()
       configVisible.value = false
     }
@@ -745,7 +755,7 @@ onBeforeUnmount(() => desktopMedia?.removeEventListener('change', window.__dataA
           <button type="button" class="tb-admin-parent"
             :class="{active:desktopIsAdminSection}"
             :aria-expanded="adminExpanded"
-            @click="adminExpanded ? (adminExpanded=false, desktopIsAdminSection && switchDesktopSection('overview')) : openAdmin()">
+            @click="toggleAdminNavigation">
             <van-icon name="setting-o"/> 系统管理
             <van-icon :name="adminExpanded ? 'arrow-up' : 'arrow-down'" class="tb-admin-chevron" size="12"/>
           </button>
@@ -794,7 +804,12 @@ onBeforeUnmount(() => desktopMedia?.removeEventListener('change', window.__dataA
       </aside>
       <header class="topbar">
         <div v-if="isDesktop" class="tb-header-breadcrumb">
-          <span>DataAsk</span><van-icon name="arrow" size="11"/><strong>{{ desktopSectionTitle }}</strong>
+          <span>DataAsk</span><van-icon name="arrow" size="11"/>
+          <template v-if="desktopIsAdminSection && desktopSection!=='admin-overview'">
+            <button type="button" class="tb-breadcrumb-admin" @click="openAdminSection('admin-overview')">系统管理</button>
+            <van-icon name="arrow" size="11"/>
+          </template>
+          <strong>{{ desktopSectionTitle }}</strong>
         </div>
         <div v-else class="brand">
           <div class="brand-icon">问</div>
