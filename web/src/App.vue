@@ -112,9 +112,22 @@ const datasetPreviewBusy = ref(false)
 const chartStyles = ref({})
 const selectedDatasetName = computed(() => selectedDataset.value || '全部已授权数据')
 const supportedChartTypes = ['bar','line','pie']
-function chartStyle(msg) { return chartStyles.value[msg.id] || msg.chartType }
+function pieSupported(msg) {
+  const columns = msg.columns || [], rows = msg.rows || []
+  const numeric = columns.filter(key => rows.some(row =>
+    row[key] !== null && row[key] !== '' && Number.isFinite(Number(row[key]))))
+  const measures = numeric.filter(key => /count|cnt|amount|orders|revenue|total|sum|num|income|sales|金额|收入|数量|订单/i.test(key))
+  const measure = measures[0] || numeric[numeric.length - 1]
+  if (!measure || rows.length < 2) return false
+  const values = rows.slice(0, 8).map(row => Number(row[measure]))
+  return values.every(value => Number.isFinite(value) && value >= 0) && values.some(value => value > 0)
+}
+function chartStyle(msg) {
+  const requested = chartStyles.value[msg.id] || msg.chartType
+  return requested === 'pie' && !pieSupported(msg) ? 'bar' : requested
+}
 function setChartStyle(msg, type) {
-  if (!supportedChartTypes.includes(type) || !msg.rows?.length) return
+  if (!supportedChartTypes.includes(type) || !msg.rows?.length || (type === 'pie' && !pieSupported(msg))) return
   chartStyles.value = { ...chartStyles.value, [msg.id]: type }
   setResultView(msg, 'chart')
 }
@@ -789,7 +802,7 @@ onBeforeUnmount(() => desktopMedia?.removeEventListener('change', window.__dataA
                 <span>图表类型</span>
                 <button type="button" :class="{active:chartStyle(msg)==='bar'}" @click="setChartStyle(msg,'bar')">柱状图</button>
                 <button type="button" :class="{active:chartStyle(msg)==='line'}" @click="setChartStyle(msg,'line')">折线图</button>
-                <button type="button" :class="{active:chartStyle(msg)==='pie'}" @click="setChartStyle(msg,'pie')">饼图</button>
+                <button v-if="pieSupported(msg)" type="button" :class="{active:chartStyle(msg)==='pie'}" @click="setChartStyle(msg,'pie')">饼图</button>
               </div>
               <AnswerChart v-if="['bar','line','pie'].includes(msg.chartType) && msg.rows.length > 1 && (!isDesktop || resultView(msg)==='chart')"
                 :message="msg" :chart-type-override="isDesktop ? chartStyle(msg) : ''"/>
