@@ -633,10 +633,17 @@ onBeforeUnmount(() => desktopMedia?.removeEventListener('change', window.__dataA
       </aside>
       <footer class="composer">
         <div class="composer-row">
-          <textarea v-model="question" rows="1" maxlength="800" placeholder="问问经营数据，例如：昨日营业额"
+          <textarea v-model="question" :rows="isDesktop ? 3 : 1" maxlength="800"
+            :placeholder="isDesktop ? '请输入你的问题，例如：昨天的营业额是多少？' : '问问经营数据，例如：昨日营业额'"
             @keydown.enter.exact.prevent="ask()"></textarea>
-          <button class="send-btn" :disabled="busy || !question.trim()" @click="ask()">
-            <van-icon name="arrow-up" size="20"/>
+          <button v-if="isDesktop && busy" class="send-btn stop-btn" type="button"
+            title="停止查询" aria-label="停止查询" @click="stopAsk"><span class="stop-square"></span></button>
+          <button v-else class="send-btn" type="button" :disabled="busy || !question.trim()"
+            aria-label="发送问题" @click="ask()">
+            <svg v-if="isDesktop" width="23" height="23" viewBox="0 0 24 24" fill="none"
+              stroke="currentColor" stroke-width="2.5" stroke-linecap="round"
+              stroke-linejoin="round" aria-hidden="true"><path d="M12 19V5M5 12l7-7 7 7"/></svg>
+            <van-icon v-else name="arrow-up" size="20"/>
           </button>
         </div>
         <small>DataAsk · 仅供内部经营分析 · 以实际业务口径为准</small>
