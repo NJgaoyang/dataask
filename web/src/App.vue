@@ -1521,9 +1521,9 @@ onBeforeUnmount(() => {
         <small>DataAsk · 仅供内部经营分析 · 以实际业务口径为准</small>
       </footer>
       <van-popup v-if="isDesktop" v-model:show="changePasswordOpen"
-        position="center" round closeable :close-on-click-overlay="!changePasswordBusy"
+        position="center" round :closeable="!changePasswordBusy" :close-on-click-overlay="!changePasswordBusy"
         :style="{width:'min(430px,calc(100vw - 36px))'}"
-        @closed="passwordForm={oldPassword:'',newPassword:'',confirmPassword:''}">
+        @closed="closePasswordChange">
         <div class="da-password-dialog">
           <h2>修改密码</h2>
           <p>为保障账号安全，请验证当前密码。修改后需要重新登录。</p>
