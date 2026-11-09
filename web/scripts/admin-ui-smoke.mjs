@@ -90,6 +90,14 @@ async function clickTile(page,label) {
   await page.locator('.tb-admin-overview-grid button').filter({hasText:label}).click();
   await visible(page.locator('.tb-admin-page h1'),label+' heading');
 }
+async function requireCall(methodPath){
+  for(let i=0;i<90;i++){
+    if(calls.includes(methodPath))return;
+    await new Promise(resolve=>setTimeout(resolve,50));
+  }
+  throw new Error('Expected backend request not observed: '+methodPath+'\nObserved: '+calls.join(', '));
+}
+let debugPage=null;
 const browser=await chromium.launch({headless:true,args:['--no-sandbox']});
 try {
   const ctx=await browser.newContext({viewport:{width:1366,height:768}});
@@ -98,6 +106,7 @@ try {
     sessionStorage.setItem('dataask_user',JSON.stringify({username:'admin',displayName:'系统管理员',role:'ADMIN'}));
   });
   const page=await ctx.newPage();
+  debugPage=page;
   const errors=[];
   page.on('pageerror', e => errors.push(e.message));
   await page.route('**/api/**',mockBackend);
@@ -122,7 +131,7 @@ try {
   await clickTile(page,'ADS 表授权');
   await visible(page.locator('.admin-table'),'ADS tables');
   await page.locator('.admin-table .van-switch').first().click();
-  assert(calls.some(x=>x==='POST /api/admin/table-allow'),'ADS table toggle API not called');
+  await requireCall('POST /api/admin/table-allow');
 
   await clickTile(page,'表关联规则');
   await visible(page.locator('.join-editor'),'Join editor');
@@ -133,7 +142,7 @@ try {
   await page.locator('.join-editor input[placeholder="city,dt"]').fill('city');
   await page.locator('.join-editor textarea').fill('两张表均按城市唯一汇总，键为城市字段');
   await page.getByRole('button',{name:'保存关联规则'}).click();
-  assert(calls.some(x=>x==='POST /api/admin/join-rules'),'Join save API not called');
+  await requireCall('POST /api/admin/join-rules');
 
   await clickTile(page,'指标口径');
   await visible(page.locator('.tb-admin-metrics-page'),'Metric page');
@@ -142,7 +151,7 @@ try {
     buffer:Buffer.from('mocked spreadsheet')});
   await visible(page.locator('.metric-preview'),'Excel preview');
   await page.getByRole('button',{name:/确认导入/}).click();
-  assert(calls.some(x=>x==='POST /api/admin/metrics/import'),'Metric import API not called');
+  await requireCall('POST /api/admin/metrics/import');
 
   await clickTile(page,'用户管理');
   await visible(page.locator('.tb-user-row'),'User listing');
@@ -150,12 +159,12 @@ try {
   await visible(page.locator('.tb-user-editor'),'User editor');
   await page.locator('.tb-user-editor input[placeholder="请输入姓名"]').fill('Alice Zhang');
   await page.getByRole('button',{name:'保存用户信息'}).click();
-  assert(calls.some(x=>x==='PUT /api/admin/users/alice'),'User edit API not called');
+  await requireCall('PUT /api/admin/users/alice');
   await page.locator('.tb-user-row').filter({hasText:'alice'}).getByRole('button',{name:/编辑/}).click();
   await page.locator('.tb-user-reset input[type=password]').fill('new-password-123');
   await page.getByRole('button',{name:'重置密码'}).click();
   await page.getByRole('dialog').getByRole('button',{name:'确认'}).click();
-  assert(calls.some(x=>x==='POST /api/admin/users/alice/reset-password'),'Password reset API not called');
+  await requireCall('POST /api/admin/users/alice/reset-password');
 
   await clickTile(page,'配置状态');
   await visible(page.locator('.tb-config-status-list'),'Configuration status page');
@@ -183,6 +192,13 @@ try {
   assert.equal(await userPage.locator('.tb-single-admin-nav').count(),0,'Regular users must not see admin modules');
   await ctxUser.close();
   console.log('PASS: eight admin tiles, real HTTP requests, role restrictions, editor and password reset, desktop browser');
+} catch(e) {
+  if(debugPage && !debugPage.isClosed()) {
+    await mkdir('artifacts',{recursive:true});
+    await debugPage.screenshot({path:'artifacts/admin-desktop-failure.png',fullPage:true}).catch(()=>{});
+    console.error('Browser UI state at failure:',await debugPage.locator('body').innerText().then(x=>x.slice(0,3500)).catch(()=>'')); 
+  }
+  throw e;
 } finally {
   await browser.close();
 }
