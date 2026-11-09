@@ -120,17 +120,34 @@ public class StarRocksGateway {
         return values;
     }
 
+    public interface QueryCancellation {
+        void checkCancelled();
+        void registerStatement(Statement statement);
+        void clearStatement();
+    }
+
     public QueryResult query(String sql) {
+        return query(sql, null);
+    }
+
+    public QueryResult query(String sql, QueryCancellation cancellation) {
         RuntimeConfigService.StarRocksConfig config=settings.starRocks();
+        if (cancellation != null) cancellation.checkCancelled();
         try (Connection c=connect(config);Statement statement=c.createStatement()) {
+            if (cancellation != null) {
+                cancellation.registerStatement(statement);
+                cancellation.checkCancelled();
+            }
             statement.setQueryTimeout(20);
             statement.setMaxRows(200);
             try (ResultSet rs=statement.executeQuery(sql)) {
+                if (cancellation != null) cancellation.checkCancelled();
                 ResultSetMetaData meta=rs.getMetaData();
                 List<String> headers=new ArrayList<>();
                 for(int i=1;i<=meta.getColumnCount();i++) headers.add(meta.getColumnLabel(i));
                 List<Map<String,Object>> rows=new ArrayList<>();
                 while(rs.next() && rows.size()<200) {
+                    if (cancellation != null) cancellation.checkCancelled();
                     Map<String,Object> row=new LinkedHashMap<>();
                     for(int i=1;i<=headers.size();i++) {
                         Object val=rs.getObject(i);
@@ -141,11 +158,15 @@ public class StarRocksGateway {
                     }
                     rows.add(row);
                 }
+                if (cancellation != null) cancellation.checkCancelled();
                 return new QueryResult(headers,rows);
             }
         } catch (SQLException ex) {
+            if (cancellation != null) cancellation.checkCancelled();
             throw new ResponseStatusException(HttpStatus.BAD_GATEWAY,
                 "StarRocks 查询执行失败，请检查所选 ADS 表和字段口径");
+        } finally {
+            if (cancellation != null) cancellation.clearStatement();
         }
     }
 }
