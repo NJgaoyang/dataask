@@ -469,7 +469,7 @@ onBeforeUnmount(() => desktopMedia?.removeEventListener('change', window.__dataA
       <aside class="desktop-sidebar" aria-label="历史对话侧边栏">
         <div class="sidebar-brand">
           <div class="brand-icon">问</div>
-          <div class="brand-title"><strong>DataAsk 数问</strong><small>企业经营数据助手</small></div>
+          <div class="brand-title"><strong>DataAsk 智能问数</strong><small>企业经营数据助手</small></div>
         </div>
         <button class="sidebar-new" type="button" @click="newConversation">
           <van-icon name="plus" size="15"/> 新建对话
@@ -478,6 +478,14 @@ onBeforeUnmount(() => desktopMedia?.removeEventListener('change', window.__dataA
           <van-icon name="search" color="#8997a8"/>
           <input v-model="sessionSearch" placeholder="搜索历史对话" aria-label="搜索历史对话"/>
         </label>
+        <nav class="desktop-main-nav" aria-label="PC 功能导航">
+          <button type="button" class="active" @click="newConversation"><van-icon name="chat-o"/> 智能问数</button>
+          <button type="button" @click="openSavedCharts"><van-icon name="chart-trending-o"/> 我的图表</button>
+          <button type="button" @click="historyVisible = true"><van-icon name="clock-o"/> 历史会话</button>
+          <button v-if="isAdmin" type="button" @click="openAdmin"><van-icon name="records-o"/> 指标口径</button>
+          <button v-if="isAdmin" type="button" @click="showConfig('starrocks')"><van-icon name="cluster-o"/> 数据连接</button>
+          <button v-if="isAdmin" type="button" @click="showConfig('ai')"><van-icon name="setting-o"/> 模型配置</button>
+        </nav>
         <div class="sidebar-label">最近的对话</div>
         <nav class="sidebar-sessions">
           <button v-for="item in visibleSessions" :key="item.id"
@@ -555,13 +563,24 @@ onBeforeUnmount(() => desktopMedia?.removeEventListener('change', window.__dataA
               </div>
               <p class="table-foot">当前显示 {{ msg.rows.length }} 行，表格区域可独立上下滚动（最多200行）。</p>
             </template>
+            <div v-if="isDesktop && !msg.unsupported && msg.rows?.length" class="desktop-answer-tools">
+              <button type="button" @click="saveChart(msg)"><van-icon name="star-o"/> 收藏</button>
+              <button type="button" @click="shareChart(msg)"><van-icon name="share-o"/> 分享</button>
+            </div>
             <div v-if="msg.followUps?.length" class="followups">
               <button v-for="item in msg.followUps" :key="item" :disabled="busy"
                 @click="ask(item, msg.id)">{{ item }} <van-icon name="arrow" size="10"/></button>
             </div>
           </div>
         </section>
-        <div v-if="busy" class="loading-bubble"><van-loading size="16px"/> 正在理解问题并查询 ADS 数据...</div>
+        <template v-if="busy && isDesktop">
+          <div class="turn desktop-pending-turn"><div class="user-bubble">{{ pendingQuestion }}</div>
+            <div class="loading-bubble"><span class="answer-mark">D</span><van-loading size="18px"/> 正在分析问题、生成 SQL 并查询数据…
+              <button type="button" @click="stopAsk" title="停止查询" class="desktop-inline-stop"><van-icon name="stop"/></button>
+            </div>
+          </div>
+        </template>
+        <div v-else-if="busy" class="loading-bubble"><van-loading size="16px"/> 正在理解问题并查询 ADS 数据...</div>
         <div ref="footerRef" class="end-marker"></div>
       </main>
       <aside class="desktop-insights" aria-label="数据结果面板">
@@ -622,6 +641,33 @@ onBeforeUnmount(() => desktopMedia?.removeEventListener('change', window.__dataA
         </div>
         <small>DataAsk · 仅供内部经营分析 · 以实际业务口径为准</small>
       </footer>
+      <van-popup v-model:show="chartsVisible" :position="isDesktop ? 'center' : 'bottom'" round
+        :style="{ width: isDesktop ? 'min(680px,90vw)' : '100%', height: isDesktop ? 'min(650px,82vh)' : '75%' }">
+        <div class="drawer">
+          <div class="drawer-header"><b>我的图表</b><van-icon name="cross" @click="chartsVisible=false"/></div>
+          <p class="muted">收藏保存查询口径，点击图表会重新查询最新业务数据。</p>
+          <div v-for="item in savedCharts" :key="item.id" class="session-item" @click="revisitChart(item)">
+            <van-icon name="chart-trending-o"/><span>{{ item.title }}</span><van-icon name="arrow"/>
+          </div>
+          <p v-if="!savedCharts.length" class="muted">暂时没有收藏的图表</p>
+        </div>
+      </van-popup>
+      <van-popup v-model:show="sharingVisible" :position="isDesktop ? 'center' : 'bottom'" round
+        :style="{ width: isDesktop ? 'min(500px,90vw)' : '100%' }">
+        <div class="drawer share-dialog">
+          <div class="drawer-header"><b>共享图表</b><van-icon name="cross" @click="sharingVisible=false"/></div>
+          <label for="pc-share-scope">共享范围</label>
+          <select id="pc-share-scope" v-model="shareScope" class="join-select">
+            <option value="PRIVATE">仅自己可见</option>
+            <option value="ALL">所有系统用户</option>
+            <option value="SELECTED">指定成员</option>
+          </select>
+          <label v-if="shareScope==='SELECTED'" for="pc-share-users">成员用户名（英文逗号分隔）</label>
+          <input v-if="shareScope==='SELECTED'" id="pc-share-users" v-model="shareMembers" class="join-select"
+            placeholder="例如：zhangsan,lisi"/>
+          <van-button type="primary" block @click="applyShare">保存共享权限</van-button>
+        </div>
+      </van-popup>
       <van-popup v-model:show="historyVisible" position="left" :style="{ width: '85%', maxWidth: '340px', height: '100%' }">
         <div class="drawer">
           <div class="drawer-header"><b>历史对话</b><van-icon name="cross" @click="historyVisible=false"/></div>
