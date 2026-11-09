@@ -185,7 +185,8 @@ ECharts 已调整为多色图例、横向排行条、渐变趋势图、环形图
 
 仓库代码提交在 main 分支。应用的前端资源在 JAR 内，更新后需重新打包并部署：
 
-    git pull origin main
+    git switch dev20261109-miniapp-v2
+    git pull origin dev20261109-miniapp-v2
     bash scripts/package.sh
 
 升级时保留原有部署目录的 conf/application.yml、JWT 密钥和 MySQL 数据库，停止旧服务并替换新版 JAR；首次运行 schema.sql 将以 CREATE TABLE IF NOT EXISTS 新增指标和关联规则表，无需清空已有数据。新版本优先读取 Web 管理页面保存的模型配置；原 application.yml 保留为对话模型的兼容默认值。
@@ -204,21 +205,24 @@ ECharts 已调整为多色图例、横向排行条、渐变趋势图、环形图
 - 数据库、网络、AI 服务不可用属于系统错误，仍返回明确的配置或服务异常，避免误报成业务不支持。
 - 完整结果仍来自 StarRocks，指标展示名与查询数据是两条独立的校验路径；指标值必须与公司 ADS 官方口径核对，不因显示名称变化而修改 SQL 计算。
 
-### PC 的 WorkBuddy 风格工作台
+### PC 的 GPT 式智能问数工作台
 
-桌面宽屏（宽度 >= 1024px）采用三栏布局：
+桌面宽屏（视口宽度 >= 1024px）使用双栏布局：
 
-1. 左侧：产品标识、新建对话、历史搜索、个人与管理入口。
-2. 中间：AI 对话、结果卡片、连续追问和固定底部输入栏。
-3. 右侧：数据结果详情，可切换概览/完整表格，也可收起。
+1. 左侧：产品标识、新建会话、历史搜索、我的图表、指标口径及管理员入口。
+2. 主区：紧凑欢迎区及推荐问题、GPT 式对话流，AI 回答中直接呈现数据指标、趋势图和表格；每条回答可切换图表/表格、复制、收藏及共享。
+3. 底部：固定多行输入框（Enter 发送、Shift+Enter 换行），查询中按钮切换为可手动停止的方形按钮。停止和错误会显示可重试的对话状态。
 
-手机和平板使用响应式布局。微信小程序 WebView、钉钉 H5 应用和手机浏览器共用一套 Vue 3 页面，窄屏自动切换单栏，不增加独立前端。**此版本仅完成响应式 H5；微信/钉钉免登接入、正式 HTTPS 域名和移动端实机兼容测试仍需独立实施。**
+**主区域不再有单独的右侧数据结果面板**，把横向空间留给图表和真实业务数据。
+
+原有 PC Vue 页面在窄屏仍采用原来的响应式单栏；独立的移动端 H5 小程序页面位于 `/miniapp/index.html`（源码 `web/public/miniapp/index.html`）。本次**仅修改 PC 端（>=1024px）的界面**，不修改小程序 HTML。微信/钉钉免登接入、正式 HTTPS 域名和移动端实机兼容测试仍需独立实施。
 
 ### 更新
 
-本次改动已提交 main，重新拉取、打包和部署才能看到新 PC 界面和动态指标标题：
+PC 优化位于独立分支 `dev20261109-miniapp-v2`，重新拉取、打包和部署才能看到新界面：
 
-    git pull origin main
+    git switch dev20261109-miniapp-v2
+    git pull origin dev20261109-miniapp-v2
     bash scripts/package.sh
 
 部署更新时必须保留原来的 conf/application.yml、JWT 密钥和 MySQL 数据，不要用空白配置模板覆盖真实密钥。
@@ -240,7 +244,7 @@ ECharts 已调整为多色图例、横向排行条、渐变趋势图、环形图
 
 前端静态资源打包在 Spring Boot JAR 里。只执行 git pull 不会更换服务器上运行的 JAR。
 
-新版桌面浏览器视口宽度 >= 1024px 时，会显示左侧历史会话、中间 AI 对话、右侧数据结果三栏；手机、小程序和钉钉 H5 保持单栏。
+新版 PC 浏览器视口宽度 >= 1024px 时，为左侧导航 + 中间宽幅 AI 对话区，结果图表与表格直接出现在回答中，输入框固定在底部；移动端小程序 H5 页面保持不变。
 
 在源码目录执行：
 
@@ -255,7 +259,7 @@ ECharts 已调整为多色图例、横向排行条、渐变趋势图、环形图
 
     curl -s http://127.0.0.1:8087/build-info.json
 
-新版本应该返回 buildSha、builtAt、uiLayout 为 desktop-three-pane、modelManagement 为 web 的 JSON，并在 PC 左侧底部显示构建号。返回 404 说明运行的可能是旧 JAR 或访问了错误的服务器。
+新版本应该返回 buildSha、builtAt、uiLayout 为 desktop-gpt-chat、modelManagement 为 web 的 JSON，并在 PC 左侧底部显示构建号。返回 404 说明运行的可能是旧 JAR 或访问了错误的服务器。
 
 浏览器可尝试 Ctrl+Shift+R，或用无痕窗口排除旧缓存；新版本已为 HTML 和构建信息添加无缓存响应头。
 
