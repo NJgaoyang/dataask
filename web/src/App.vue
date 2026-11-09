@@ -816,6 +816,240 @@ onBeforeUnmount(() => desktopMedia?.removeEventListener('change', window.__dataA
           <button title="新对话" @click="newConversation"><van-icon name="add-o" size="21"/></button>
         </div>
       </header>
+      <main v-if="isDesktop && isAdmin && desktopIsAdminSection" class="tb-page-body tb-admin-page">
+        <div class="tb-admin-heading">
+          <div class="tb-admin-heading-copy">
+            <div class="tb-admin-location"><van-icon name="setting-o"/> 系统管理</div>
+            <h1>{{ desktopSectionTitle }}</h1>
+            <p>在左侧二级菜单中切换设置，所有更改只允许管理员操作。</p>
+          </div>
+          <span class="tb-admin-heading-badge"><van-icon name="shield-o"/> 管理员权限</span>
+        </div>
+        <div v-if="desktopSection==='admin-overview'" class="tb-admin-overview">
+          <div class="tb-admin-overview-grid">
+            <button type="button" @click="openAdminSection('admin-source')">
+              <span class="tb-admin-overview-icon"><van-icon name="cluster-o" size="22"/></span>
+              <strong>数据源配置</strong><small>{{ status.starrocksConfigured ? '已连接 StarRocks' : '尚未配置 StarRocks' }}</small>
+              <van-icon name="arrow" class="tb-admin-overview-arrow"/>
+            </button>
+            <button type="button" @click="openAdminSection('admin-model')">
+              <span class="tb-admin-overview-icon"><van-icon name="comment-o" size="22"/></span>
+              <strong>对话模型</strong><small>{{ status.aiConfigured ? (status.model || '已配置') : '尚未配置模型' }}</small>
+              <van-icon name="arrow" class="tb-admin-overview-arrow"/>
+            </button>
+            <button type="button" @click="openAdminSection('admin-embedding')">
+              <span class="tb-admin-overview-icon"><van-icon name="setting-o" size="22"/></span>
+              <strong>Embedding 模型</strong><small>{{ status.embeddingConfigured ? '已配置语义模型' : '尚未启用' }}</small>
+              <van-icon name="arrow" class="tb-admin-overview-arrow"/>
+            </button>
+            <button type="button" @click="openAdminSection('admin-tables')">
+              <span class="tb-admin-overview-icon"><van-icon name="records-o" size="22"/></span>
+              <strong>ADS 表授权</strong><small>管理智能问数可用数据表</small>
+              <van-icon name="arrow" class="tb-admin-overview-arrow"/>
+            </button>
+            <button type="button" @click="openAdminSection('admin-metrics')">
+              <span class="tb-admin-overview-icon"><van-icon name="description" size="22"/></span>
+              <strong>指标口径</strong><small>维护业务指标定义</small>
+              <van-icon name="arrow" class="tb-admin-overview-arrow"/>
+            </button>
+            <button type="button" @click="openAdminSection('admin-users')">
+              <span class="tb-admin-overview-icon"><van-icon name="friends-o" size="22"/></span>
+              <strong>用户管理</strong><small>管理登录账号与权限</small>
+              <van-icon name="arrow" class="tb-admin-overview-arrow"/>
+            </button>
+          </div>
+        </div>
+        <div v-else-if="['admin-source','admin-model','admin-embedding'].includes(desktopSection)"
+          class="tb-admin-panel-card tb-admin-config-page">
+          <div class="tb-admin-panel-intro">
+            <strong>{{ configKind==='starrocks' ? 'StarRocks ADS 数据源' : configKind==='ai' ? '对话模型配置' : 'Embedding 语义模型' }}</strong>
+            <p>配置通过服务端验证后保存，密钥和数据库密码不会在页面中回显。</p>
+          </div>
+          <div class="tb-admin-config-fields">
+            <template v-if="configKind === 'starrocks'">
+            <p class="muted">配置 StarRocks FE 只读账号，测试连接成功后保存并立即读取 ADS 字段注释。</p>
+            <van-field v-model="srForm.jdbcUrl" label="JDBC 地址" label-width="85px" placeholder="jdbc:mysql://192.168.1.10:9030/ads"/>
+            <van-field v-model="srForm.schema" label="ADS 数据库" label-width="85px" placeholder="ads"/>
+            <van-field v-model="srForm.username" label="用户名" label-width="85px" placeholder="只读用户名"/>
+            <van-field v-model="srForm.password" label="密码" label-width="85px" type="password"
+              :placeholder="settingsData.starrocks?.passwordSet ? '已配置，留空不修改' : '请输入密码'"/>
+            <p class="config-note">数据库密码由后端保存，留空会保留现有密码。</p>
+          </template>
+          <template v-else-if="configKind === 'ai'">
+            <p class="muted">在这里直接配置用于自然语言分析和 SQL 生成的大模型。保存后无需重启服务。</p>
+            <van-field v-model="aiForm.baseUrl" label="Base URL" label-width="95px" placeholder="https://api.example.com/v1"/>
+            <van-field v-model="aiForm.model" label="模型名称" label-width="95px" placeholder="输入服务商模型 ID"/>
+            <van-field v-model="aiForm.apiKey" label="API Key" label-width="95px" type="password"
+              autocomplete="new-password" :placeholder="settingsData.ai?.apiKeySet ? '已设置 · 留空不修改' : '填写 API Key'"/>
+            <van-cell title="清除原有 API Key" label="仅在主动更换为无密钥的本地模型时勾选">
+              <template #right-icon><van-switch v-model="aiForm.clearKey" size="20px"/></template>
+            </van-cell>
+            <p class="config-note">API Key 从此页面提交给后端保存，编辑时不会明文回显。</p>
+          </template>
+          <template v-else>
+            <p class="muted">用于 ADS 表、字段注释和 Excel 指标口径语义匹配。默认阿里云百炼 DashScope 原生 API；也支持 OpenAI 兼容 /embeddings 接口。</p>
+            <van-cell title="启用 Embedding"><template #right-icon>
+              <van-switch v-model="embeddingForm.enabled" size="20px"/>
+            </template></van-cell>
+            <van-field v-model="embeddingForm.baseUrl" label="Base URL" label-width="95px"
+              placeholder="https://dashscope.aliyuncs.com/api/v1"/>
+            <van-field v-model="embeddingForm.model" label="模型名称" label-width="95px"
+              placeholder="qwen3.7-text-embedding-flash"/>
+            <van-field v-model.number="embeddingForm.dimensions" label="向量维度" label-width="95px"
+              type="number" placeholder="1024"/>
+            <van-field v-model="embeddingForm.apiKey" label="API Key" label-width="95px" type="password"
+              autocomplete="new-password" :placeholder="settingsData.embedding?.apiKeySet ? '已设置 · 留空不修改' : '本地无密钥服务可留空'"/>
+            <van-cell title="清除原有 API Key"><template #right-icon>
+              <van-switch v-model="embeddingForm.clearKey" size="20px"/>
+            </template></van-cell>
+            <div class="semantic-status">
+              <strong>语义索引</strong>
+              <span>{{ semanticStatus.count || 0 }} 条 · {{ semanticStatus.indexedModel || '尚未构建' }}</span>
+            </div>
+            <p class="config-note">保存并测试模型后，点击“重建语义索引”。仅向模型发送授权 ADS 的字段描述及指标口径，不上传业务明细数据。</p>
+          </template>
+          <p v-if="configTestMessage" class="config-feedback">{{ configTestMessage }}</p>
+          <div class="config-actions">
+            <van-button block plain type="primary" :loading="configTestBusy"
+              :disabled="configBusy || semanticBusy" @click="testConfig">测试连接</van-button>
+            <van-button block type="primary" :loading="configBusy"
+              :disabled="configTestBusy || semanticBusy" @click="saveConfig">保存配置</van-button>
+            <van-button v-if="configKind==='embedding' && status.embeddingConfigured" block
+              plain type="primary" :loading="semanticBusy"
+              :disabled="configBusy || configTestBusy" @click="rebuildSemanticIndex">重建语义索引</van-button>
+          </div>
+          </div>
+        </div>
+        <div v-else-if="desktopSection==='admin-tables'" class="tb-admin-panel-card">
+          <div class="tb-admin-panel-intro tb-admin-panel-intro-action">
+            <div><strong>ADS 表授权</strong><p>仅开启业务审核通过的 ADS 表。关闭授权后，普通用户将无法使用该表问数。</p></div>
+            <button type="button" class="tb-admin-plain-action" @click="openAdminSection('admin-source')"><van-icon name="cluster-o"/> 数据源配置</button>
+          </div>
+          <h3>开放给 AI 的 ADS 表</h3>
+          <p class="muted">默认不开放任何表。仅授权通过审核的经营数据表。</p>
+          <div v-for="table in allowedTables" :key="table.name" class="admin-table">
+            <div class="table-head">
+              <span @click="expandedTable = expandedTable === table.name ? '' : table.name">
+                <van-icon name="arrow-down"/> {{ table.name }}
+              </span>
+              <van-switch v-model="table.enabled" size="19px" @change="toggleAllowed(table)"/>
+            </div>
+            <div v-if="expandedTable === table.name" class="columns-list">
+              <div v-for="col in table.columns" :key="col.name"><b>{{ col.name }}</b> {{ col.type }} <span>{{ col.comment }}</span></div>
+            </div>
+          </div>
+          <p v-if="!allowedTables.length" class="muted">没有读取到 ADS 表，请检查连接配置。</p>
+        </div>
+        <div v-else-if="desktopSection==='admin-joins'" class="tb-admin-panel-card tb-admin-joins-page">
+          <section class="metric-admin join-admin">
+            <h3>ADS 跨表关联规则</h3>
+            <p class="muted">多张 ADS 汇总表只有明确关联键和业务粒度才能 JOIN。系统不允许未经配置的跨表关联，以免统计金额重复。</p>
+            <div v-for="rule in joinRules" :key="rule.id" class="metric-batch">
+              <div class="metric-batch-details">
+                <b>{{ rule.leftTable }} → {{ rule.rightTable }}</b>
+                <small>关联键：{{ rule.leftKeys.join(', ') }} = {{ rule.rightKeys.join(', ') }}</small>
+                <small>{{ rule.cardinality === 'ONE_TO_ONE' ? '一对一' : '多对一' }} · {{ rule.grainNote }}</small>
+              </div>
+              <button type="button" class="metric-delete" :aria-label="'删除关联规则'+rule.id" @click="removeJoinRule(rule)">
+                <van-icon name="delete-o" size="18"/>
+              </button>
+            </div>
+            <div class="join-editor">
+              <label>主表（已授权）</label>
+              <select v-model="joinForm.leftTable" class="join-select">
+                <option disabled value="">选择 ADS 主表</option>
+                <option v-for="item in allowedTables.filter(t => t.enabled)" :key="item.name" :value="item.name">{{ item.name }}</option>
+              </select>
+              <label>关联表（已授权）</label>
+              <select v-model="joinForm.rightTable" class="join-select">
+                <option disabled value="">选择关联表</option>
+                <option v-for="item in allowedTables.filter(t => t.enabled)" :key="item.name" :value="item.name">{{ item.name }}</option>
+              </select>
+              <van-field v-model="joinForm.leftKeys" label="主表关联键" label-width="90px" placeholder="city_name,dt"/>
+              <van-field v-model="joinForm.rightKeys" label="关联表关联键" label-width="90px" placeholder="city,dt"/>
+              <van-field label="关联关系" label-width="90px">
+                <template #input>
+                  <van-radio-group v-model="joinForm.cardinality" direction="horizontal">
+                    <van-radio name="ONE_TO_ONE">一对一</van-radio>
+                    <van-radio name="MANY_TO_ONE">多对一</van-radio>
+                  </van-radio-group>
+                </template>
+              </van-field>
+              <van-field v-model="joinForm.grainNote" label="粒度说明" label-width="90px"
+                type="textarea" rows="2" maxlength="800" autosize placeholder="例如：两表均按天和城市唯一汇总，city+dt 构成唯一键"/>
+              <van-button type="primary" block plain :loading="joinSaving" @click="saveJoinRule">保存关联规则</van-button>
+              <p class="muted">请先在数据仓库核对唯一性；跨表关联不能代替事实表口径验证。默认禁止多对多关联。</p>
+            </div>
+          </section>
+        </div>
+        <div v-else-if="desktopSection==='admin-metrics'" class="tb-admin-panel-card tb-admin-metrics-page">
+          <section class="metric-admin">
+            <div class="metric-section-title">
+              <h3>指标口径 · Excel</h3>
+              <p class="muted">上传现有的指标定义，AI 将依据确认的业务口径理解 ADS 数据。当前已导入 {{ metricInfo.total || 0 }} 条。</p>
+            </div>
+            <input ref="metricFileInput" class="file-input-hidden" type="file"
+              accept=".xlsx,.xls" @change="selectMetricFile" aria-label="选择指标口径Excel文件"/>
+            <div class="metric-action-row">
+              <van-button size="small" type="primary" icon="plus" plain @click="chooseMetricFile">上传 Excel</van-button>
+              <van-button size="small" plain icon="down" @click="downloadMetricTemplate">下载模板</van-button>
+            </div>
+            <p class="muted">支持 .xlsx / .xls，最大 5 MB；至少包含“指标名称”和“指标口径”两列。</p>
+            <div v-if="metricPreviewBusy" class="metric-upload-state">
+              <van-loading size="16px"/> 正在解析 Excel ...
+            </div>
+            <p v-if="metricError" class="metric-error">{{ metricError }}</p>
+            <div v-if="metricPreview" class="metric-preview">
+              <div class="metric-preview-heading">
+                <b>{{ metricPreview.filename }}</b><span>识别到 {{ metricPreview.count }} 条</span>
+              </div>
+              <p v-for="notice in metricPreview.notices" :key="notice" class="metric-note">{{ notice }}</p>
+              <div class="metric-preview-table" tabindex="0" role="region" aria-label="指标预览表格">
+                <table>
+                  <thead><tr><th>指标名称</th><th>业务口径</th><th>ADS 表</th></tr></thead>
+                  <tbody><tr v-for="(item, idx) in metricPreview.samples" :key="idx">
+                    <td>{{ item.metricName }}</td><td>{{ item.definition }}</td><td>{{ item.adsTable || '—' }}</td>
+                  </tr></tbody>
+                </table>
+              </div>
+              <van-button type="primary" block :loading="metricImportBusy" @click="importMetrics">
+                确认导入 {{ metricPreview.count }} 条指标
+              </van-button>
+            </div>
+            <div v-if="metricInfo.batches?.length" class="metric-batches">
+              <h4>导入历史</h4>
+              <div v-for="batch in metricInfo.batches" :key="batch.id" class="metric-batch">
+                <div class="metric-batch-details"><b>{{ batch.filename }}</b>
+                  <small>{{ batch.count }} 条 · {{ batch.createdAt }}</small></div>
+                <button type="button" class="metric-delete" :aria-label="'删除'+batch.filename"
+                  @click="deleteMetricBatch(batch)"><van-icon name="delete-o" size="18"/></button>
+              </div>
+            </div>
+            <p v-else class="muted">尚未上传指标口径文件。</p>
+            <div v-if="metricInfo.metrics?.length" class="metric-definition-list">
+              <h4>最近导入的指标</h4>
+              <div v-for="item in metricInfo.metrics.slice(0, 8)" :key="item.id" class="metric-definition-item">
+                <strong>{{ item.metricName }}</strong>
+                <p>{{ item.definition }}</p>
+              </div>
+            </div>
+          </section>
+        </div>
+        <div v-else-if="desktopSection==='admin-users'" class="tb-admin-panel-card tb-admin-users-page">
+          <h3>内部账号管理</h3>
+          <div v-for="user in users" :key="user.username" class="status-row">
+            <span>{{ user.displayName }}（{{ user.username }}）</span><small>{{ user.role }}</small>
+          </div>
+          <van-field v-model="newUser.username" label="新账号" placeholder="英文账号" />
+          <van-field v-model="newUser.displayName" label="姓名" placeholder="显示名称" />
+          <van-field v-model="newUser.password" label="密码" type="password" placeholder="至少10位" />
+          <van-field label="角色"><template #input><van-radio-group v-model="newUser.role" direction="horizontal">
+            <van-radio name="USER">普通用户</van-radio><van-radio name="ADMIN">管理员</van-radio>
+          </van-radio-group></template></van-field>
+          <van-button type="primary" block plain @click="addUser">创建账号</van-button>
+          <p class="muted">管理员可创建新账号并分配角色。普通用户不能修改模型、数据源或系统授权。</p>
+        </div>
+      </main>
       <main v-if="isDesktop && desktopSection==='overview'" class="tb-page-body tb-overview">
         <div class="tb-page-intro">
           <div><p class="tb-eyebrow">WELCOME TO DATAASK</p><h1>工作台</h1>
@@ -1203,7 +1437,7 @@ onBeforeUnmount(() => desktopMedia?.removeEventListener('change', window.__dataA
           <div class="drawer-bottom"><span>{{ me.displayName || me.username }}</span><button @click="logout">退出登录</button></div>
         </div>
       </van-popup>
-      <van-popup v-if="isAdmin" v-model:show="adminVisible" :position="isDesktop ? 'center' : 'bottom'" round
+      <van-popup v-if="isAdmin && !isDesktop" v-model:show="adminVisible" :position="isDesktop ? 'center' : 'bottom'" round
         :style="{ width: isDesktop ? 'min(920px, 92vw)' : '100%', height: isDesktop ? 'min(780px, 88vh)' : '88%' }">
         <div class="admin-panel">
           <div class="drawer-header"><b>系统管理</b><van-icon name="cross" @click="adminVisible=false"/></div>
@@ -1342,7 +1576,7 @@ onBeforeUnmount(() => desktopMedia?.removeEventListener('change', window.__dataA
           <p class="muted">AI 配置直接使用服务器 application.yml，不会在浏览器回显密钥；StarRocks 配置可通过上方入口测试和保存。</p>
         </div>
       </van-popup>
-      <van-popup v-if="isAdmin" v-model:show="configVisible" :position="isDesktop ? 'center' : 'bottom'" round
+      <van-popup v-if="isAdmin && !isDesktop" v-model:show="configVisible" :position="isDesktop ? 'center' : 'bottom'" round
         :style="{ width: isDesktop ? 'min(620px, 92vw)' : '100%', height: isDesktop ? 'min(740px, 85vh)' : '80%' }">
         <div class="config-panel">
           <div class="drawer-header">
