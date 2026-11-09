@@ -121,12 +121,26 @@ function isRedundantSummary(msg) {
 
 const desktopSection = ref('overview')
 const adminExpanded = ref(false)
-const desktopAdminSections = ['admin-overview','admin-source','admin-model','admin-embedding','admin-tables','admin-joins','admin-metrics','admin-users']
+const desktopAdminSections = ['admin-overview','admin-source','admin-model','admin-embedding','admin-tables','admin-joins','admin-metrics','admin-users','admin-status']
+const adminSectionBusy = ref(false)
+const adminSectionError = ref('')
+let adminLoadSequence = 0
+const userBusy = ref(false)
+const userEditVisible = ref(false)
+const userEditSaving = ref(false)
+const userEditForm = ref({ username:'', displayName:'', role:'USER', password:'' })
+const configuredStatusRows = computed(() => [
+  { key:'数据源', configured:!!status.value.starrocksConfigured, detail:status.value.schema || '未选择 ADS 数据库', section:'admin-source' },
+  { key:'对话模型', configured:!!status.value.aiConfigured, detail:status.value.model || '尚未配置模型', section:'admin-model' },
+  { key:'Embedding', configured:!!status.value.embeddingConfigured, detail:status.value.embeddingModel || '尚未启用', section:'admin-embedding' },
+])
+
 const desktopSectionTitle = computed(() => ({
   overview:'工作台',ask:'智能问数',charts:'我的图表',history:'历史会话',
   'admin-overview':'系统管理','admin-source':'数据源配置','admin-model':'对话模型',
   'admin-embedding':'Embedding 模型','admin-tables':'ADS 表授权',
-  'admin-joins':'表关联规则','admin-metrics':'指标口径','admin-users':'用户管理'
+  'admin-joins':'表关联规则','admin-metrics':'指标口径','admin-users':'用户管理',
+  'admin-status':'配置状态'
 })[desktopSection.value] || '工作台')
 const desktopIsAdminSection = computed(() => desktopSection.value.startsWith('admin-'))
 const sharingVisible = ref(false)
@@ -330,6 +344,8 @@ function logout() {
   messages.value = []; sessionId.value = ''; historyVisible.value = false; adminVisible.value = false
   desktopFeedback.value = null
   desktopSection.value = 'overview'
+  adminSectionError.value = ''
+  adminSectionBusy.value = false
   adminExpanded.value = false
   savedCharts.value = []
   sharedCharts.value = []
