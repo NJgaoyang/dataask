@@ -1,8 +1,26 @@
 <script setup>
-import { ref, watch, onMounted, onBeforeUnmount, nextTick } from 'vue'
+import { ref, computed, watch, onMounted, onBeforeUnmount, nextTick } from 'vue'
 import * as echarts from 'echarts'
 
-const props = defineProps({ message: { type: Object, required: true }, chartTypeOverride: { type: String, default: '' } })
+const props = defineProps({
+  message: { type: Object, required: true },
+  chartTypeOverride: { type: String, default: '' },
+  desktopExpanded: { type: Boolean, default: false }
+})
+// Desktop results can use their full content width and display up to 60 returned
+// categories instead of silently truncating a 21-city ranking at 12.
+const resolvedType = computed(() =>
+  ['bar','line','pie'].includes(props.chartTypeOverride)
+    ? props.chartTypeOverride : (props.message.chartType || 'table'))
+const maxVisibleRows = computed(() => props.desktopExpanded
+  ? (resolvedType.value === 'pie' ? 12 : 60)
+  : (resolvedType.value === 'pie' ? 8 : 12))
+const chartHeight = computed(() => {
+  if (!props.desktopExpanded) return undefined
+  const count = Math.min(props.message.rows?.length || 0, maxVisibleRows.value)
+  if (resolvedType.value === 'bar' && count > 5) return Math.min(1900, Math.max(430, count * 34 + 100)) + 'px'
+  return '430px'
+})
 const el = ref(null)
 let chart = null
 let observer = null
@@ -24,7 +42,7 @@ function renderChart() {
     if (chart) { chart.dispose(); chart = null }
     return
   }
-  const limit = chartType === 'pie' ? 8 : 12
+  const limit = maxVisibleRows.value
   const values = rows.slice(0, limit).map(row => ({
     name: String(row[dimension] ?? '未分类'),
     value: Number(row[measure]) || 0
@@ -134,17 +152,18 @@ onMounted(() => {
 })
 watch(() => props.message, () => nextTick(renderChart), { deep: true })
 watch(() => props.chartTypeOverride, () => nextTick(renderChart))
+watch(() => props.desktopExpanded, () => nextTick(renderChart))
 onBeforeUnmount(() => { observer?.disconnect(); if (chart) chart.dispose() })
 </script>
 
 <template>
-  <div class="chart-shell">
+  <div class="chart-shell" :class="{ 'chart-expanded': desktopExpanded }">
     <div class="chart-caption">
       <span>经营数据图表</span><small>基于 StarRocks 实际查询结果</small>
     </div>
-    <div ref="el" class="chart-view"></div>
-    <p v-if="message.rows?.length > ((chartTypeOverride || message.chartType) === 'pie' ? 8 : 12)" class="chart-limit">
-      图表仅展示前 {{ (chartTypeOverride || message.chartType) === 'pie' ? 8 : 12 }} 项，可切换到表格查看本次查询返回的全部行
+    <div ref="el" class="chart-view" :style="desktopExpanded ? {height:chartHeight} : undefined"></div>
+    <p v-if="message.rows?.length > maxVisibleRows" class="chart-limit">
+      图表展示前 {{ maxVisibleRows }} 项，切换至表格可查看本次返回的全部 {{ message.rows.length }} 行
     </p>
   </div>
 </template>
