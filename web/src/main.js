@@ -8,4 +8,5 @@ import './tencentbi-pc.css'
 import './admin-compact-pc.css'
 import './pc-bluewhite.css'
 import './reference-home-pc.css'
+import './pc-global-layout-v4.css'
 createApp(App).use(Vant).mount('#app')
