@@ -2,7 +2,7 @@
 import { ref, watch, onMounted, onBeforeUnmount, nextTick } from 'vue'
 import * as echarts from 'echarts'
 
-const props = defineProps({ message: { type: Object, required: true } })
+const props = defineProps({ message: { type: Object, required: true }, chartTypeOverride: { type: String, default: '' } })
 const el = ref(null)
 let chart = null
 let observer = null
@@ -10,7 +10,8 @@ const palette = ['#3478ec', '#12b8a6', '#f49b4e', '#8467d8', '#e86992', '#24a6cf
 
 function renderChart() {
   if (!el.value) return
-  const { columns = [], rows = [], chartType = 'table', columnLabels = {} } = props.message
+  const { columns = [], rows = [], columnLabels = {} } = props.message
+  const chartType = ['bar','line','pie'].includes(props.chartTypeOverride) ? props.chartTypeOverride : (props.message.chartType || 'table')
   const numericColumns = columns.filter(key => rows.some(row =>
     row[key] !== null && row[key] !== '' && row[key] !== undefined &&
     typeof row[key] !== 'boolean' && Number.isFinite(Number(row[key]))))
@@ -132,6 +133,7 @@ onMounted(() => {
   })
 })
 watch(() => props.message, () => nextTick(renderChart), { deep: true })
+watch(() => props.chartTypeOverride, () => nextTick(renderChart))
 onBeforeUnmount(() => { observer?.disconnect(); if (chart) chart.dispose() })
 </script>
 
@@ -141,8 +143,8 @@ onBeforeUnmount(() => { observer?.disconnect(); if (chart) chart.dispose() })
       <span>经营数据图表</span><small>基于 StarRocks 实际查询结果</small>
     </div>
     <div ref="el" class="chart-view"></div>
-    <p v-if="message.rows?.length > (message.chartType === 'pie' ? 8 : 12)" class="chart-limit">
-      图表展示前 {{ message.chartType === 'pie' ? 8 : 12 }} 项，完整数据请查看下方表格
+    <p v-if="message.rows?.length > ((chartTypeOverride || message.chartType) === 'pie' ? 8 : 12)" class="chart-limit">
+      图表仅展示前 {{ (chartTypeOverride || message.chartType) === 'pie' ? 8 : 12 }} 项，可切换到表格查看本次查询返回的全部行
     </p>
   </div>
 </template>
