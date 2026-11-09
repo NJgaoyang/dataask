@@ -11,8 +11,24 @@ concurrency:
 jobs:
   verify:
     runs-on: ubuntu-latest
+    timeout-minutes: 20
+    services:
+      mysql:
+        image: mysql:8.0
+        env:
+          MYSQL_ROOT_PASSWORD: ci-mysql-password
+          MYSQL_ROOT_HOST: '%'
+        ports:
+          - 13306:3306
+        options: >-
+          --health-cmd="mysqladmin ping -h 127.0.0.1 -pci-mysql-password"
+          --health-interval=5s
+          --health-timeout=5s
+          --health-retries=30
     steps:
       - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
       - name: Record tested source
         run: git archive --format=tar.gz HEAD > /tmp/dataask-source.tar.gz
       - uses: actions/upload-artifact@v4
@@ -28,28 +44,38 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: '22'
-      - name: Build H5
+      - name: Verify shell syntax and build complete distribution
         run: |
-          cd web
-          npm install --no-audit --no-fund
-          npm run build
-      - name: Verify Java
-        run: mvn -B clean verify
-      - name: Package distribution and verify embedded frontend version
-        run: |
-          bash scripts/package.sh
-          unzip -p target/dataask-0.1.0-SNAPSHOT.jar BOOT-INF/classes/static/build-info.json | grep -F 'desktop-three-pane'
+          for script in scripts/runtime/*.sh scripts/package.sh package.sh; do bash -n "$script"; done
+          bash package.sh
+          unzip -p target/dataask-0.1.0-SNAPSHOT.jar BOOT-INF/classes/static/build-info.json | grep -F 'table-column-selector-v1'
           tar -tzf release/dataask-0.1.0.tar.gz | grep -F 'dataask-0.1.0/bin/upgrade.sh'
+      - name: Install isolated test browser and MySQL client
+        run: |
+          command -v mysql >/dev/null || { sudo apt-get update && sudo apt-get install -y default-mysql-client; }
+          cd web
+          npx playwright install --with-deps chromium
+      - name: Verify first startup, persisted configuration, native upgrade and desktop/mobile UI
+        env:
+          DATAASK_CI_INTEGRATION: '1'
+          DATAASK_TEST_MYSQL_PORT: '13306'
+          DATAASK_TEST_MYSQL_PASSWORD: ci-mysql-password
+          DATAASK_TEST_PORT: '18087'
+        run: python3 scripts/verify_installation.py
       - uses: actions/upload-artifact@v4
         if: success()
         with:
           name: dataask-distribution
-          path: release/dataask-0.1.0.tar.gz
+          path: |
+            release/dataask-0.1.0.tar.gz
+            release/*.sha256
           retention-days: 7
       - uses: actions/upload-artifact@v4
         if: always()
         with:
           name: dataask-test-reports
-          path: target/surefire-reports/
+          path: |
+            target/surefire-reports/
+            target/installation-test/
           if-no-files-found: ignore
           retention-days: 7
