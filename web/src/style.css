@@ -970,3 +970,9 @@
   .consumer-pc .composer-row{min-height:112px;padding-top:16px;padding-bottom:58px}
   .consumer-pc .composer{padding-top:8px;padding-bottom:13px}
 }
+
+@media (min-width:1024px) {
+  .consumer-pc .consumer-question-art .van-icon{color:inherit}
+  .consumer-pc .consumer-quick-grid button:focus-visible,
+  .consumer-pc .sidebar-new:focus-visible {outline:3px solid #aca9f4;outline-offset:3px}
+}
