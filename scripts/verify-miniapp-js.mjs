@@ -36,6 +36,9 @@ assert(plot.includes('城市1')&&plot.includes('城市21'),'21 rows not fully re
 assert(!plot.includes('下载'),'Unexpected download affordance');
 let card=fn.answerCard({type:'answer',answer:a});
 assert(card.includes('chart-plot'),'Result card must display graphical plot, not plain numbers');
+assert(card.includes('mobile-result-row'),'Chart results must use the mobile full-width grid layout');
+assert(html.includes('.mobile-result-row .chart-card') && html.includes('grid-column:1 / -1'),
+  'Mobile result card must span the avatar and answer columns');
 assert(!card.includes('data-action="export"'),'Result card exposes download');
 fn.setType(a.id,'line');
 assert(fn.resultChart(a).includes('<path'),'Line chart missing');
