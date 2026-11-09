@@ -36,9 +36,15 @@ const savedCharts = ref([])
 const sharedCharts = ref([])
 const chartsBusy = ref(false)
 const desktopSection = ref('overview')
+const adminExpanded = ref(false)
+const desktopAdminSections = ['admin-overview','admin-source','admin-model','admin-embedding','admin-tables','admin-joins','admin-metrics','admin-users']
 const desktopSectionTitle = computed(() => ({
-  overview:'工作台',ask:'智能问数',charts:'我的图表',history:'历史会话'
+  overview:'工作台',ask:'智能问数',charts:'我的图表',history:'历史会话',
+  'admin-overview':'系统管理','admin-source':'数据源配置','admin-model':'对话模型',
+  'admin-embedding':'Embedding 模型','admin-tables':'ADS 表授权',
+  'admin-joins':'表关联规则','admin-metrics':'指标口径','admin-users':'用户管理'
 })[desktopSection.value] || '工作台')
+const desktopIsAdminSection = computed(() => desktopSection.value.startsWith('admin-'))
 const sharingVisible = ref(false)
 const sharingChart = ref(null)
 const shareScope = ref('PRIVATE')
@@ -255,6 +261,7 @@ function logout() {
   messages.value = []; sessionId.value = ''; historyVisible.value = false; adminVisible.value = false
   desktopFeedback.value = null
   desktopSection.value = 'overview'
+  adminExpanded.value = false
   savedCharts.value = []
   sharedCharts.value = []
   datasetPickerVisible.value = false
@@ -267,9 +274,11 @@ async function loadSessions() {
   catch (e) { showFailToast(errorText(e)) }
 }
 function switchDesktopSection(section) {
-  if (!['overview','ask','charts','history'].includes(section)) return
+  const normal = ['overview','ask','charts','history'].includes(section)
+  if (!normal && !(desktopAdminSections.includes(section) && isAdmin.value)) return
   if (isDesktop.value && busy.value && section !== 'ask') stopAsk()
   desktopSection.value = section
+  if (desktopAdminSections.includes(section)) adminExpanded.value = true
   if (section === 'charts') loadSavedCharts()
   if (section === 'history') loadSessions()
   if (section === 'ask') focusDesktopQuestion()
@@ -424,12 +433,42 @@ async function reloadTables() {
 }
 async function openAdmin() {
   if (!requireAdmin()) return
-  adminVisible.value = true
+  if (isDesktop.value) {
+    adminExpanded.value = true
+    switchDesktopSection('admin-overview')
+    adminVisible.value = false
+  } else {
+    adminVisible.value = true
+  }
   try { await refreshAdminStatus() }
   catch (e) { showFailToast('读取配置失败：' + errorText(e)) }
   try { users.value = (await api.get('/admin/users')).data }
   catch (e) { showFailToast('读取账号失败：' + errorText(e)) }
   await Promise.all([reloadTables(), reloadMetrics(), reloadJoinRules(), reloadSemanticStatus()])
+}
+async function openAdminSection(section) {
+  if (!requireAdmin() || !desktopAdminSections.includes(section)) return
+  if (['admin-source','admin-model','admin-embedding'].includes(section)) {
+    const kind = section === 'admin-source' ? 'starrocks' : section === 'admin-model' ? 'ai' : 'embedding'
+    await showConfig(kind)
+    return
+  }
+  switchDesktopSection(section)
+  try {
+    if (section === 'admin-overview') {
+      await refreshAdminStatus()
+    } else if (section === 'admin-tables') {
+      await refreshAdminStatus()
+      await reloadTables()
+    } else if (section === 'admin-joins') {
+      await refreshAdminStatus()
+      await Promise.all([reloadTables(),reloadJoinRules()])
+    } else if (section === 'admin-metrics') {
+      await reloadMetrics()
+    } else if (section === 'admin-users') {
+      users.value = (await api.get('/admin/users')).data
+    }
+  } catch (e) { showFailToast('读取管理数据失败：' + errorText(e)) }
 }
 async function reloadSemanticStatus() {
   try { semanticStatus.value = (await api.get('/admin/semantic/status')).data }
@@ -580,7 +619,13 @@ async function showConfig(kind) {
       dimensions: embedding.dimensions || 1024
     }
     if (kind === 'embedding') await reloadSemanticStatus()
-    configVisible.value = true
+    if (isDesktop.value) {
+      adminExpanded.value = true
+      switchDesktopSection(kind === 'starrocks' ? 'admin-source' : kind === 'ai' ? 'admin-model' : 'admin-embedding')
+      configVisible.value = false
+    } else {
+      configVisible.value = true
+    }
   } catch (e) { showFailToast(errorText(e)) }
 }
 function modelPayload(kind) {
