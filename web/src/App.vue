@@ -103,6 +103,54 @@ const metricError = ref('')
 const newUser = ref({ username: '', displayName: '', password: '', role: 'USER' })
 const footerRef = ref(null)
 const quickQuestions = ['昨天的营业额是多少？', '昨天各城市的订单量排行', '最近7天的营收趋势', '本月各城市销售额对比']
+// Quick BI-inspired desktop querying. A dataset selection is enforced by the server.
+const approvedDatasets = ref([])
+const selectedDataset = ref('')
+const datasetPickerVisible = ref(false)
+const datasetPreview = ref(null)
+const datasetPreviewBusy = ref(false)
+const chartStyles = ref({})
+const selectedDatasetName = computed(() => selectedDataset.value || '全部已授权数据')
+const supportedChartTypes = ['bar','line','pie']
+function chartStyle(msg) { return chartStyles.value[msg.id] || msg.chartType }
+function setChartStyle(msg, type) {
+  if (!supportedChartTypes.includes(type) || !msg.rows?.length) return
+  chartStyles.value = { ...chartStyles.value, [msg.id]: type }
+  setResultView(msg, 'chart')
+}
+async function loadApprovedDatasets() {
+  if (!loggedIn.value) { approvedDatasets.value = []; return }
+  try {
+    const { data } = await api.get('/chat/datasets')
+    approvedDatasets.value = Array.isArray(data) ? data : []
+    if (selectedDataset.value && !approvedDatasets.value.includes(selectedDataset.value)) selectedDataset.value = ''
+  } catch(e) {
+    approvedDatasets.value = []
+    if (isDesktop.value) showFailToast('读取可用数据失败：'+errorText(e))
+  }
+}
+function pickDataset(name = '') {
+  if (name && !approvedDatasets.value.includes(name)) return
+  selectedDataset.value = name
+  datasetPickerVisible.value = false
+  datasetPreview.value = null
+  focusDesktopQuestion()
+}
+async function inspectDataset(name) {
+  if (!approvedDatasets.value.includes(name)) return
+  datasetPreviewBusy.value = true
+  datasetPreview.value = null
+  try {
+    const { data } = await api.get('/chat/datasets/preview', { params: { name } })
+    datasetPreview.value = data
+  } catch(e) { showFailToast(errorText(e)) }
+  finally { datasetPreviewBusy.value = false }
+}
+function toggleDatasetPicker() {
+  datasetPickerVisible.value = !datasetPickerVisible.value
+  datasetPreview.value = null
+  if (datasetPickerVisible.value) loadApprovedDatasets()
+}
 const isAdmin = computed(() => loggedIn.value && verifiedRole.value === 'ADMIN')
 function requireAdmin() {
   if (isAdmin.value) return true
@@ -173,7 +221,7 @@ async function login() {
     sessionStorage.setItem('dataask_user', JSON.stringify(user))
     verifiedRole.value = data.role === 'ADMIN' ? 'ADMIN' : 'USER'
     me.value = user; loggedIn.value = true; loginForm.value.password = ''
-    await loadSessions()
+    await Promise.all([loadSessions(), loadApprovedDatasets()])
   } catch (e) { showFailToast(errorText(e)) }
   finally { loggingIn.value = false }
 }
@@ -186,6 +234,10 @@ function logout() {
   configVisible.value = false
   messages.value = []; sessionId.value = ''; historyVisible.value = false; adminVisible.value = false
   desktopFeedback.value = null
+  datasetPickerVisible.value = false
+  datasetPreview.value = null
+  selectedDataset.value = ''
+  approvedDatasets.value = []
 }
 async function loadSessions() {
   try { sessions.value = (await api.get('/chat/sessions')).data }
@@ -196,6 +248,8 @@ async function openSession(item) {
   try {
     messages.value = (await api.get('/chat/sessions/' + item.id + '/messages')).data
     sessionId.value = item.id
+    const lastDataset = messages.value.at(-1)?.dataset || ''
+    selectedDataset.value = lastDataset
     historyVisible.value = false
     desktopFeedback.value = null
     scrollEnd()
@@ -273,7 +327,8 @@ async function ask(text = question.value, sourceMessageId = null) {
   scrollEnd()
   try {
     const { data } = await api.post('/chat/ask', {
-      question: text, sessionId: sessionId.value || null, sourceMessageId, requestId
+      question: text, sessionId: sessionId.value || null, sourceMessageId, requestId,
+      dataset: isDesktop.value ? selectedDataset.value : null
     }, { signal: controller.signal })
     if (sequence !== askSequence || controller.signal.aborted) return
     sessionId.value = data.sessionId
@@ -546,6 +601,7 @@ onMounted(() => {
   if (loggedIn.value) {
     refreshAuthenticatedRole()
     loadSessions()
+    loadApprovedDatasets()
   }
 })
 onBeforeUnmount(() => desktopMedia?.removeEventListener('change', window.__dataAskDesktopListener))
