@@ -569,12 +569,18 @@ onBeforeUnmount(() => desktopMedia?.removeEventListener('change', window.__dataA
           <div class="welcome-icon"><van-icon name="chart-trending-o" size="27"/></div>
           <div v-if="isDesktop" class="desktop-welcome-kicker">DATAASK · 智能问数</div>
           <h2>今天想了解哪些经营数据？</h2>
-          <p>用自然语言提问，查看指标、趋势和经营表现。</p>
+          <p v-if="isDesktop">用自然语言提问，查看指标、趋势和经营表现。</p>
+          <p v-else>直接提问，系统会根据已授权的 ADS 数据计算真实结果。</p>
           <div v-if="isDesktop" class="desktop-examples-label">试试这样问 <span>点击问题即可开始查询</span></div>
-          <div class="quick-grid">
+          <div v-if="isDesktop" class="quick-grid desktop-quick-grid">
             <button v-for="(item, idx) in quickQuestions" :key="item" :disabled="busy" @click="ask(item)">
-              <span v-if="isDesktop" class="desktop-question-icon"><van-icon :name="['chart-trending-o','bar-chart-o','chart-trending-o','balance-o'][idx]"/></span>
+              <span class="desktop-question-icon"><van-icon :name="['chart-trending-o','bar-chart-o','chart-trending-o','balance-o'][idx]"/></span>
               <span class="quick-question-text">{{ item }}</span> <van-icon name="arrow" />
+            </button>
+          </div>
+          <div v-else class="quick-grid">
+            <button v-for="item in quickQuestions" :key="item" :disabled="busy" @click="ask(item)">
+              {{ item }} <van-icon name="arrow" />
             </button>
           </div>
           <p class="data-notice"><van-icon name="shield-o"/> 仅查询管理员开放的 ADS 表，结果来自真实数据库</p>
