@@ -739,6 +739,116 @@ onBeforeUnmount(() => desktopMedia?.removeEventListener('change', window.__dataA
           <button title="新对话" @click="newConversation"><van-icon name="add-o" size="21"/></button>
         </div>
       </header>
+      <main v-if="isDesktop && desktopSection==='overview'" class="tb-page-body tb-overview">
+        <div class="tb-page-intro">
+          <div><p class="tb-eyebrow">WELCOME TO DATAASK</p><h1>工作台</h1>
+            <p>把经营问题交给数据，用智能问数快速获得答案。</p></div>
+          <span class="tb-page-symbol"><van-icon name="bar-chart-o" size="30"/></span>
+        </div>
+        <section class="tb-welcome-panel">
+          <div class="tb-welcome-main">
+            <span class="tb-welcome-overline">智能数据分析助手</span>
+            <h2>你好，今天想了解哪些经营数据？</h2>
+            <p>用自然语言提问，直接获取授权 ADS 数据的查询结果与可视化分析。</p>
+            <button type="button" class="tb-primary-action" @click="switchDesktopSection('ask')">
+              进入智能问数 <van-icon name="arrow"/>
+            </button>
+          </div>
+          <div class="tb-welcome-art" aria-hidden="true">
+            <div class="tb-art-ring"><van-icon name="chart-trending-o" size="57"/></div>
+            <span class="tb-art-spark tb-spark-a">✦</span><span class="tb-art-spark tb-spark-b">✧</span>
+          </div>
+        </section>
+        <div class="tb-section-heading">
+          <h3>快捷入口</h3><span>常用功能一键直达</span>
+        </div>
+        <div class="tb-overview-cards">
+          <button type="button" @click="switchDesktopSection('ask')">
+            <span class="tb-entry-icon tb-entry-blue"><van-icon name="chat-o" size="23"/></span>
+            <strong>智能问数</strong><small>通过对话查询经营数据</small>
+            <van-icon name="arrow" class="tb-entry-arrow"/>
+          </button>
+          <button type="button" @click="switchDesktopSection('charts')">
+            <span class="tb-entry-icon tb-entry-cyan"><van-icon name="chart-trending-o" size="23"/></span>
+            <strong>我的图表</strong><small>查看已收藏的数据分析</small>
+            <van-icon name="arrow" class="tb-entry-arrow"/>
+          </button>
+          <button type="button" @click="switchDesktopSection('history')">
+            <span class="tb-entry-icon tb-entry-purple"><van-icon name="clock-o" size="23"/></span>
+            <strong>历史会话</strong><small>继续之前的数据探索</small>
+            <van-icon name="arrow" class="tb-entry-arrow"/>
+          </button>
+        </div>
+        <div class="tb-section-heading tb-recent-heading">
+          <h3>最近问数</h3>
+          <button type="button" @click="switchDesktopSection('history')">查看全部 <van-icon name="arrow"/></button>
+        </div>
+        <div class="tb-recent-list">
+          <button v-for="item in sessions.slice(0, 4)" :key="item.id" type="button" @click="openSession(item)">
+            <van-icon name="chat-o" class="tb-recent-icon"/><span>{{ item.title }}</span>
+            <small>{{ sessionTimeLabel(item.updatedAt) }}</small><van-icon name="arrow"/>
+          </button>
+          <div v-if="!sessions.length" class="tb-empty-hint">
+            还没有问数记录，点击“智能问数”开始探索。
+          </div>
+        </div>
+      </main>
+      <main v-if="isDesktop && desktopSection==='charts'" class="tb-page-body tb-content-page">
+        <div class="tb-page-heading">
+          <div><h1>我的图表</h1><p>收藏的分析问题会保留，重新打开时获取最新业务数据。</p></div>
+          <button type="button" class="tb-secondary-action" @click="loadSavedCharts"><van-icon name="replay"/> 刷新</button>
+        </div>
+        <div class="tb-section-heading">
+          <h3>我收藏的图表 <span class="tb-count-pill">{{ savedCharts.length }}</span></h3>
+        </div>
+        <div class="tb-chart-list" v-if="savedCharts.length">
+          <button v-for="item in savedCharts" :key="item.id" type="button" @click="revisitChart(item)">
+            <span class="tb-entry-icon tb-entry-blue"><van-icon name="chart-trending-o" size="21"/></span>
+            <span class="tb-chart-meta"><strong>{{ item.title }}</strong><small>{{ item.question }}</small></span>
+            <span class="tb-chart-type">{{ item.chartType || '数据分析' }}</span>
+            <van-icon name="arrow" class="tb-entry-arrow"/>
+          </button>
+        </div>
+        <div class="tb-empty-state" v-else>
+          <van-icon name="chart-trending-o" size="42"/>
+          <h3>{{ chartsBusy ? '正在读取图表…' : '还没有收藏图表' }}</h3>
+          <p>在智能问数结果中点击“收藏”，之后就能在这里重新查询。</p>
+          <button type="button" @click="switchDesktopSection('ask')">去智能问数</button>
+        </div>
+        <div class="tb-section-heading" style="margin-top:30px">
+          <h3>共享给我的图表 <span class="tb-count-pill">{{ sharedCharts.length }}</span></h3>
+        </div>
+        <div class="tb-chart-list" v-if="sharedCharts.length">
+          <button v-for="item in sharedCharts" :key="item.id" type="button" @click="revisitChart(item)">
+            <span class="tb-entry-icon tb-entry-cyan"><van-icon name="share-o" size="21"/></span>
+            <span class="tb-chart-meta"><strong>{{ item.title }}</strong><small>{{ item.ownerUsername }} · {{ item.question }}</small></span>
+            <van-icon name="arrow" class="tb-entry-arrow"/>
+          </button>
+        </div>
+        <p v-else class="tb-inline-empty">暂无其他成员共享给你的图表。</p>
+      </main>
+      <main v-if="isDesktop && desktopSection==='history'" class="tb-page-body tb-content-page">
+        <div class="tb-page-heading">
+          <div><h1>历史会话</h1><p>找回之前的分析，继续追问业务数据。</p></div>
+          <button type="button" class="tb-secondary-action" @click="loadSessions"><van-icon name="replay"/> 刷新</button>
+        </div>
+        <label class="tb-history-search"><van-icon name="search" size="18"/>
+          <input v-model="sessionSearch" aria-label="搜索会话" placeholder="搜索之前问过的问题"/>
+        </label>
+        <div class="tb-recent-list tb-history-list">
+          <button v-for="item in visibleSessions" :key="item.id" type="button" @click="openSession(item)">
+            <van-icon name="chat-o" class="tb-recent-icon"/>
+            <span>{{ item.title }}</span><small>{{ sessionTimeLabel(item.updatedAt) }}</small>
+            <van-icon name="arrow"/>
+          </button>
+          <div v-if="!visibleSessions.length" class="tb-empty-state">
+            <van-icon name="clock-o" size="40"/>
+            <h3>{{ sessionSearch ? '没有找到相关会话' : '还没有历史会话' }}</h3>
+            <p>从智能问数开始，你的问题会自动保存在这里。</p>
+            <button type="button" @click="switchDesktopSection('ask')">开始问数</button>
+          </div>
+        </div>
+      </main>
       <main v-if="!isDesktop || desktopSection==='ask'" class="conversation">
         <section v-if="!messages.length && (!isDesktop || (!busy && !desktopFeedback))" class="welcome">
           <template v-if="isDesktop">
