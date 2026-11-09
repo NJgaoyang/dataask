@@ -10,4 +10,5 @@ import './pc-bluewhite.css'
 import './reference-home-pc.css'
 import './pc-global-layout-v4.css'
 import './pc-layout-v5.css'
+import './admin-functional-pc.css'
 createApp(App).use(Vant).mount('#app')
