@@ -820,13 +820,76 @@ async function toggleAllowed(table) {
   } catch (e) { table.enabled = !table.enabled; showFailToast(errorText(e)) }
 }
 async function addUser() {
-  if (!requireAdmin()) return
+  if (!requireAdmin() || userBusy.value) return
+  const request = {
+    username:newUser.value.username.trim(),
+    displayName:newUser.value.displayName.trim(),
+    password:newUser.value.password,
+    role:newUser.value.role
+  }
+  if (!/^[A-Za-z0-9_-]{3,64}$/.test(request.username)) return showFailToast('账号应为3至64位字母、数字、_ 或 -')
+  if (!request.displayName || request.displayName.length>80) return showFailToast('姓名长度应为1至80字符')
+  if (request.password.length<10 || request.password.length>128) return showFailToast('初始密码需为10至128位')
+  userBusy.value = true
   try {
-    await api.post('/admin/users', newUser.value)
+    await api.post('/admin/users', request)
     users.value = (await api.get('/admin/users')).data
     newUser.value = { username:'', displayName:'', password:'', role:'USER' }
     showSuccessToast('用户创建成功')
   } catch (e) { showFailToast(errorText(e)) }
+  finally { userBusy.value = false }
+}
+function editUser(user) {
+  if (!requireAdmin()) return
+  userEditForm.value = {
+    username:user.username, displayName:user.displayName,
+    role:user.role, password:''
+  }
+  userEditVisible.value = true
+  nextTick(() => document.querySelector('.tb-user-editor')?.scrollIntoView({
+    behavior:'smooth', block:'nearest'
+  }))
+}
+function cancelUserEdit() {
+  if (userEditSaving.value) return
+  userEditVisible.value = false
+  userEditForm.value = { username:'',displayName:'',role:'USER',password:'' }
+}
+async function saveUserProfile() {
+  if (!requireAdmin() || userEditSaving.value || !userEditVisible.value) return
+  const value=userEditForm.value
+  const name=value.displayName.trim()
+  if (!name || name.length>80) return showFailToast('姓名长度需要1至80位')
+  userEditSaving.value = true
+  try {
+    await api.put('/admin/users/'+encodeURIComponent(value.username),{
+      displayName:name, role:value.role
+    })
+    users.value = (await api.get('/admin/users')).data
+    showSuccessToast('用户信息已保存')
+    cancelUserEdit()
+  } catch(e) { showFailToast('保存用户失败：'+errorText(e)) }
+  finally { userEditSaving.value=false }
+}
+async function resetUserPassword() {
+  if (!requireAdmin() || userEditSaving.value || !userEditVisible.value) return
+  const value=userEditForm.value
+  if (value.password.length<10 || value.password.length>128)
+    return showFailToast('重置密码需为10至128位')
+  try {
+    await showConfirmDialog({
+      title:'确认重置密码',
+      message:'确定为“'+value.username+'”重置密码吗？该用户的现有登录令牌将失效。'
+    })
+  } catch { return }
+  userEditSaving.value = true
+  try {
+    await api.post('/admin/users/'+encodeURIComponent(value.username)+'/reset-password',
+      { password:value.password })
+    userEditForm.value.password=''
+    showSuccessToast('密码已重置，该用户需要重新登录')
+  } catch(e) { showFailToast('密码重置失败：'+errorText(e)) }
+  finally { userEditSaving.value=false }
 }
 function pretty(v) {
   if (v === null || v === undefined) return '—'
@@ -943,6 +1006,14 @@ onBeforeUnmount(() => {
           </div>
           <span class="tb-admin-heading-badge"><van-icon name="shield-o"/> 管理员权限</span>
         </div>
+        <div v-if="adminSectionBusy" class="tb-admin-loading" role="status">
+          <van-loading size="18px"/> 正在加载 {{ desktopSectionTitle }}…
+        </div>
+        <div v-if="adminSectionError && !adminSectionBusy" class="tb-admin-load-error" role="alert">
+          <van-icon name="warning-o" size="18"/>
+          <span>{{ adminSectionError }}</span>
+          <button type="button" @click="loadAdminSectionData(desktopSection)">重试加载</button>
+        </div>
         <div v-if="desktopSection==='admin-overview'" class="tb-admin-overview">
           <div class="tb-admin-overview-grid">
             <button type="button" @click="openAdminSection('admin-source')">
@@ -980,12 +1051,32 @@ onBeforeUnmount(() => {
               <strong>用户管理</strong><small>用户账号与角色</small>
               <van-icon name="arrow" class="tb-admin-overview-arrow"/>
             </button>
-            <button type="button" @click="refreshAdminOverview">
+            <button type="button" @click="openAdminSection('admin-status')">
               <span class="tb-admin-overview-icon icon-status"><van-icon name="chart-trending-o" size="21"/></span>
               <strong>配置状态</strong><small>刷新数据源、模型配置状态</small>
               <van-icon name="replay" class="tb-admin-overview-arrow"/>
             </button>
           </div>
+        </div>
+        <div v-else-if="desktopSection==='admin-status'" class="tb-admin-panel-card tb-admin-status-page">
+          <div class="tb-admin-panel-intro tb-admin-panel-intro-action">
+            <div><strong>平台连接与配置状态</strong>
+              <p>检查模型与数据源是否已完成配置，点击条目进入对应设置。</p></div>
+            <button type="button" class="tb-admin-plain-action" @click="refreshAdminOverview"
+              :disabled="adminSectionBusy"><van-icon name="replay"/> 刷新状态</button>
+          </div>
+          <div class="tb-config-status-list">
+            <button v-for="item in configuredStatusRows" :key="item.key" type="button"
+              @click="openAdminSection(item.section)">
+              <span class="tb-config-status-icon"><van-icon :name="item.configured ? 'passed' : 'warning-o'"/></span>
+              <span class="tb-config-status-copy"><strong>{{ item.key }}</strong><small>{{ item.detail }}</small></span>
+              <span class="tb-config-state" :class="{ok:item.configured}">
+                {{ item.configured ? '已配置' : '未配置' }}
+              </span>
+              <van-icon name="arrow"/>
+            </button>
+          </div>
+          <p class="muted">这里展示的是配置完整性，是否能够真正连接或调用，请进入对应模块点击“测试连接”。</p>
         </div>
         <div v-else-if="['admin-source','admin-model','admin-embedding'].includes(desktopSection)"
           class="tb-admin-panel-card tb-admin-config-page">
@@ -1164,18 +1255,63 @@ onBeforeUnmount(() => {
           </section>
         </div>
         <div v-else-if="desktopSection==='admin-users'" class="tb-admin-panel-card tb-admin-users-page">
-          <h3>内部账号管理</h3>
-          <div v-for="user in users" :key="user.username" class="status-row">
-            <span>{{ user.displayName }}（{{ user.username }}）</span><small>{{ user.role }}</small>
+          <div class="tb-admin-panel-intro">
+            <strong>用户与权限管理</strong>
+            <p>管理员可创建用户、编辑显示名称与角色、重置密码。普通用户不能操作这里的配置。</p>
           </div>
-          <van-field v-model="newUser.username" label="新账号" placeholder="英文账号" />
-          <van-field v-model="newUser.displayName" label="姓名" placeholder="显示名称" />
-          <van-field v-model="newUser.password" label="密码" type="password" placeholder="至少10位" />
-          <van-field label="角色"><template #input><van-radio-group v-model="newUser.role" direction="horizontal">
-            <van-radio name="USER">普通用户</van-radio><van-radio name="ADMIN">管理员</van-radio>
-          </van-radio-group></template></van-field>
-          <van-button type="primary" block plain @click="addUser">创建账号</van-button>
-          <p class="muted">管理员可创建新账号并分配角色。普通用户不能修改模型、数据源或系统授权。</p>
+          <div class="tb-users-table">
+            <div class="tb-user-head"><span>用户</span><span>角色</span><span>操作</span></div>
+            <div v-for="user in users" :key="user.username" class="tb-user-row">
+              <span class="tb-user-identity">
+                <span class="tb-user-avatar">{{ (user.displayName || user.username || '用').slice(0,1) }}</span>
+                <span><strong>{{ user.displayName || user.username }}</strong><small>{{ user.username }}</small></span>
+              </span>
+              <span class="tb-user-role">{{ user.role==='ADMIN' ? '管理员' : '普通用户' }}</span>
+              <button type="button" class="tb-user-edit" @click="editUser(user)">
+                <van-icon name="edit"/> 编辑 / 重置密码
+              </button>
+            </div>
+            <div v-if="!users.length && !adminSectionBusy" class="tb-admin-empty">
+              暂无用户信息，请点击“重试加载”检查接口。
+            </div>
+          </div>
+          <div v-if="userEditVisible" class="tb-user-editor">
+            <div class="tb-user-editor-title">
+              <strong>编辑用户 · {{ userEditForm.username }}</strong>
+              <button type="button" :disabled="userEditSaving" @click="cancelUserEdit"><van-icon name="cross"/> 关闭</button>
+            </div>
+            <van-field v-model="userEditForm.displayName" label="显示名称" placeholder="请输入姓名"/>
+            <van-field label="用户角色"><template #input>
+              <van-radio-group v-model="userEditForm.role" direction="horizontal">
+                <van-radio name="USER">普通用户</van-radio>
+                <van-radio name="ADMIN">管理员</van-radio>
+              </van-radio-group>
+            </template></van-field>
+            <div class="tb-user-action-row">
+              <van-button type="primary" :loading="userEditSaving" @click="saveUserProfile">保存用户信息</van-button>
+            </div>
+            <div class="tb-user-reset">
+              <strong>重置登录密码</strong>
+              <p>仅由管理员执行，新密码需至少10位；重置后该账号需要重新登录。</p>
+              <van-field v-model="userEditForm.password" label="新密码"
+                type="password" autocomplete="new-password" placeholder="10–128 位"/>
+              <van-button plain type="danger" :loading="userEditSaving" @click="resetUserPassword">重置密码</van-button>
+            </div>
+          </div>
+          <div class="tb-user-create">
+            <h3>创建新账号</h3>
+            <van-field v-model="newUser.username" label="登录账号" placeholder="3–64 位英文账号" />
+            <van-field v-model="newUser.displayName" label="显示名称" placeholder="用户姓名" />
+            <van-field v-model="newUser.password" label="初始密码" type="password"
+              autocomplete="new-password" placeholder="至少10位" />
+            <van-field label="角色"><template #input>
+              <van-radio-group v-model="newUser.role" direction="horizontal">
+                <van-radio name="USER">普通用户</van-radio>
+                <van-radio name="ADMIN">管理员</van-radio>
+              </van-radio-group>
+            </template></van-field>
+            <van-button type="primary" :loading="userBusy" @click="addUser">创建账号</van-button>
+          </div>
         </div>
       </main>
       <main v-if="isDesktop && desktopSection==='overview'" class="tb-page-body tb-overview ds-home" aria-label="DataAsk 工作台">
