@@ -204,33 +204,86 @@ function querySummary(a){
  return safe(a.summary||'已返回真实查询结果');
 }
 
-function numericColumn(a){
- const cols=a.columns||[],rows=a.rows||[];return cols.find(c=>rows.some(r=>r[c]!==null&&r[c]!==''&&Number.isFinite(Number(r[c]))))||'';
-}
 
+const chartColors=['#3478ec','#12b8a6','#f49b4e','#8467d8','#e86992','#24a6cf','#dbc34d','#62bc80'];
+const cnLabels={city:'城市',city_name:'城市',city_name_std:'城市',province:'省份',dt:'业务日期',biz_date:'业务日期',total_orders:'订单总数',order_cnt:'订单量',order_count:'订单数',total_amount:'总金额',pay_amount:'实付金额',total_revenue:'营业额',revenue:'营业额',user_cnt:'用户数',store_name:'门店名称'};
+function colLabel(a,c){return a.columnLabels?.[c]||cnLabels[String(c).toLowerCase()]||c}
+function valueFmt(n){return Number(n||0).toLocaleString('zh-CN',{maximumFractionDigits:2})}
+function chartCols(a){
+ const cols=a.columns||[],rows=a.rows||[];
+ const nums=cols.filter(c=>rows.some(r=>r[c]!==null&&r[c]!==undefined&&r[c]!==''&&typeof r[c]!=='boolean'&&Number.isFinite(Number(r[c]))));
+ const measures=nums.filter(c=>/count|cnt|amount|orders|revenue|total|sum|num|income|sales|金额|收入|数量|订单/i.test(c));
+ const y=measures[0]||nums[nums.length-1],x=cols.find(c=>c!==y&&rows.some(r=>r[c]!=null&&!Number.isFinite(Number(r[c]))))||cols.find(c=>c!==y);
+ return {x,y};
+}
+function chartable(a){const {x,y}=chartCols(a);return !!(x&&y&&(a.rows||[]).length>1)}
+function pieAllowed(a){
+ if(!chartable(a))return false;const {y}=chartCols(a),v=(a.rows||[]).slice(0,12).map(r=>Number(r[y]));
+ return v.every(n=>Number.isFinite(n)&&n>=0)&&v.some(n=>n>0);
+}
+function displayType(a){
+ const type=state.chartStyles[a.id]||(['bar','line','pie'].includes(a.chartType)?a.chartType:'bar');
+ return type==='pie'&&!pieAllowed(a)?'bar':type;
+}
+function displayMode(a){return state.chartModes[a.id]||(!chartable(a)?'table':'chart')}
 function resultTable(a){
  const cols=a.columns||[],rows=a.rows||[];
- if(!cols.length)return '<p class="inner-desc">当前没有返回数据行</p>';
- return '<div style="overflow-x:auto"><table class="table-data"><thead><tr>'+cols.map(c=>'<th>'+safe(a.columnLabels?.[c]||c)+'</th>').join('')+'</tr></thead><tbody>'+
+ if(!cols.length)return '<p class="inner-desc">暂无数据</p>';
+ return '<div class="chart-table-scroll"><table class="table-data"><thead><tr>'+
+ cols.map(c=>'<th>'+safe(colLabel(a,c))+'</th>').join('')+'</tr></thead><tbody>'+
  rows.slice(0,200).map(r=>'<tr>'+cols.map(c=>'<td>'+safe(r[c]??'—')+'</td>').join('')+'</tr>').join('')+'</tbody></table></div>';
 }
-
 function resultChart(a){
- const cols=a.columns||[],rows=(a.rows||[]).slice(0,20),num=numericColumn(a);
- if(!num||rows.length<2||cols.length<2)return resultTable(a);
- const dim=cols.find(c=>c!==num)||cols[0],values=rows.map(r=>Number(r[num])||0);
- const max=Math.max(...values.map(Math.abs),1), W=340,H=178;
- if(a.chartType==='line'){
-   const xp=i=>24+(W-46)*i/Math.max(1,values.length-1),yp=v=>144-(v/max)*115;
-   const line=values.map((v,i)=>(i?'L':'M')+xp(i)+','+yp(v)).join(' ');
-   const labels=[0,Math.floor((values.length-1)/2),values.length-1].filter((i,k,x)=>x.indexOf(i)===k);
-   return '<svg class="chart-svg" viewBox="0 0 340 178" role="img" aria-label="真实数据趋势图"><path d="M24 144H318M24 87H318M24 30H318" stroke="#e8edf8"/><path d="'+line+'" stroke="#397aff" stroke-width="3" fill="none" stroke-linecap="round"/>'+
-   values.map((v,i)=>'<circle cx="'+xp(i)+'" cy="'+yp(v)+'" r="3.5" fill="#fff" stroke="#397aff" stroke-width="2"/>').join('')+
-   labels.map(i=>'<text x="'+xp(i)+'" y="169" font-size="10" fill="#8190ae" text-anchor="middle">'+safe(String(rows[i][dim]??''))+'</text>').join('')+'</svg>';
+ if(!chartable(a))return resultTable(a);
+ const {x,y}=chartCols(a),type=displayType(a);
+ const all=a.rows||[],rows=all.slice(0,type==='pie'?12:60),nums=rows.map(r=>Number(r[y])||0);
+ const W=340,svgLabel=safe(colLabel(a,x))+' / '+safe(colLabel(a,y));
+ let svg='',H=220;
+ if(type==='bar'){
+   const left=77,right=42,top=26,rowH=31,barH=14,inner=W-left-right;
+   H=top+rows.length*rowH+25;
+   const min=Math.min(0,...nums),max=Math.max(0,...nums),range=max-min||1;
+   const zero=left+(0-min)/range*inner;
+   svg=[0,.25,.5,.75,1].map(t=>{
+     const xx=left+t*inner;
+     return '<line x1="'+xx.toFixed(1)+'" y1="13" x2="'+xx.toFixed(1)+'" y2="'+(H-29)+'" stroke="#e6eefa" stroke-dasharray="3 4"/>'+
+       '<text x="'+xx.toFixed(1)+'" y="'+(H-7)+'" text-anchor="middle" font-size="9" fill="#91a0b8">'+safe(valueFmt(min+t*range))+'</text>';
+   }).join('');
+   svg+=rows.map((r,i)=>{
+     const val=nums[i],end=left+(val-min)/range*inner,xx=Math.min(zero,end),barWidth=Math.max(1,Math.abs(end-zero)),yy=top+i*rowH;
+     const name=String(r[x]??'未分类');
+     return '<text x="'+(left-8)+'" y="'+(yy+10)+'" text-anchor="end" font-size="10.5" fill="#526784">'+safe(name.length>8?name.slice(0,8)+'…':name)+'</text>'+
+       '<rect x="'+xx.toFixed(1)+'" y="'+yy+'" width="'+barWidth.toFixed(1)+'" height="'+barH+'" rx="3" fill="'+chartColors[i%chartColors.length]+'"/>'+
+       '<text x="'+(val>=0?Math.min(end+5,W-3):Math.max(end-4,3)).toFixed(1)+'" y="'+(yy+10)+'" text-anchor="'+(val>=0?'start':'end')+'" font-size="9.5" font-weight="600" fill="#526784">'+safe(valueFmt(val))+'</text>';
+   }).join('');
+ }else if(type==='line'){
+   const left=41,right=13,top=18,bottom=43,lo=Math.min(0,...nums),hi=Math.max(0,...nums),range=hi-lo||1;
+   const xp=i=>left+(W-left-right)*i/Math.max(1,rows.length-1);
+   const yp=n=>top+(H-top-bottom)*(hi-n)/range;
+   svg=[0,.25,.5,.75,1].map(t=>{const n=lo+range*t,yy=yp(n);return '<line x1="'+left+'" y1="'+yy.toFixed(1)+'" x2="'+(W-right)+'" y2="'+yy.toFixed(1)+'" stroke="#e6eefa" stroke-dasharray="3 4"/><text x="'+(left-5)+'" y="'+(yy+3).toFixed(1)+'" text-anchor="end" font-size="9" fill="#91a0b8">'+safe(valueFmt(n))+'</text>'}).join('');
+   svg+='<path d="'+nums.map((v,i)=>(i?'L':'M')+xp(i).toFixed(1)+' '+yp(v).toFixed(1)).join(' ')+'" stroke="#3478ec" stroke-width="2.7" fill="none" stroke-linejoin="round"/>';
+   svg+=nums.map((v,i)=>'<circle cx="'+xp(i).toFixed(1)+'" cy="'+yp(v).toFixed(1)+'" r="2.8" fill="#fff" stroke="#3478ec" stroke-width="1.7"/>').join('');
+   const ticks=[...new Set([0,Math.round((rows.length-1)/4),Math.round((rows.length-1)/2),Math.round(3*(rows.length-1)/4),rows.length-1])];
+   svg+=ticks.map(i=>'<text x="'+xp(i).toFixed(1)+'" y="'+(H-12)+'" text-anchor="middle" font-size="9" fill="#8b9ab3">'+safe(String(rows[i][x]??'').slice(0,6))+'</text>').join('');
+ }else{
+   const total=nums.reduce((u,v)=>u+v,0),cx=170,cy=94,r=78,firstY=204;
+   H=firstY+rows.length*21+10;let angle=-Math.PI/2;
+   svg=rows.map((row,i)=>{
+     const v=nums[i];if(v<=0)return '';
+     const next=angle+v/total*Math.PI*2,dx=cx+r*Math.cos(angle),dy=cy+r*Math.sin(angle),ex=cx+r*Math.cos(next),ey=cy+r*Math.sin(next);
+     const sweep=next-angle,large=sweep>Math.PI?1:0;
+     let d=sweep>2*Math.PI-.00001?'M '+cx+' '+(cy-r)+' A '+r+' '+r+' 0 1 1 '+(cx-.01)+' '+(cy-r)+' A '+r+' '+r+' 0 1 1 '+cx+' '+(cy-r):
+       'M '+cx+' '+cy+' L '+dx.toFixed(2)+' '+dy.toFixed(2)+' A '+r+' '+r+' 0 '+large+' 1 '+ex.toFixed(2)+' '+ey.toFixed(2)+' Z';
+     angle=next;
+     return '<path d="'+d+'" fill="'+chartColors[i%chartColors.length]+'" stroke="white" stroke-width="2"/>';
+   }).join('');
+   svg+='<circle cx="'+cx+'" cy="'+cy+'" r="39" fill="white"/><text x="'+cx+'" y="'+(cy-5)+'" text-anchor="middle" font-size="10" fill="#91a0b8">合计</text><text x="'+cx+'" y="'+(cy+15)+'" text-anchor="middle" font-size="17" font-weight="750" fill="#263e63">'+safe(valueFmt(total))+'</text>';
+   svg+=rows.map((row,i)=>'<rect x="12" y="'+(firstY+i*21-10)+'" width="10" height="10" rx="3" fill="'+chartColors[i%chartColors.length]+'"/>'+
+     '<text x="31" y="'+(firstY+i*21)+'" font-size="11" fill="#526784">'+safe(String(row[x]??'未分类').slice(0,14))+'</text>'+
+     '<text x="326" y="'+(firstY+i*21)+'" font-size="10.5" text-anchor="end" fill="#526784">'+safe(valueFmt(nums[i]))+' · '+(nums[i]/total*100).toFixed(1)+'%</text>').join('');
  }
- const showing=rows.slice(0,8);
- return '<div class="rank-card"><div class="rank-title">'+safe(a.columnLabels?.[dim]||dim)+' · '+safe(a.columnLabels?.[num]||num)+'</div>'+
- showing.map((row,i)=>'<div class="rank-row"><span style="max-width:30%;overflow:hidden;text-overflow:ellipsis">'+safe(row[dim]??'—')+'</span><div class="rank-bar"><i style="width:'+Math.max(0,(Math.abs(Number(row[num])||0)/max*100)).toFixed(1)+'%"></i></div><span>'+safe(row[num]??'—')+'</span></div>').join('')+'</div>';
+ return '<div class="chart-plot" role="img" aria-label="'+svgLabel+'图表"><svg class="chart-svg" viewBox="0 0 '+W+' '+H+'" preserveAspectRatio="xMidYMin meet">'+svg+'</svg>'+
+ '<p class="chart-footnote">'+svgLabel+(all.length>rows.length?' · 仅展示前'+rows.length+'项':'')+'</p></div>';
 }
 
 function answerCard(item){
