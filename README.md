@@ -259,7 +259,7 @@ PC 优化位于独立分支 `dev20261109-miniapp-v2`，重新拉取、打包和�
 
     curl -s http://127.0.0.1:8087/build-info.json
 
-新版本应该返回 buildSha、builtAt、uiLayout 为 desktop-reference-home-v3、modelManagement 为 web 的 JSON。为保持 C 端界面简洁，PC 侧栏不再显示技术构建号；可通过此接口检查。返回 404 说明运行的可能是旧 JAR 或访问了错误的服务器。
+新版本应该返回 buildSha、builtAt、uiLayout 为 desktop-global-layout-v4、modelManagement 为 web 的 JSON。为保持 C 端界面简洁，PC 侧栏不再显示技术构建号；可通过此接口检查。返回 404 说明运行的可能是旧 JAR 或访问了错误的服务器。
 
 浏览器可尝试 Ctrl+Shift+R，或用无痕窗口排除旧缓存；新版本已为 HTML 和构建信息添加无缓存响应头。
 
