@@ -60,6 +60,13 @@ class AdminAccessTest {
         assertThrows(AccessDeniedException.class, () -> controller.saveEmbedding(null));
         assertThrows(AccessDeniedException.class, () -> controller.testEmbedding(null));
         assertThrows(AccessDeniedException.class, () -> controller.rebuildSemantics());
+        assertThrows(AccessDeniedException.class, () ->
+            controller.updateUser("someone",
+                new AdminController.UserEditRequest("Someone", "USER"),
+                SecurityContextHolder.getContext().getAuthentication()));
+        assertThrows(AccessDeniedException.class, () ->
+            controller.resetPassword("someone",
+                new AdminController.ResetPasswordRequest("new-long-password-123")));
     }
 
     @Test
