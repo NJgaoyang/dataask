@@ -322,3 +322,147 @@
   .quick-grid{grid-template-columns:repeat(4,minmax(0,1fr))}
   .quick-grid button{font-size:13px;min-height:72px}
 }
+
+
+/* PC UX review v2: clear hierarchy, actionable answers, accessible controls.
+   Strictly desktop-only. No miniapp or H5 mobile styles are overridden. */
+@media (min-width:1024px) {
+  .desktop-welcome-kicker{
+    display:inline-flex;align-items:center;gap:7px;
+    margin:2px 0 12px;color:#6c83b5;
+    font-size:11px;font-weight:700;letter-spacing:1.35px
+  }
+  .desktop-examples-label{
+    display:flex;align-items:center;justify-content:space-between;
+    gap:10px;margin:13px auto 13px;
+    max-width:1120px;text-align:left;
+    color:#4f638e;font-size:13px;font-weight:700
+  }
+  .desktop-examples-label span{
+    color:#98a5be;font-size:12px;font-weight:400
+  }
+  .desktop-quick-grid button{
+    justify-content:flex-start;gap:13px;
+    min-width:0;line-height:1.5;
+    transition:border-color .16s ease,transform .16s ease,box-shadow .16s ease;
+  }
+  .desktop-question-icon{
+    height:40px;width:40px;display:flex;flex-shrink:0;
+    align-items:center;justify-content:center;border-radius:12px;
+    background:#eff3ff;color:#346cf4;
+  }
+  .desktop-quick-grid .desktop-question-icon .van-icon{
+    font-size:21px;color:#3672f7
+  }
+  .desktop-quick-grid .quick-question-text{
+    min-width:0;flex:1;line-height:1.45;font-weight:500
+  }
+  .desktop-quick-grid button>.van-icon:last-child{flex-shrink:0;font-size:15px}
+  .desktop-quick-grid button:hover{box-shadow:0 7px 19px rgba(47,82,168,.08)}
+  .quick-grid button:focus-visible,.sidebar-new:focus-visible,
+  .desktop-main-nav button:focus-visible,.sidebar-session:focus-visible,
+  .top-actions button:focus-visible,.composer .send-btn:focus-visible,
+  .desktop-answer-tools button:focus-visible,.desktop-result-switch button:focus-visible,
+  .desktop-feedback-card button:focus-visible{
+    outline:3px solid #a7bbff;outline-offset:3px
+  }
+  .conversation .turn{scroll-margin-block-start:15px}
+  .conversation .answer-card{overflow:hidden}
+  .conversation .answer-summary{line-height:1.85;overflow-wrap:anywhere}
+  .desktop-result-header{
+    display:flex;justify-content:space-between;align-items:center;
+    flex-wrap:wrap;gap:10px;margin:19px 0 10px;
+    padding-bottom:12px;border-bottom:1px solid #edf1fa
+  }
+  .desktop-result-heading{
+    display:flex;align-items:center;gap:9px;
+    color:#273a63;font-size:13px;font-weight:700
+  }
+  .desktop-result-heading>.van-icon{font-size:18px;color:#437bff}
+  .desktop-result-heading span{font-size:11px;font-weight:400;color:#9aa8bd}
+  .desktop-result-switch{
+    display:flex;align-items:center;padding:3px;border:1px solid #e5eaf7;
+    background:#f6f8fd;border-radius:10px;gap:3px
+  }
+  .desktop-result-switch button{
+    background:none;border:0;padding:7px 13px;border-radius:7px;
+    color:#7484a2;cursor:pointer;font-size:12px;font-weight:500
+  }
+  .desktop-result-switch button.active{
+    color:#2d65e8;background:#fff;font-weight:700;
+    box-shadow:0 2px 8px rgba(40,67,132,.09)
+  }
+  .metric-data{flex-wrap:wrap;gap:13px}
+  .metric-data div{
+    min-width:148px;padding:18px 22px;
+    background:linear-gradient(135deg,#f2f7ff,#f9fbff);
+    border:1px solid #e7eefc;border-radius:15px
+  }
+  .metric-data strong{
+    font-size:clamp(24px,2.1vw,34px);
+    font-variant-numeric:tabular-nums;color:#172f66;overflow-wrap:anywhere
+  }
+  .result-table-scroll{margin-top:12px;border-radius:12px;max-height:380px}
+  .result-table th{font-size:12px;font-weight:600}
+  .result-table td{font-size:12px;color:#40516c}
+  .chart-shell{padding:16px 13px 10px}
+  .chart-shell .chart-view{height:315px;min-height:275px}
+  .desktop-answer-tools{
+    display:flex;flex-wrap:wrap;gap:8px;
+    justify-content:flex-end;padding-top:17px;
+    margin-top:14px;border-top:1px solid #edf1f8
+  }
+  .desktop-answer-tools button{
+    transition:background .15s,color .15s,border-color .15s;
+    min-height:34px;white-space:nowrap
+  }
+  .desktop-answer-tools button:hover{background:#f3f7ff}
+  .desktop-answer-tools button:disabled{opacity:.45;cursor:not-allowed}
+  .desktop-feedback-card{
+    display:flex;align-items:center;gap:14px;
+    background:#fff;border:1px solid #e2e9fa;border-radius:16px;
+    padding:17px 20px;box-shadow:0 4px 15px rgba(49,77,157,.045)
+  }
+  .desktop-feedback-card>.van-icon{color:#e89a3d;flex-shrink:0}
+  .desktop-feedback-card.feedback-stopped>.van-icon{color:#607ba8}
+  .desktop-feedback-content{flex:1;min-width:0}
+  .desktop-feedback-content strong{font-size:13px;color:#233451}
+  .desktop-feedback-content p{
+    color:#8190a9;font-size:12px;margin:6px 0 0;
+    overflow-wrap:anywhere;line-height:1.6
+  }
+  .desktop-feedback-card button{
+    flex-shrink:0;display:inline-flex;gap:6px;align-items:center;
+    padding:9px 12px;border-radius:10px;border:1px solid #dce6fc;
+    color:#3368dd;background:#f6f9ff;cursor:pointer;font-size:12px
+  }
+  .desktop-pending-turn .loading-bubble{
+    background:#fbfcff;border-color:#d9e2fa;line-height:1.7
+  }
+  .desktop-pending-turn .loading-bubble .van-loading{flex-shrink:0}
+  .desktop-composer-hints{
+    position:absolute;left:24px;right:77px;bottom:21px;
+    display:flex;justify-content:space-between;align-items:center;
+    gap:14px;min-width:0;pointer-events:none;
+    font-size:11px;color:#a1aec3
+  }
+  .desktop-composer-hints i{font-style:normal;margin:0 5px}
+  .desktop-composer-hints .near-limit{color:#be7025;font-weight:700}
+  .composer .send-btn:not(:disabled):hover{filter:brightness(1.06);transform:translateY(-1px)}
+  .composer .send-btn{transition:filter .16s ease,transform .16s ease}
+  .share-dialog{padding:24px}
+  .share-dialog .join-select{margin-bottom:11px}
+  .drawer .session-item:hover{background:#f7faff}
+  @media (max-height:660px){
+    .welcome{padding-top:12px}
+    .welcome-icon{width:54px;height:54px;margin-bottom:12px}
+    .welcome h2{font-size:25px}
+    .welcome p{margin:8px 0 16px}
+    .quick-grid button{min-height:62px}
+    .composer-row{min-height:110px;padding-top:17px;padding-bottom:57px}
+    .composer textarea{max-height:96px}
+  }
+}
+@media (prefers-reduced-motion:reduce) and (min-width:1024px) {
+  .desktop-quick-grid button,.composer .send-btn,.desktop-answer-tools button{transition:none!important;transform:none!important}
+}
