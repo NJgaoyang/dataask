@@ -43,6 +43,7 @@ for(const section of allDesktopSections){
 }
 for(const rule of [
   'grid-area:sidebar', 'grid-row:1 / -1', 'height:100dvh',
+  'linear-gradient(155deg,#11285f', 'sidebar-bottom',
   '.tb-page-body', '.tb-page-heading', '.tb-admin-heading',
   '.tb-admin-panel-intro', '.ds-home-intro', '.qbi-welcome-brand',
   '.conversation', '.tb-history-search'
