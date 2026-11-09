@@ -741,8 +741,40 @@ onBeforeUnmount(() => desktopMedia?.removeEventListener('change', window.__dataA
         </nav>
         <div v-if="isAdmin" class="tb-sidebar-divider"></div>
         <div v-if="isAdmin" class="tb-nav-category">管理</div>
-        <nav v-if="isAdmin" class="desktop-main-nav" aria-label="管理功能">
-          <button type="button" @click="openAdmin"><van-icon name="setting-o"/> 系统管理</button>
+        <nav v-if="isAdmin" class="desktop-main-nav tb-admin-nav" aria-label="系统管理">
+          <button type="button" class="tb-admin-parent"
+            :class="{active:desktopIsAdminSection}"
+            :aria-expanded="adminExpanded"
+            @click="adminExpanded ? (adminExpanded=false, desktopIsAdminSection && switchDesktopSection('overview')) : openAdmin()">
+            <van-icon name="setting-o"/> 系统管理
+            <van-icon :name="adminExpanded ? 'arrow-up' : 'arrow-down'" class="tb-admin-chevron" size="12"/>
+          </button>
+          <div v-if="adminExpanded" class="tb-admin-submenu" aria-label="系统管理二级菜单">
+            <button type="button" :class="{active:desktopSection==='admin-overview'}" @click="openAdminSection('admin-overview')">
+              <van-icon name="apps-o"/> 管理概览
+            </button>
+            <button type="button" :class="{active:desktopSection==='admin-source'}" @click="openAdminSection('admin-source')">
+              <van-icon name="cluster-o"/> 数据源配置
+            </button>
+            <button type="button" :class="{active:desktopSection==='admin-model'}" @click="openAdminSection('admin-model')">
+              <van-icon name="comment-o"/> 对话模型
+            </button>
+            <button type="button" :class="{active:desktopSection==='admin-embedding'}" @click="openAdminSection('admin-embedding')">
+              <van-icon name="setting-o"/> Embedding 模型
+            </button>
+            <button type="button" :class="{active:desktopSection==='admin-tables'}" @click="openAdminSection('admin-tables')">
+              <van-icon name="records-o"/> ADS 表授权
+            </button>
+            <button type="button" :class="{active:desktopSection==='admin-joins'}" @click="openAdminSection('admin-joins')">
+              <van-icon name="exchange"/> 表关联规则
+            </button>
+            <button type="button" :class="{active:desktopSection==='admin-metrics'}" @click="openAdminSection('admin-metrics')">
+              <van-icon name="description"/> 指标口径
+            </button>
+            <button type="button" :class="{active:desktopSection==='admin-users'}" @click="openAdminSection('admin-users')">
+              <van-icon name="friends-o"/> 用户管理
+            </button>
+          </div>
         </nav>
         <div class="tb-sidebar-fill"></div>
         <div class="sidebar-bottom">
