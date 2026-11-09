@@ -177,6 +177,67 @@ button,input,textarea{font:inherit}button{border:0;cursor:pointer;color:inherit}
   .mobile-result-row .chart-card{padding-left:6px;padding-right:6px}
 }
 
+
+/* A fixed-height viewport for every chart type and the data table.
+   Switching bar/line/pie/table never grows or shrinks the chat result card.
+   Long rankings scroll INSIDE this surface instead of pushing the composer. */
+.mobile-result-row .chart-viewport{
+  height: 400px;
+  height: clamp(280px, 45dvh, 440px);
+  min-height: 0;
+  max-height: none;
+  width: 100%;
+  max-width: 100%;
+  box-sizing: border-box;
+  overflow-y: auto;
+  overflow-x: hidden;
+  overscroll-behavior: contain;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: thin;
+  scrollbar-color: #c5d5f1 transparent;
+  border: 1px solid #e7eefb;
+  background: #fcfdff;
+  border-radius: 12px;
+  padding: 7px 3px 8px;
+}
+.mobile-result-row .chart-viewport:focus-visible{
+  outline: 2px solid #8db7ff;
+  outline-offset: 2px;
+}
+.mobile-result-row .chart-viewport::-webkit-scrollbar{width:4px}
+.mobile-result-row .chart-viewport::-webkit-scrollbar-thumb{
+  background:#c5d5f1;border-radius:5px
+}
+.mobile-result-row .chart-viewport .chart-plot{
+  padding:0;
+  margin:0;
+  border:0;
+  border-radius:0;
+  background:transparent;
+  width:100%;
+  max-width:100%;
+  min-height:0;
+  overflow:visible;
+}
+.mobile-result-row .chart-viewport .chart-svg{
+  display:block;
+  width:100%;
+  height:auto;
+  max-width:100%;
+}
+.mobile-result-row .chart-viewport .chart-table-scroll{
+  width:100%;
+  height:auto;
+  max-height:none;
+  overflow-x:auto;
+  overflow-y:visible;
+  border:0;
+}
+.mobile-result-row .chart-viewport .chart-footnote{
+  margin:6px 8px 2px;
+  color:#899bb5;
+}
+
 </style>
 </head>
 <body>
@@ -375,7 +436,8 @@ function answerCard(item){
  analysis+(data.timeLabel?'<div class="sample-note">'+safe(data.timeLabel)+'</div>':'')+'</div>'+
  (visual?'<div class="chart-card"><div class="chart-head"><div class="chart-title">'+safe(data.metricLabel||'业务分析')+'</div>'+
  '<div class="chart-actions">'+views+'</div></div>'+chartTypes+
- (view==='table'?resultTable(data):resultChart(data))+'</div>'+
+ '<div class="chart-viewport" tabindex="0" role="region" aria-label="数据图表与表格区域，可上下滚动">'+
+ (view==='table'?resultTable(data):resultChart(data))+'</div></div>'+
  '<div class="toolbar"><button class="lite-btn '+(saved?'saved':'')+'" data-action="save" data-mid="'+safe(data.id)+'">'+icon('star','sm')+(saved?'已收藏':'收藏图表')+'</button>'+
  '<button class="lite-btn" data-action="share" data-mid="'+safe(data.id)+'">'+icon('share','sm')+'共享</button></div>':'')+
  (data.followUps?.length?'<div class="followups"><div class="follow-label">你还可以继续问：</div><div class="chips">'+data.followUps.map(q=>'<button class="chip" data-action="follow" data-q="'+safe(q)+'">'+icon('sparkle','sm')+safe(q)+'</button>').join('')+'</div></div>':'')+
@@ -496,8 +558,21 @@ async function handleClick(e){
  case 'ask-chat':ask('chat-query',true);break;
  case 'shuffle':state.sampleSet=(state.sampleSet+1)%sets.length;render();break;
  case 'mic':openModal('voice');break;
- case 'chart-mode':state.chartModes[target.dataset.mid]=target.dataset.mode;render();break;
- case 'chart-style':state.chartStyles[target.dataset.mid]=target.dataset.style;state.chartModes[target.dataset.mid]='chart';render();break;
+ case 'chart-mode':{
+   const scroll=document.getElementById('scroll-area')?.scrollTop||0;
+   state.chartModes[target.dataset.mid]=target.dataset.mode;
+   render();
+   const area=document.getElementById('scroll-area');if(area)area.scrollTop=scroll;
+   break;
+ }
+ case 'chart-style':{
+   const scroll=document.getElementById('scroll-area')?.scrollTop||0;
+   state.chartStyles[target.dataset.mid]=target.dataset.style;
+   state.chartModes[target.dataset.mid]='chart';
+   render();
+   const area=document.getElementById('scroll-area');if(area)area.scrollTop=scroll;
+   break;
+ }
  case 'save':await saveAnswer(target.dataset.mid);break;
  case 'share':{let id=target.dataset.chart;if(!id&&target.dataset.mid){const chart=await saveAnswer(target.dataset.mid);id=chart?.id}if(id)openModal('share',id);break}
  case 'open-share':state.view='charts';render();loadCharts();break;
