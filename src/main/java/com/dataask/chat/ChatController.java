@@ -104,10 +104,9 @@ public class ChatController {
         if (question.isEmpty()) throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "请输入问题");
 
         String session = input.sessionId();
-        if (session == null || session.isBlank()) {
+        boolean newSession = session == null || session.isBlank();
+        if (newSession) {
             session = UUID.randomUUID().toString();
-            String title = question.length() > 70 ? question.substring(0,70) : question;
-            jdbc.update("INSERT INTO da_sessions(id,username,title) VALUES(?,?,?)", session, username, title);
         } else {
             requireSession(session, username);
         }
@@ -246,6 +245,13 @@ public class ChatController {
             columnLabels, rows, followups, shown.metricLabel(), shown.periodLabel(), unsupported);
         try {
             String serialized = json.writeValueAsString(answer);
+            active.checkCancelled();
+            if (newSession) {
+                String sessionTitle = question.length() > 70 ? question.substring(0,70) : question;
+                jdbc.update("INSERT INTO da_sessions(id,username,title) VALUES(?,?,?)",
+                    session, username, sessionTitle);
+            }
+            active.checkCancelled();
             jdbc.update("INSERT INTO da_messages(id,session_id,question,generated_sql,title,summary,chart_type,payload_json) " +
                     "VALUES(?,?,?,?,?,?,?,?)", messageId, session, question, sql, title, summary, chart, serialized);
             jdbc.update("UPDATE da_sessions SET updated_at=CURRENT_TIMESTAMP WHERE id=?", session);
