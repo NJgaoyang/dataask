@@ -118,11 +118,7 @@ const quickQuestions = ['昨天的营业额是多少？', '昨天各城市的订
 // Quick BI-inspired desktop querying. A dataset selection is enforced by the server.
 const approvedDatasets = ref([])
 const selectedDataset = ref('')
-const datasetPickerVisible = ref(false)
-const datasetPreview = ref(null)
-const datasetPreviewBusy = ref(false)
 const chartStyles = ref({})
-const selectedDatasetName = computed(() => selectedDataset.value || '全部已授权数据')
 const supportedChartTypes = ['bar','line','pie']
 function pieSupported(msg) {
   const columns = msg.columns || [], rows = msg.rows || []
@@ -153,28 +149,6 @@ async function loadApprovedDatasets() {
     approvedDatasets.value = []
     if (isDesktop.value) showFailToast('读取可用数据失败：'+errorText(e))
   }
-}
-function pickDataset(name = '') {
-  if (name && !approvedDatasets.value.includes(name)) return
-  selectedDataset.value = name
-  datasetPickerVisible.value = false
-  datasetPreview.value = null
-  focusDesktopQuestion()
-}
-async function inspectDataset(name) {
-  if (!approvedDatasets.value.includes(name)) return
-  datasetPreviewBusy.value = true
-  datasetPreview.value = null
-  try {
-    const { data } = await api.get('/chat/datasets/preview', { params: { name } })
-    datasetPreview.value = data
-  } catch(e) { showFailToast(errorText(e)) }
-  finally { datasetPreviewBusy.value = false }
-}
-function toggleDatasetPicker() {
-  datasetPickerVisible.value = !datasetPickerVisible.value
-  datasetPreview.value = null
-  if (datasetPickerVisible.value) loadApprovedDatasets()
 }
 const isAdmin = computed(() => loggedIn.value && verifiedRole.value === 'ADMIN')
 function requireAdmin() {
@@ -264,8 +238,6 @@ function logout() {
   adminExpanded.value = false
   savedCharts.value = []
   sharedCharts.value = []
-  datasetPickerVisible.value = false
-  datasetPreview.value = null
   selectedDataset.value = ''
   approvedDatasets.value = []
 }
@@ -312,7 +284,11 @@ async function openSession(item) {
 function newConversation() {
   if (busy.value) stopAsk()
   sessionId.value = ''; messages.value = []; historyVisible.value = false
-  if (isDesktop.value) desktopSection.value = 'ask'
+  if (isDesktop.value) {
+    desktopSection.value = 'ask'
+    // The desktop dataset chooser is intentionally hidden; a new conversation uses all approved tables.
+    selectedDataset.value = ''
+  }
   desktopFeedback.value = null
   focusDesktopQuestion()
 }
@@ -335,9 +311,9 @@ async function revisitChart(chart) {
       showFailToast('该图表所用数据集已取消授权，请联系管理员')
       return
     }
-    selectedDataset.value = chart.dataset || ''
   }
   newConversation()
+  if (isDesktop.value) selectedDataset.value = chart.dataset || ''
   await ask(chart.question)
 }
 async function saveChart(msg) {
@@ -817,10 +793,6 @@ onBeforeUnmount(() => desktopMedia?.removeEventListener('change', window.__dataA
             <strong class="desktop-current-session">{{ activeSessionTitle }}</strong>
             <small>经营数据助手</small></div>
         </div>
-        <div v-if="isDesktop" class="tb-header-actions">
-          <span class="tb-dataset-counter"><van-icon name="cluster-o"/>{{ approvedDatasets.length }} 个已授权数据集</span>
-          <button type="button" @click="newConversation"><van-icon name="plus"/> 新建问数</button>
-        </div>
         <div v-else class="top-actions">
           <button class="desktop-toggle-results" type="button"
             :title="resultPanelOpen ? '隐藏结果面板' : '显示结果面板'" @click="resultPanelOpen = !resultPanelOpen">
@@ -1183,20 +1155,7 @@ onBeforeUnmount(() => desktopMedia?.removeEventListener('change', window.__dataA
               <span>DataAsk 智能问数</span>
             </div>
             <h2>你好，今天想分析哪些数据？</h2>
-            <p class="qbi-welcome-description">选择可用数据，用自然语言提问；系统会根据已授权 ADS 数据返回分析结果。</p>
-            <div class="qbi-dataset-surface">
-              <div class="qbi-dataset-description">
-                <div class="qbi-dataset-symbol"><van-icon name="cluster-o" size="20"/></div>
-                <div>
-                  <strong>当前问数范围</strong>
-                  <span>{{ selectedDatasetName }}</span>
-                </div>
-                <span class="qbi-dataset-count">{{ approvedDatasets.length }} 个已授权数据集</span>
-              </div>
-              <button type="button" class="qbi-dataset-open" @click="toggleDatasetPicker">
-                {{ selectedDataset ? '切换数据集' : '查看可用数据' }} <van-icon name="arrow" size="13"/>
-              </button>
-            </div>
+            <p class="qbi-welcome-description">用自然语言提问，即可获得经营数据的分析结果。</p>
             <div class="qbi-question-heading">
               <span><van-icon name="fire-o"/> 你可以这样问</span>
               <small>通用问法示例，实际可查询内容取决于指标口径</small>
@@ -1354,12 +1313,6 @@ onBeforeUnmount(() => desktopMedia?.removeEventListener('change', window.__dataA
           <textarea ref="desktopQuestionRef" v-model="question" :rows="isDesktop ? 3 : 1" maxlength="800"
             :placeholder="isDesktop ? '例如：昨天各城市的销售额是多少？' : '问问经营数据，例如：昨日营业额'"
             aria-label="输入经营数据问题" @keydown.enter.exact.prevent="ask()"></textarea>
-          <div v-if="isDesktop" class="qbi-composer-dataset">
-            <button type="button" @click="toggleDatasetPicker" title="选择管理员已开放的 ADS 数据集">
-              <van-icon name="cluster-o"/> {{ selectedDatasetName }} <van-icon name="arrow-down" size="10"/>
-            </button>
-            <span><van-icon name="shield-o"/> 查询受权限保护</span>
-          </div>
           <div v-if="isDesktop" class="desktop-composer-hints">
             <span>Enter 发送 · Shift + Enter 换行</span>
             <span :class="{ 'near-limit': question.length > 700 }">{{ question.length }}/800</span>
@@ -1376,44 +1329,6 @@ onBeforeUnmount(() => desktopMedia?.removeEventListener('change', window.__dataA
         </div>
         <small>DataAsk · 仅供内部经营分析 · 以实际业务口径为准</small>
       </footer>
-      <van-popup v-if="isDesktop" v-model:show="datasetPickerVisible" position="center" round
-        :style="{ width: 'min(720px,92vw)', maxHeight: 'min(76vh,700px)' }">
-        <div class="qbi-dataset-dialog">
-          <div class="qbi-dialog-title">
-            <div><h3>选择问数数据</h3><p>仅列出管理员已开放的 ADS 数据表。选择后，查询会限定在所选数据表中。</p></div>
-            <button type="button" aria-label="关闭" @click="datasetPickerVisible=false"><van-icon name="cross"/></button>
-          </div>
-          <div class="qbi-dataset-list">
-            <button type="button" class="qbi-dataset-all" :class="{active:!selectedDataset}"
-              @click="pickDataset('')">
-              <van-icon name="apps-o"/><span>全部已授权数据<small>在所有已开放的 ADS 表中分析</small></span>
-              <van-icon v-if="!selectedDataset" name="success"/>
-            </button>
-            <div v-for="name in approvedDatasets" :key="name" class="qbi-dataset-entry">
-              <button type="button" class="qbi-dataset-choose" :class="{active:selectedDataset===name}"
-                @click="pickDataset(name)">
-                <van-icon name="cluster-o"/><span :title="name">{{ name }}</span>
-                <van-icon v-if="selectedDataset===name" name="success"/>
-              </button>
-              <button type="button" class="qbi-dataset-inspect" :disabled="datasetPreviewBusy"
-                @click="inspectDataset(name)">查看字段</button>
-            </div>
-            <p v-if="!approvedDatasets.length" class="qbi-dataset-empty">
-              暂无可用数据，请联系管理员开放 ADS 数据表后再提问。
-            </p>
-          </div>
-          <div v-if="datasetPreviewBusy" class="qbi-preview-loading"><van-loading size="17px"/> 正在读取字段…</div>
-          <div v-else-if="datasetPreview" class="qbi-dataset-preview">
-            <h4>{{ datasetPreview.name }} <small>已授权字段预览（最多 40 列）</small></h4>
-            <div class="qbi-preview-scroller">
-              <table><thead><tr><th>字段</th><th>类型</th><th>业务说明</th></tr></thead>
-              <tbody><tr v-for="item in datasetPreview.columns" :key="item.name">
-                <td>{{ item.name }}</td><td>{{ item.type }}</td><td>{{ item.comment || '—' }}</td>
-              </tr></tbody></table>
-            </div>
-          </div>
-        </div>
-      </van-popup>
       <van-popup v-if="!isDesktop" v-model:show="chartsVisible" :position="isDesktop ? 'center' : 'bottom'" round
         :style="{ width: isDesktop ? 'min(680px,90vw)' : '100%', height: isDesktop ? 'min(650px,82vh)' : '75%' }">
         <div class="drawer">
