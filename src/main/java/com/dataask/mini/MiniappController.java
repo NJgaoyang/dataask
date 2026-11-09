@@ -47,7 +47,9 @@ public class MiniappController {
         String name = user.getName();
         String fields = "SELECT c.id,c.owner_username AS ownerUsername,c.source_message_id AS sourceMessageId," +
             "c.question,c.title,c.chart_type AS chartType,c.share_scope AS shareScope," +
-            "c.created_at AS createdAt,c.updated_at AS updatedAt FROM da_saved_charts c ";
+            "COALESCE(JSON_UNQUOTE(JSON_EXTRACT(m.payload_json,'$.dataset')),'') AS dataset," +
+            "c.created_at AS createdAt,c.updated_at AS updatedAt FROM da_saved_charts c " +
+            "LEFT JOIN da_messages m ON m.id=c.source_message_id ";
         return switch(view) {
             case "mine" -> jdbc.queryForList(fields +
                 "WHERE c.owner_username=? ORDER BY c.updated_at DESC LIMIT 200", name);
@@ -144,9 +146,11 @@ public class MiniappController {
 
     private Map<String,Object> rawChart(String id) {
         List<Map<String,Object>> rows = jdbc.queryForList(
-            "SELECT id,owner_username AS ownerUsername,source_message_id AS sourceMessageId," +
-            "question,title,chart_type AS chartType,share_scope AS shareScope," +
-            "created_at AS createdAt,updated_at AS updatedAt FROM da_saved_charts WHERE id=?",id);
+            "SELECT c.id,c.owner_username AS ownerUsername,c.source_message_id AS sourceMessageId," +
+            "c.question,c.title,c.chart_type AS chartType,c.share_scope AS shareScope," +
+            "COALESCE(JSON_UNQUOTE(JSON_EXTRACT(m.payload_json,'$.dataset')),'') AS dataset," +
+            "c.created_at AS createdAt,c.updated_at AS updatedAt FROM da_saved_charts c " +
+            "LEFT JOIN da_messages m ON m.id=c.source_message_id WHERE c.id=?",id);
         if (rows.isEmpty()) throw notFound();
         return rows.getFirst();
     }
