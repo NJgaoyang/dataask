@@ -222,7 +222,7 @@
   .desktop-main-nav button{
     display:flex;align-items:center;gap:12px;width:100%;padding:10px 13px;
     border:0;border-radius:10px;background:transparent;text-align:left;
-    font:500 13px/1.4 inherit;color:#334260;cursor:pointer
+    font-size:13px;line-height:1.4;font-weight:500;font-family:inherit;color:#334260;cursor:pointer
   }
   .desktop-main-nav button .van-icon{font-size:18px;color:#7183a4}
   .desktop-main-nav button:hover{background:#ebefff;color:#2a5edf}
