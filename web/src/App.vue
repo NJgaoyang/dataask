@@ -763,42 +763,10 @@ onBeforeUnmount(() => desktopMedia?.removeEventListener('change', window.__dataA
           <button type="button" :class="{active:desktopSection==='charts'}" @click="switchDesktopSection('charts')"><van-icon name="chart-trending-o"/> 我的图表</button>
           <button type="button" :class="{active:desktopSection==='history'}" @click="switchDesktopSection('history')"><van-icon name="clock-o"/> 历史会话</button>
         </nav>
-        <div v-if="isAdmin" class="tb-sidebar-divider"></div>
-        <div v-if="isAdmin" class="tb-nav-category">管理</div>
-        <nav v-if="isAdmin" class="desktop-main-nav tb-admin-nav" aria-label="系统管理">
-          <button type="button" class="tb-admin-parent"
-            :class="{active:desktopIsAdminSection}"
-            :aria-expanded="adminExpanded"
-            @click="toggleAdminNavigation">
+        <nav v-if="isAdmin" class="desktop-main-nav tb-single-admin-nav" aria-label="管理员功能">
+          <button type="button" :class="{active:desktopIsAdminSection}" @click="openAdmin">
             <van-icon name="setting-o"/> 系统管理
-            <van-icon :name="adminExpanded ? 'arrow-up' : 'arrow-down'" class="tb-admin-chevron" size="12"/>
           </button>
-          <div v-if="adminExpanded" class="tb-admin-submenu" aria-label="系统管理二级菜单">
-            <button type="button" :class="{active:desktopSection==='admin-overview'}" @click="openAdminSection('admin-overview')">
-              <van-icon name="apps-o"/> 管理概览
-            </button>
-            <button type="button" :class="{active:desktopSection==='admin-source'}" @click="openAdminSection('admin-source')">
-              <van-icon name="cluster-o"/> 数据源配置
-            </button>
-            <button type="button" :class="{active:desktopSection==='admin-model'}" @click="openAdminSection('admin-model')">
-              <van-icon name="comment-o"/> 对话模型
-            </button>
-            <button type="button" :class="{active:desktopSection==='admin-embedding'}" @click="openAdminSection('admin-embedding')">
-              <van-icon name="setting-o"/> Embedding 模型
-            </button>
-            <button type="button" :class="{active:desktopSection==='admin-tables'}" @click="openAdminSection('admin-tables')">
-              <van-icon name="records-o"/> ADS 表授权
-            </button>
-            <button type="button" :class="{active:desktopSection==='admin-joins'}" @click="openAdminSection('admin-joins')">
-              <van-icon name="exchange"/> 表关联规则
-            </button>
-            <button type="button" :class="{active:desktopSection==='admin-metrics'}" @click="openAdminSection('admin-metrics')">
-              <van-icon name="description"/> 指标口径
-            </button>
-            <button type="button" :class="{active:desktopSection==='admin-users'}" @click="openAdminSection('admin-users')">
-              <van-icon name="friends-o"/> 用户管理
-            </button>
-          </div>
         </nav>
         <div class="tb-sidebar-fill"></div>
         <div class="sidebar-bottom">
@@ -844,43 +812,55 @@ onBeforeUnmount(() => desktopMedia?.removeEventListener('change', window.__dataA
       <main v-if="isDesktop && isAdmin && desktopIsAdminSection" class="tb-page-body tb-admin-page">
         <div class="tb-admin-heading">
           <div class="tb-admin-heading-copy">
-            <div class="tb-admin-location"><van-icon name="setting-o"/> 系统管理</div>
+            <button v-if="desktopSection!=='admin-overview'" type="button" class="tb-admin-back"
+              @click="openAdminSection('admin-overview')"><van-icon name="arrow-left"/> 返回系统管理</button>
+            <div v-else class="tb-admin-location"><van-icon name="setting-o"/> 系统管理</div>
             <h1>{{ desktopSectionTitle }}</h1>
-            <p>在左侧二级菜单中切换设置，所有更改只允许管理员操作。</p>
+            <p>{{ desktopSection==='admin-overview' ? '平台配置与访问权限集中管理' : '配置仅管理员可修改，保存后按原后端规则生效' }}</p>
           </div>
           <span class="tb-admin-heading-badge"><van-icon name="shield-o"/> 管理员权限</span>
         </div>
         <div v-if="desktopSection==='admin-overview'" class="tb-admin-overview">
           <div class="tb-admin-overview-grid">
             <button type="button" @click="openAdminSection('admin-source')">
-              <span class="tb-admin-overview-icon"><van-icon name="cluster-o" size="22"/></span>
-              <strong>数据源配置</strong><small>{{ status.starrocksConfigured ? '已连接 StarRocks' : '尚未配置 StarRocks' }}</small>
+              <span class="tb-admin-overview-icon icon-source"><van-icon name="cluster-o" size="21"/></span>
+              <strong>数据源配置</strong><small>{{ status.starrocksConfigured ? 'StarRocks 已配置' : '配置 StarRocks 数据源' }}</small>
               <van-icon name="arrow" class="tb-admin-overview-arrow"/>
             </button>
             <button type="button" @click="openAdminSection('admin-model')">
-              <span class="tb-admin-overview-icon"><van-icon name="comment-o" size="22"/></span>
-              <strong>对话模型</strong><small>{{ status.aiConfigured ? (status.model || '已配置') : '尚未配置模型' }}</small>
+              <span class="tb-admin-overview-icon icon-model"><van-icon name="chat-o" size="21"/></span>
+              <strong>对话模型</strong><small>{{ status.aiConfigured ? (status.model || '模型已配置') : '大模型与 API Key' }}</small>
               <van-icon name="arrow" class="tb-admin-overview-arrow"/>
             </button>
             <button type="button" @click="openAdminSection('admin-embedding')">
-              <span class="tb-admin-overview-icon"><van-icon name="setting-o" size="22"/></span>
-              <strong>Embedding 模型</strong><small>{{ status.embeddingConfigured ? '已配置语义模型' : '尚未启用' }}</small>
+              <span class="tb-admin-overview-icon icon-embedding"><van-icon name="setting-o" size="21"/></span>
+              <strong>Embedding 模型</strong><small>{{ status.embeddingConfigured ? '语义模型已启用' : '语义识别和索引' }}</small>
               <van-icon name="arrow" class="tb-admin-overview-arrow"/>
             </button>
             <button type="button" @click="openAdminSection('admin-tables')">
-              <span class="tb-admin-overview-icon"><van-icon name="records-o" size="22"/></span>
-              <strong>ADS 表授权</strong><small>管理智能问数可用数据表</small>
+              <span class="tb-admin-overview-icon icon-tables"><van-icon name="records-o" size="21"/></span>
+              <strong>ADS 表授权</strong><small>控制可查询的数据表</small>
+              <van-icon name="arrow" class="tb-admin-overview-arrow"/>
+            </button>
+            <button type="button" @click="openAdminSection('admin-joins')">
+              <span class="tb-admin-overview-icon icon-joins"><van-icon name="exchange" size="21"/></span>
+              <strong>表关联规则</strong><small>维护跨表查询关系</small>
               <van-icon name="arrow" class="tb-admin-overview-arrow"/>
             </button>
             <button type="button" @click="openAdminSection('admin-metrics')">
-              <span class="tb-admin-overview-icon"><van-icon name="description" size="22"/></span>
+              <span class="tb-admin-overview-icon icon-metrics"><van-icon name="description" size="21"/></span>
               <strong>指标口径</strong><small>维护业务指标定义</small>
               <van-icon name="arrow" class="tb-admin-overview-arrow"/>
             </button>
             <button type="button" @click="openAdminSection('admin-users')">
-              <span class="tb-admin-overview-icon"><van-icon name="friends-o" size="22"/></span>
-              <strong>用户管理</strong><small>管理登录账号与权限</small>
+              <span class="tb-admin-overview-icon icon-users"><van-icon name="friends-o" size="21"/></span>
+              <strong>用户管理</strong><small>用户账号与角色</small>
               <van-icon name="arrow" class="tb-admin-overview-arrow"/>
+            </button>
+            <button type="button" @click="refreshAdminStatus">
+              <span class="tb-admin-overview-icon icon-status"><van-icon name="chart-trending-o" size="21"/></span>
+              <strong>配置状态</strong><small>刷新数据源、模型配置状态</small>
+              <van-icon name="replay" class="tb-admin-overview-arrow"/>
             </button>
           </div>
         </div>
