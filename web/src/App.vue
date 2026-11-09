@@ -1147,10 +1147,10 @@ onBeforeUnmount(() => desktopMedia?.removeEventListener('change', window.__dataA
                 <thead><tr><th>图表名称</th><th>自然语言问题</th><th>图表类型</th><th>更新时间</th><th>操作</th></tr></thead>
                 <tbody>
                   <tr v-for="item in filteredSavedCharts" :key="item.id">
-                    <td class="tb-chart-name-cell">
+                    <td class="tb-chart-name-cell"><div class="tb-chart-name-inner">
                       <span class="tb-chart-row-icon"><van-icon name="chart-trending-o" size="18"/></span>
                       <button type="button" :title="item.title" @click="revisitChart(item)">{{ item.title }}</button>
-                    </td>
+                    </div></td>
                     <td class="tb-chart-question-cell" :title="item.question">{{ item.question }}</td>
                     <td><span class="tb-chart-type-label">{{ chartTypeLabel(item.chartType) }}</span></td>
                     <td class="tb-chart-date">{{ sessionTimeLabel(item.updatedAt || item.createdAt) }}</td>
@@ -1175,10 +1175,10 @@ onBeforeUnmount(() => desktopMedia?.removeEventListener('change', window.__dataA
                 <thead><tr><th>图表名称</th><th>自然语言问题</th><th>图表类型</th><th>共享来源</th><th>更新时间</th><th>操作</th></tr></thead>
                 <tbody>
                   <tr v-for="item in filteredSharedCharts" :key="item.id">
-                    <td class="tb-chart-name-cell">
+                    <td class="tb-chart-name-cell"><div class="tb-chart-name-inner">
                       <span class="tb-chart-row-icon tb-chart-row-shared"><van-icon name="share-o" size="18"/></span>
                       <button type="button" :title="item.title" @click="revisitChart(item)">{{ item.title }}</button>
-                    </td>
+                    </div></td>
                     <td class="tb-chart-question-cell" :title="item.question">{{ item.question }}</td>
                     <td><span class="tb-chart-type-label">{{ chartTypeLabel(item.chartType) }}</span></td>
                     <td class="tb-chart-owner">{{ item.ownerUsername }}</td>
@@ -1377,7 +1377,7 @@ onBeforeUnmount(() => desktopMedia?.removeEventListener('change', window.__dataA
       </aside>
       <footer v-if="!isDesktop || desktopSection==='ask'" class="composer">
         <div class="composer-row">
-          <textarea ref="desktopQuestionRef" v-model="question" :rows="isDesktop ? 3 : 1" maxlength="800"
+          <textarea ref="desktopQuestionRef" v-model="question" :rows="isDesktop ? (messages.length ? 1 : 3) : 1" maxlength="800"
             :placeholder="isDesktop ? '例如：昨天各城市的销售额是多少？' : '问问经营数据，例如：昨日营业额'"
             aria-label="输入经营数据问题" @keydown.enter.exact.prevent="ask()"></textarea>
           <div v-if="isDesktop" class="desktop-composer-hints">
