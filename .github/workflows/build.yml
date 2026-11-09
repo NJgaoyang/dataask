@@ -41,7 +41,9 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: dataask-admin-desktop-smoke
-          path: web/artifacts/admin-desktop.png
+          path: |
+            web/artifacts/admin-desktop.png
+            web/artifacts/admin-desktop-failure.png
           if-no-files-found: ignore
           retention-days: 7
       - name: Verify Java
