@@ -130,16 +130,19 @@ async function login() {
   finally { loggingIn.value = false }
 }
 function logout() {
+  if (isDesktop.value && busy.value) stopAsk()
   sessionStorage.removeItem('dataask_token')
   sessionStorage.removeItem('dataask_user')
   loggedIn.value = false
   messages.value = []; sessionId.value = ''; historyVisible.value = false; adminVisible.value = false
+  desktopFeedback.value = null
 }
 async function loadSessions() {
   try { sessions.value = (await api.get('/chat/sessions')).data }
   catch (e) { showFailToast(errorText(e)) }
 }
 async function openSession(item) {
+  if (isDesktop.value && busy.value) stopAsk()
   try {
     messages.value = (await api.get('/chat/sessions/' + item.id + '/messages')).data
     sessionId.value = item.id
@@ -565,7 +568,7 @@ onBeforeUnmount(() => desktopMedia?.removeEventListener('change', window.__dataA
         </div>
       </header>
       <main class="conversation">
-        <section v-if="!messages.length" class="welcome">
+        <section v-if="!messages.length && (!isDesktop || (!busy && !desktopFeedback))" class="welcome">
           <div class="welcome-icon"><van-icon name="chart-trending-o" size="27"/></div>
           <div v-if="isDesktop" class="desktop-welcome-kicker">DATAASK · 智能问数</div>
           <h2>今天想了解哪些经营数据？</h2>
