@@ -24,6 +24,16 @@ const loginForm = ref({ username: 'admin', password: '' })
 const loggingIn = ref(false)
 const question = ref('')
 const busy = ref(false)
+const pendingQuestion = ref('')
+const chartsVisible = ref(false)
+const savedCharts = ref([])
+const sharingVisible = ref(false)
+const sharingChart = ref(null)
+const shareScope = ref('PRIVATE')
+const shareMembers = ref('')
+let activeController = null
+let activeRequestId = ''
+let askSequence = 0
 const messages = ref([])
 const sessionId = ref('')
 const historyVisible = ref(false)
@@ -109,23 +119,94 @@ async function openSession(item) {
     scrollEnd()
   } catch (e) { showFailToast(errorText(e)) }
 }
-function newConversation() { sessionId.value = ''; messages.value = []; historyVisible.value = false }
+function newConversation() {
+  if (busy.value) stopAsk()
+  sessionId.value = ''; messages.value = []; historyVisible.value = false
+}
+async function openSavedCharts() {
+  try {
+    const { data } = await api.get('/mini/charts?view=mine')
+    savedCharts.value = data
+    chartsVisible.value = true
+  } catch (e) { showFailToast(errorText(e)) }
+}
+async function revisitChart(chart) {
+  chartsVisible.value = false
+  newConversation()
+  await ask(chart.question)
+}
+async function saveChart(msg) {
+  try {
+    const { data } = await api.post('/mini/charts', { sourceMessageId: msg.id, title: msg.title })
+    showSuccessToast('图表已收藏')
+    return data
+  } catch (e) { showFailToast(errorText(e)); return null }
+}
+async function shareChart(msg) {
+  const chart = await saveChart(msg)
+  if (!chart) return
+  sharingChart.value = chart
+  shareScope.value = chart.shareScope || 'PRIVATE'
+  shareMembers.value = ''
+  sharingVisible.value = true
+}
+async function applyShare() {
+  if (!sharingChart.value) return
+  const users = shareScope.value === 'SELECTED'
+    ? shareMembers.value.split(/[,，]/).map(x => x.trim()).filter(Boolean) : []
+  try {
+    await api.put('/mini/charts/' + sharingChart.value.id + '/share', { scope: shareScope.value, users })
+    sharingVisible.value = false
+    showSuccessToast('共享权限已保存')
+  } catch (e) { showFailToast(errorText(e)) }
+}
+function stopAsk() {
+  if (!busy.value) return
+  const id = activeRequestId
+  activeController?.abort()
+  askSequence++
+  busy.value = false
+  pendingQuestion.value = ''
+  activeRequestId = ''
+  activeController = null
+  if (id) api.post('/chat/cancel', { requestId: id }).catch(() => {})
+  showToast('已停止本次查询')
+}
 async function ask(text = question.value, sourceMessageId = null) {
   text = (text || '').trim()
   if (!text || busy.value) return
   if (text.length > 800) return showToast('提问不能超过800字')
+  const sequence = ++askSequence
+  const controller = new AbortController()
+  const requestId = crypto.randomUUID()
+  activeController = controller
+  activeRequestId = requestId
   busy.value = true
+  pendingQuestion.value = text
   question.value = ''
+  scrollEnd()
   try {
-    const { data } = await api.post('/chat/ask', { question: text, sessionId: sessionId.value || null, sourceMessageId })
+    const { data } = await api.post('/chat/ask', {
+      question: text, sessionId: sessionId.value || null, sourceMessageId, requestId
+    }, { signal: controller.signal })
+    if (sequence !== askSequence || controller.signal.aborted) return
     sessionId.value = data.sessionId
     messages.value.push(data)
-    scrollEnd()
     await loadSessions()
+    scrollEnd()
   } catch (e) {
+    if (sequence !== askSequence || controller.signal.aborted || axios.isCancel(e)) return
     question.value = text
     showFailToast(errorText(e))
-  } finally { busy.value = false }
+  } finally {
+    if (sequence === askSequence) {
+      busy.value = false
+      pendingQuestion.value = ''
+      activeController = null
+      activeRequestId = ''
+      scrollEnd()
+    }
+  }
 }
 async function refreshAdminStatus() {
   const [s, cfg] = await Promise.all([api.get('/admin/status'), api.get('/admin/settings')])
