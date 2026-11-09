@@ -168,7 +168,7 @@ try {
   await requireCall('PUT /api/admin/users/alice');
   await page.locator('.tb-user-row').filter({hasText:'alice'}).getByRole('button',{name:/编辑/}).click();
   await page.locator('.tb-user-reset input[type=password]').fill('new-password-123');
-  await page.getByRole('button',{name:'重置密码'}).click();
+  await page.locator('.tb-user-reset').getByRole('button',{name:'重置密码',exact:true}).click();
   await page.getByRole('dialog').getByRole('button',{name:'确认'}).click();
   await requireCall('POST /api/admin/users/alice/reset-password');
 
