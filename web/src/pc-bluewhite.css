@@ -289,7 +289,8 @@
   }
   .tencentbi-pc .tb-chart-table tr:last-child td{border-bottom:none}
   .tencentbi-pc .tb-chart-table tbody tr:hover{background:#f8fbff}
-  .tencentbi-pc .tb-chart-name-cell{display:flex;align-items:center;gap:10px}
+  .tencentbi-pc .tb-chart-name-cell{min-width:0}
+  .tencentbi-pc .tb-chart-name-inner{display:flex;align-items:center;gap:10px;min-width:0;width:100%}
   .tencentbi-pc .tb-chart-row-icon{
     flex:0 0 32px;height:32px;width:32px;
     display:flex;align-items:center;justify-content:center;border-radius:8px;
