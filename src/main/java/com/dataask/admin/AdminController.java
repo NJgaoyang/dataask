@@ -13,6 +13,8 @@ import org.springframework.http.HttpStatus;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.security.core.Authentication;
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.server.ResponseStatusException;
 
@@ -198,4 +200,61 @@ public class AdminController {
         }
         return Map.of("success",true);
     }
+    record UserEditRequest(@NotBlank String displayName, @NotBlank String role) {}
+    record ResetPasswordRequest(@NotBlank String password) {}
+
+    /**
+     * An administrator can edit a user's profile and role, but cannot demote
+     * their own active account or the last administrator.
+     */
+    @PutMapping("/users/{username}")
+    @Transactional
+    Map<String,Object> updateUser(@PathVariable String username,
+                                  @Valid @RequestBody UserEditRequest input,
+                                  Authentication operator) {
+        if (!username.matches("[A-Za-z0-9_-]{3,64}"))
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "账号格式不正确");
+        if (!Set.of("ADMIN","USER").contains(input.role()))
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "角色只能是 ADMIN 或 USER");
+        String displayName = input.displayName().trim();
+        if (displayName.isBlank() || displayName.length()>80)
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "姓名需要1至80个字符");
+
+        List<Map<String,Object>> row = jdbc.queryForList(
+            "SELECT role FROM da_users WHERE username=? FOR UPDATE", username);
+        if (row.isEmpty())
+            throw new ResponseStatusException(HttpStatus.NOT_FOUND, "用户不存在");
+        String previousRole=(String) row.getFirst().get("role");
+        if (operator.getName().equals(username) && !previousRole.equals(input.role()))
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "不能修改自己的管理员角色");
+        if ("ADMIN".equals(previousRole) && "USER".equals(input.role())) {
+            // Lock all admin rows to serialize simultaneous demotion attempts.
+            List<Map<String,Object>> administrators = jdbc.queryForList(
+                "SELECT username FROM da_users WHERE role='ADMIN' ORDER BY username FOR UPDATE");
+            if (administrators.size() <= 1)
+                throw new ResponseStatusException(HttpStatus.CONFLICT, "不能取消最后一位管理员的权限");
+        }
+        jdbc.update("UPDATE da_users SET display_name=?,role=? WHERE username=?",
+            displayName, input.role(), username);
+        return Map.of("success",true,"message","用户信息已更新");
+    }
+
+    /**
+     * Reset a password without revealing stored hashes or touching other users.
+     * The JWT password stamp rejects existing sessions after the update.
+     */
+    @PostMapping("/users/{username}/reset-password")
+    Map<String,Object> resetPassword(@PathVariable String username,
+                                     @Valid @RequestBody ResetPasswordRequest input) {
+        if (!username.matches("[A-Za-z0-9_-]{3,64}"))
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "账号格式不正确");
+        if (input.password().length()<10 || input.password().length()>128)
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "密码长度需要10至128位");
+        int changed=jdbc.update("UPDATE da_users SET password_hash=? WHERE username=?",
+            encoder.encode(input.password()),username);
+        if(changed!=1)
+            throw new ResponseStatusException(HttpStatus.NOT_FOUND,"用户不存在");
+        return Map.of("success",true,"message","密码已重置，该用户需要重新登录");
+    }
+
 }
