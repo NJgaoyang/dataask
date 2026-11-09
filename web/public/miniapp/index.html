@@ -111,6 +111,24 @@ button,input,textarea{font:inherit}button{border:0;cursor:pointer;color:inherit}
 .chart-card{overflow:hidden}.rank-row{display:flex;align-items:center;gap:8px}.rank-row>span:last-child{font-variant-numeric:tabular-nums}
 .history-item{display:flex;align-items:center;gap:9px}.history-main{display:flex;flex-direction:column;gap:4px}
 @media(max-width:600px){.sheet{max-height:85dvh;overflow-y:auto}}
+
+/* Miniapp charts: scalable SVG, faithful data labels, zero download affordances */
+.chart-card{padding:14px 11px 12px;min-width:0}
+.chart-head{gap:6px;flex-wrap:wrap}
+.chart-title{font-size:14px;min-width:0}
+.chart-actions{margin-left:auto}
+.chart-plot{width:100%;min-width:0;background:#fcfdff;border:1px solid #e7eefb;border-radius:13px;padding:8px 4px 11px;overflow:hidden}
+.chart-svg{display:block;width:100%;height:auto;max-width:100%;overflow:visible}
+.chart-footnote{margin:5px 10px 0;color:#8496b0;font-size:10px;line-height:1.5}
+.mobile-chart-types{display:flex;align-items:center;justify-content:flex-end;gap:5px;margin:3px 0 10px}
+.mobile-chart-types button{font-size:10.5px;color:#798aa9;padding:6px 10px;border:1px solid #e5ecf8;background:#fff;border-radius:8px}
+.mobile-chart-types button.active{color:#276fe7;background:#eaf3ff;border-color:#cfe1ff;font-weight:720}
+.chart-mode button{min-width:31px;min-height:28px}
+.chart-table-scroll{overflow-x:auto;max-width:100%;-webkit-overflow-scrolling:touch}
+.chart-table-scroll .table-data{min-width:max-content}
+.chart-table-scroll .table-data th,.chart-table-scroll .table-data td{padding:9px 11px;white-space:nowrap}
+.chart-download{display:none!important}
+
 </style>
 </head>
 <body>
@@ -158,7 +176,7 @@ const robot=()=>`<svg viewBox="0 0 238 210" xmlns="http://www.w3.org/2000/svg" r
 const safe=(s)=>String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 
 const sets=[[['chart','昨日营业额是多少？'],['trending','近7天的订单量趋势如何？'],['pin','按城市看营业额TOP10'],['pie','本月新增用户数及环比？']],[['trending','本周营业额趋势怎么样？'],['pin','哪个城市的营业额最高？'],['chart','昨天订单总数是多少？'],['pie','近30天新增用户情况']]];
-const state={view:'home',tab:'home',sampleSet:0,chartMode:'chart',historySearch:'',chat:[],sessionId:null,lastMessageId:null,modal:null,shareScope:'PRIVATE',sharePerson:'',toast:'',scrollBottom:false,loggedIn:Boolean(sessionStorage.getItem('dataask_token')),profile:null,sessions:[],charts:[],shared:[],loading:false};
+const state={view:'home',tab:'home',sampleSet:0,chartMode:'chart',chartModes:{},chartStyles:{},historySearch:'',chat:[],sessionId:null,lastMessageId:null,modal:null,shareScope:'PRIVATE',sharePerson:'',toast:'',scrollBottom:false,loggedIn:Boolean(sessionStorage.getItem('dataask_token')),profile:null,sessions:[],charts:[],shared:[],loading:false};
 function statusBar(){return `<div class="status"><span>10:24</span><div class="status-right"><svg width="17" height="13" viewBox="0 0 17 13"><rect x="0" y="9" width="3" height="4" rx=".7"/><rect x="5" y="6" width="3" height="7" rx=".7"/><rect x="10" y="3" width="3" height="10" rx=".7"/><rect x="15" y="0" width="2" height="13" rx=".7"/></svg><svg width="17" height="14" viewBox="0 0 17 14"><path d="M1 4Q8-2 16 4M4 7Q8 4 13 7M7 10Q8.5 9 10 10" stroke="#10192d" stroke-width="1.8" fill="none" stroke-linecap="round"/><circle cx="8.5" cy="12" r="1"/></svg><svg width="24" height="12" viewBox="0 0 24 12"><rect x=".5" y=".5" width="20" height="11" rx="2.6" stroke="#10192d" fill="none"/><rect x="2.3" y="2.2" width="16.3" height="7.6" rx="1.3" fill="#10192d"/><rect x="21" y="3.5" width="2.5" height="5" rx="1" fill="#10192d"/></svg></div></div>`}
 function capsule(){return `<div class="capsule"><button data-action="more" aria-label="更多">${icon('dots','sm')}</button><div class="cut"></div><button data-action="more" aria-label="小程序菜单">${icon('target','sm')}</button></div>`}
 function header(){if(state.view==='home')return `<div class="appbar"><div class="brand">${logo()}<span>DataAsk 智能问数</span></div>${capsule()}</div>`;
@@ -289,15 +307,30 @@ function resultChart(a){
 function answerCard(item){
  if(item.pending)return '<div class="answer-row"><div class="ai-avatar">'+logo()+'</div><div class="answer"><div class="answer-top"><div class="date-line">正在分析真实业务数据…</div></div></div></div>';
  if(item.error)return '<div class="answer-row"><div class="ai-avatar">'+logo()+'</div><div class="answer"><div class="answer-top"><div class="date-line">'+safe(item.error)+'</div></div></div></div>';
- const a=item.answer||{},single=a.rows?.length===1&&a.columns?.length===1;
- const value=single?a.rows[0][a.columns[0]]:null;
- const saved=state.charts.some(c=>c.sourceMessageId===a.id);
- return '<div class="answer-row"><div class="ai-avatar">'+logo()+'</div><div class="answer"><div class="answer-top"><div class="date-line">'+safe(a.title||'数据查询')+'</div>'+
- (single&&!a.unsupported?'<div class="main-number">'+safe(value??'—')+'</div>':'')+
- '<div class="comparison">'+querySummary(a)+'</div>'+(a.timeLabel?'<div class="sample-note">'+safe(a.timeLabel)+'</div>':'')+'</div>'+
- (!a.unsupported&&a.rows?.length?'<div class="chart-card"><div class="chart-head"><div class="chart-title">'+safe(a.metricLabel||'业务分析')+'</div><div class="chart-actions"><div class="chart-mode"><button class="'+(state.chartMode==='chart'?'active':'')+'" data-action="chart-mode" data-mode="chart">'+icon('chart')+'</button><button class="'+(state.chartMode==='table'?'active':'')+'" data-action="chart-mode" data-mode="table">'+icon('table')+'</button></div><button class="chart-download" data-action="export" data-mid="'+safe(a.id)+'">'+icon('download','sm')+'</button></div></div>'+
- (state.chartMode==='table'?resultTable(a):resultChart(a))+'</div><div class="toolbar"><button class="lite-btn '+(saved?'saved':'')+'" data-action="save" data-mid="'+safe(a.id)+'">'+icon('star','sm')+(saved?'已收藏':'收藏图表')+'</button><button class="lite-btn" data-action="share" data-mid="'+safe(a.id)+'">'+icon('share','sm')+'共享</button></div>':'')+
- (a.followUps?.length?'<div class="followups"><div class="follow-label">你还可以继续问：</div><div class="chips">'+a.followUps.map(q=>'<button class="chip" data-action="follow" data-q="'+safe(q)+'">'+icon('sparkle','sm')+safe(q)+'</button>').join('')+'</div></div>':'')+
+ const data=item.answer||{},single=data.rows?.length===1&&data.columns?.length===1;
+ const value=single?data.rows[0][data.columns[0]]:null;
+ const saved=state.charts.some(c=>c.sourceMessageId===data.id);
+ const summary=String(data.summary||'').trim();
+ const generic=/^(已从\s*StarRocks|已查询到|查询到|已返回|已获取|数据查询成功|本次查询返回)/i.test(summary)&&
+   /(\d+\s*行|条数据|真实数据|查询结果|点击下方|继续分析|来自)/.test(summary);
+ const analysis=(!data.rows?.length||data.unsupported||!generic)?'<div class="comparison">'+querySummary(data)+'</div>':'';
+ const visual=!data.unsupported&&!!data.rows?.length;
+ const type=displayType(data),canPlot=chartable(data),view=state.chartModes[data.id]||(!canPlot?'table':'chart');
+ const views='<div class="chart-mode" role="group" aria-label="数据展示">'+
+   (canPlot?'<button aria-label="图表" class="'+(view==='chart'?'active':'')+'" data-action="chart-mode" data-mode="chart" data-mid="'+safe(data.id)+'">'+icon('chart')+'</button>':'')+
+   '<button aria-label="表格" class="'+(view==='table'?'active':'')+'" data-action="chart-mode" data-mode="table" data-mid="'+safe(data.id)+'">'+icon('table')+'</button></div>';
+ const chartTypes=(canPlot&&view==='chart')?'<div class="mobile-chart-types">'+
+   ['bar','line',...(pieAllowed(data)?['pie']:[])].map(t=>'<button class="'+(type===t?'active':'')+'" data-action="chart-style" data-style="'+t+'" data-mid="'+safe(data.id)+'">'+({bar:'柱状图',line:'折线图',pie:'饼图'})[t]+'</button>').join('')+'</div>':'';
+ return '<div class="answer-row"><div class="ai-avatar">'+logo()+'</div><div class="answer">'+
+ '<div class="answer-top"><div class="date-line">'+safe(data.title||'数据查询')+'</div>'+
+ (single&&!data.unsupported?'<div class="main-number">'+safe(value??'—')+'</div>':'')+
+ analysis+(data.timeLabel?'<div class="sample-note">'+safe(data.timeLabel)+'</div>':'')+'</div>'+
+ (visual?'<div class="chart-card"><div class="chart-head"><div class="chart-title">'+safe(data.metricLabel||'业务分析')+'</div>'+
+ '<div class="chart-actions">'+views+'</div></div>'+chartTypes+
+ (view==='table'?resultTable(data):resultChart(data))+'</div>'+
+ '<div class="toolbar"><button class="lite-btn '+(saved?'saved':'')+'" data-action="save" data-mid="'+safe(data.id)+'">'+icon('star','sm')+(saved?'已收藏':'收藏图表')+'</button>'+
+ '<button class="lite-btn" data-action="share" data-mid="'+safe(data.id)+'">'+icon('share','sm')+'共享</button></div>':'')+
+ (data.followUps?.length?'<div class="followups"><div class="follow-label">你还可以继续问：</div><div class="chips">'+data.followUps.map(q=>'<button class="chip" data-action="follow" data-q="'+safe(q)+'">'+icon('sparkle','sm')+safe(q)+'</button>').join('')+'</div></div>':'')+
  '</div></div>';
 }
 
@@ -396,15 +429,6 @@ async function removeChart(id){if(!window.confirm('确定取消收藏这个图�
 
 async function removeSession(id){if(!window.confirm('删除此会话及其消息吗？'))return;try{await api('/api/mini/sessions/'+encodeURIComponent(id),'DELETE');await loadHistory();showToast('会话已删除')}catch(e){showToast(e.message)}}
 
-function exportCSV(id){
- const a=state.chat.find(m=>m.answer?.id===id)?.answer;
- if(!a)return showToast('暂无结果可导出');
- const columns=a.columns||[],rows=[columns.map(c=>a.columnLabels?.[c]||c),...(a.rows||[]).map(r=>columns.map(c=>r[c]??''))];
- const cell=x=>{let s=String(x);if(/^[=+@\\-\\t\\r]/.test(s))s="'"+s;return '"'+s.replace(/"/g,'""')+'"'}
- const csv='\\ufeff'+rows.map(r=>r.map(cell).join(',')).join('\\r\\n');
- const link=document.createElement('a');const url=URL.createObjectURL(new Blob([csv],{type:'text/csv;charset=utf-8'}));link.href=url;link.download='DataAsk-result.csv';link.click();setTimeout(()=>URL.revokeObjectURL(url),1500);
-}
-
 function openModal(type,id=''){state.modal={type,id};state.shareScope='PRIVATE';state.sharePerson='';render()}
 
 async function applyShare(){
@@ -424,8 +448,8 @@ async function handleClick(e){
  case 'ask-chat':ask('chat-query',true);break;
  case 'shuffle':state.sampleSet=(state.sampleSet+1)%sets.length;render();break;
  case 'mic':openModal('voice');break;
- case 'chart-mode':state.chartMode=target.dataset.mode;render();break;
- case 'export':exportCSV(target.dataset.mid);break;
+ case 'chart-mode':state.chartModes[target.dataset.mid]=target.dataset.mode;render();break;
+ case 'chart-style':state.chartStyles[target.dataset.mid]=target.dataset.style;state.chartModes[target.dataset.mid]='chart';render();break;
  case 'save':await saveAnswer(target.dataset.mid);break;
  case 'share':{let id=target.dataset.chart;if(!id&&target.dataset.mid){const chart=await saveAnswer(target.dataset.mid);id=chart?.id}if(id)openModal('share',id);break}
  case 'open-share':state.view='charts';render();loadCharts();break;
