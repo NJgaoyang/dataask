@@ -25,6 +25,10 @@ const loggingIn = ref(false)
 const question = ref('')
 const busy = ref(false)
 const pendingQuestion = ref('')
+// Desktop-only UI state. The miniapp HTML and narrow-screen template stay untouched.
+const desktopFeedback = ref(null)
+const answerViews = ref({})
+const desktopQuestionRef = ref(null)
 const chartsVisible = ref(false)
 const savedCharts = ref([])
 const sharingVisible = ref(false)
@@ -85,6 +89,30 @@ const newUser = ref({ username: '', displayName: '', password: '', role: 'USER' 
 const footerRef = ref(null)
 const quickQuestions = ['昨天的营业额是多少？', '昨天各城市的订单量排行', '最近7天的营收趋势', '本月各城市销售额对比']
 const isAdmin = computed(() => me.value.role === 'ADMIN')
+function resultView(msg) {
+  const explicit = answerViews.value[msg.id]
+  if (explicit) return explicit
+  if (msg.chartType === 'metric' && msg.rows?.length === 1) return 'summary'
+  return ['line', 'bar', 'pie'].includes(msg.chartType) && msg.rows?.length > 1 ? 'chart' : 'table'
+}
+function setResultView(msg, view) { answerViews.value = { ...answerViews.value, [msg.id]: view } }
+function focusDesktopQuestion() { nextTick(() => { if (isDesktop.value) desktopQuestionRef.value?.focus() }) }
+async function copyAnswer(msg) {
+  const data = [msg.title, msg.summary,
+    ...(msg.rows || []).slice(0, 30).map(row => (msg.columns || []).map(c => `${msg.columnLabels?.[c] || c}: ${row[c] ?? '—'}`).join('；'))
+  ].filter(Boolean).join('\n')
+  try {
+    if (navigator.clipboard?.writeText) await navigator.clipboard.writeText(data)
+    else {
+      const el = document.createElement('textarea')
+      el.value = data; el.style.position = 'fixed'; el.style.left = '-9999px'
+      document.body.appendChild(el); el.select()
+      if (!document.execCommand('copy')) throw new Error('浏览器禁止复制')
+      el.remove()
+    }
+    showSuccessToast('结果已复制')
+  } catch { showFailToast('复制失败，请检查浏览器剪贴板权限') }
+}
 
 function errorText(e) { return e?.response?.data?.message || e?.message || '请求失败' }
 function scrollEnd() { nextTick(() => footerRef.value?.scrollIntoView({ behavior: 'smooth', block: 'end' })) }
@@ -116,12 +144,15 @@ async function openSession(item) {
     messages.value = (await api.get('/chat/sessions/' + item.id + '/messages')).data
     sessionId.value = item.id
     historyVisible.value = false
+    desktopFeedback.value = null
     scrollEnd()
   } catch (e) { showFailToast(errorText(e)) }
 }
 function newConversation() {
   if (busy.value) stopAsk()
   sessionId.value = ''; messages.value = []; historyVisible.value = false
+  desktopFeedback.value = null
+  focusDesktopQuestion()
 }
 async function openSavedCharts() {
   try {
@@ -163,6 +194,7 @@ async function applyShare() {
 function stopAsk() {
   if (!busy.value) return
   const id = activeRequestId
+  if (isDesktop.value) desktopFeedback.value = { type: 'stopped', question: pendingQuestion.value, message: '本次查询已手动停止，没有生成新的分析结果。' }
   activeController?.abort()
   askSequence++
   busy.value = false
@@ -183,6 +215,7 @@ async function ask(text = question.value, sourceMessageId = null) {
   activeRequestId = requestId
   busy.value = true
   pendingQuestion.value = text
+  if (isDesktop.value) desktopFeedback.value = null
   question.value = ''
   scrollEnd()
   try {
@@ -196,8 +229,12 @@ async function ask(text = question.value, sourceMessageId = null) {
     scrollEnd()
   } catch (e) {
     if (sequence !== askSequence || controller.signal.aborted || axios.isCancel(e)) return
-    question.value = text
-    showFailToast(errorText(e))
+    if (isDesktop.value) {
+      desktopFeedback.value = { type: 'error', question: text, message: errorText(e) }
+    } else {
+      question.value = text
+      showFailToast(errorText(e))
+    }
   } finally {
     if (sequence === askSequence) {
       busy.value = false
