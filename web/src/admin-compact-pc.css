@@ -242,3 +242,32 @@
   .tencentbi-pc .tb-admin-overview-grid{grid-template-columns:repeat(2,minmax(0,1fr))}
   .tencentbi-pc .tb-admin-heading-badge{display:none}
 }
+
+/* Keep account card pinned even on 1366x768 and smaller desktop heights. */
+@media (min-width:1024px) {
+  .tencentbi-pc .desktop-sidebar{
+    overflow:hidden;min-height:0;
+  }
+  .tencentbi-pc .tb-admin-nav {
+    min-height:0;overflow-y:auto;overflow-x:hidden;
+    overscroll-behavior:contain;
+    scrollbar-width:thin;scrollbar-color:#cbd8ed transparent;
+    padding-bottom:6px;
+  }
+  .tencentbi-pc .tb-sidebar-fill{
+    flex:1 1 auto;min-height:0;
+  }
+  .tencentbi-pc .sidebar-bottom{
+    flex:0 0 auto;
+  }
+  .tencentbi-pc .tb-breadcrumb-admin{
+    border:0;background:transparent;color:#788eaa;
+    font-size:12px;padding:3px 1px;white-space:nowrap;
+  }
+  .tencentbi-pc .tb-breadcrumb-admin:hover{color:#2676df}
+  .tencentbi-pc .tb-breadcrumb-admin:focus-visible,
+  .tencentbi-pc .tb-admin-submenu button:focus-visible,
+  .tencentbi-pc .tb-admin-overview-grid button:focus-visible{
+    outline:3px solid #a9caff;outline-offset:2px;
+  }
+}
