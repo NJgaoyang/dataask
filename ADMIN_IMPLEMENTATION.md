@@ -1,0 +1,51 @@
+# DataAsk 系统管理 — PC 功能实装与验收
+
+目标：系统管理不再是仅可看的 4×2 功能卡片，而是每张卡片进入独立的、可加载/可保存/可报错/可重试的右侧模块页面。PC 左侧只保留「系统管理」一级导航。移动端小程序 HTML 和普通智能问数页面不改。
+
+## 功能清单（管理员专用）
+
+| 模块 | 实际操作 | 后端接口 |
+| --- | --- | --- |
+| 数据源配置 | 读取加密配置、编辑 StarRocks FE JDBC/只读账号/ADS 数据库、测试连接、保存并刷新表元数据 | GET /api/admin/settings；POST /api/admin/settings/starrocks/test；POST /api/admin/settings/starrocks |
+| 对话模型 | 编辑 Base URL、模型名、API Key；测试 OpenAI-compatible Chat Completions；保存生效 | POST /api/admin/settings/ai/test；POST /api/admin/settings/ai |
+| Embedding 模型 | 启用/关闭、Base URL/模型/维度/API Key、测试服务、保存、重建语义索引 | POST /api/admin/settings/embedding/test；POST /api/admin/settings/embedding；POST /api/admin/semantic/rebuild |
+| ADS 表授权 | 从 StarRocks 读取真实表与列名、展开字段、逐表启用/取消授权、刷新列表 | GET /api/admin/tables；POST /api/admin/table-allow |
+| 表关联规则 | 查看、创建和删除 1:1 / N:1 的跨表关联，校验授权表、左右关联键和业务粒度 | GET/POST /api/admin/join-rules；DELETE /api/admin/join-rules/{id} |
+| 指标口径 | 下载 Excel 模板、上传解析/预览、确认导入、查看批次、按批次删除 | GET /api/admin/metrics/template；POST /api/admin/metrics/preview；POST /api/admin/metrics/import；DELETE /api/admin/metrics/batches/{id} |
+| 用户管理 | 查看/创建账号、编辑显示名称及角色、管理员重置密码；防止自降权和移除最后管理员 | GET/POST /api/admin/users；PUT /api/admin/users/{username}；POST /api/admin/users/{username}/reset-password |
+| 配置状态 | 查看数据源/对话模型/Embedding 是否配置完整、手动刷新，并进入详细配置页 | GET /api/admin/status；GET /api/admin/settings |
+
+表单、权限和成功反馈使用真实 REST 调用。显示「已配置」只表示必要配置完整，不等于实际联通；具体连通性由对应的「测试连接」验证。
+
+## 关键修复
+
+之前部分配置卡片点击时先加载配置，若接口失败就不跳页面，让人误认为不能点击。现在先切换到右侧页面，再独立加载；加载失败在页面顶部显示错误和「重试加载」，不会停留在原卡片。
+
+- `web/src/App.vue`：每个模块独立路由状态，加载状态/错误/重试，表授权刷新，用户编辑和重置密码。
+- `web/src/admin-functional-pc.css`：完整配置表单、状态列表、用户表格与操作表单的正式 PC 样式。
+- `src/main/java/com/dataask/admin/AdminController.java`：用户编辑及密码重置 REST API，保持管理员安全限制。
+- `src/test/java/com/dataask/admin/AdminUserManagementTest.java`：角色变更、最后管理员、自降权、密码策略测试。
+- `web/scripts/admin-ui-smoke.mjs`：真实 Chromium 运行前端，对所有 8 个管理模块实际点击、模拟 REST 返回并检查 API 请求。
+- `.github/workflows/build.yml`：加入 Chromium 测试与 UI 截图，之后才运行 Java 验证与打包。
+
+## 生产部署前验收
+
+1. 使用管理员账号登录，进入系统管理。8 个功能卡片都能切到右侧独立页面；切回后仍可再次打开，加载失败出现重试按钮。
+2. 数据源中填写真实 StarRocks **只读**账号，点击「测试连接」后再保存；只有能连通并有 ADS 元数据，才开放数据表。
+3. 模型配置填入阿里云百炼实际 Base URL、Model、API Key，测试后保存；Embedding 模型还需根据实际模型维度重建索引。
+4. ADS 授权开关应在 MySQL 元数据中生效；新建跨表规则前必须明确字段、粒度和主键/唯一性。
+5. 上传真实 Excel 指标口径，先预览再导入，并在列表里核对与删除测试批次。
+6. 创建测试普通用户，验证其完全没有系统管理入口且直接调用 `/api/admin/**` 返回 403。管理员编辑该用户角色/重置密码；旧 JWT 应失效并要求重新登录。
+7. 实机观察 1366×768、1920×1080 PC；确认数据字段、按钮和下拉菜单没有被截断。
+
+**自动化浏览器测试使用模拟的后端 HTTP 数据**，证明页面能够交互并发送正确请求；不能代替你服务器的 MySQL、StarRocks、Qwen 密钥连通性与真实业务联调。自动化 Java 单元测试验证新用户管理 API 的逻辑与角色限制。
+
+## 本地打包
+
+```bash
+git switch dev20261109-miniapp-v2
+git pull origin dev20261109-miniapp-v2
+bash package.sh
+```
+
+产物 `release/dataask-0.1.0.tar.gz`。访问 `/build-info.json`，确认 `uiLayout` 为 `desktop-admin-functional-v6`，且 `buildSha` 与当前分支一致。原数据、账户和历史会话保留，不需要删除 MySQL 表或重建数据库。
