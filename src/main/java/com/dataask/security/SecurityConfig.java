@@ -181,6 +181,36 @@ class AuthController {
             "username", user.get("username"), "displayName", user.get("display_name"), "role", user.get("role"));
     }
 
+    record ChangePasswordRequest(
+        @NotBlank String oldPassword,
+        @NotBlank String newPassword) {}
+
+    /**
+     * Every authenticated user may change only their own password.
+     * Never accept a target username/role from the request body.
+     */
+    @PostMapping("/change-password")
+    Map<String,Object> changePassword(@Valid @RequestBody ChangePasswordRequest input, Authentication auth) {
+        String oldPassword = input.oldPassword();
+        String newPassword = input.newPassword();
+        if (newPassword.length() < 10 || newPassword.length() > 128)
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "新密码需为10到128位");
+        if (oldPassword.equals(newPassword))
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "新密码不能与旧密码相同");
+        List<String> stored = jdbc.query(
+            "SELECT password_hash FROM da_users WHERE username=?",
+            (rs,n) -> rs.getString(1), auth.getName());
+        if (stored.isEmpty() || !passwords.matches(oldPassword, stored.getFirst()))
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "原密码不正确");
+        // Compare-and-update prevents two overlapping password changes from both succeeding.
+        int updated = jdbc.update(
+            "UPDATE da_users SET password_hash=? WHERE username=? AND password_hash=?",
+            passwords.encode(newPassword), auth.getName(), stored.getFirst());
+        if (updated != 1)
+            throw new ResponseStatusException(HttpStatus.CONFLICT, "密码已发生变化，请重新登录后再试");
+        return Map.of("success", true, "message", "密码修改成功，请重新登录");
+    }
+
     @GetMapping("/me")
     Map<String, String> me(Authentication auth) {
         boolean admin = auth.getAuthorities().stream().anyMatch(a -> "ROLE_ADMIN".equals(a.getAuthority()));
