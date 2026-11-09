@@ -88,7 +88,7 @@ public class ChatController {
         String username = user.getName();
         if (!settings.ai().configured())
             throw new ResponseStatusException(HttpStatus.SERVICE_UNAVAILABLE,
-                "尚未配置 AI 模型，请设置 DATAASK_AI_BASE_URL / API_KEY / MODEL");
+                "尚未配置 AI 模型，请管理员进入系统管理 → 模型与连接进行配置");
         String question = input.question().trim();
         if (question.isEmpty()) throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "请输入问题");
 
@@ -114,11 +114,11 @@ public class ChatController {
                 "\n当前问题是对上一轮的追问，除非用户明确要求，否则必须保留指标口径、绝对日期范围及筛选条件。";
         }
 
-        Set<String> allowed = new LinkedHashSet<>(jdbc.query(
-            "SELECT table_name FROM da_allowed_tables WHERE enabled=1", (rs,n) -> rs.getString(1)));
-        if (allowed.isEmpty())
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "请管理员先在 ADS 表管理中开放至少一张表");
         List<StarRocksGateway.TableMeta> discovered = starrocks.discover();
+        Set<String> allowed = new LinkedHashSet<>();
+        discovered.forEach(table -> allowed.add(table.name()));
+        if (allowed.isEmpty())
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "请管理员在数据库 / 表 / 字段页面选择并保存问数范围");
         StringBuilder metadata = new StringBuilder();
         int columnsUsed = 0;
         for (StarRocksGateway.TableMeta table : discovered) {
@@ -136,7 +136,7 @@ public class ChatController {
 
         List<EntityValueResolver.Match> cityMatches = entities.resolve(question, allowed, discovered);
         String cityHints = entities.hints(cityMatches);
-        String metricHints = metricDictionary.promptForQuestion(question, allowed);
+        String metricHints = metricDictionary.promptForQuestion(question, allowed, discovered);
         String joinHints = joinRules.hints(allowed);
         String semanticHints = embeddings.hints(question, allowed);
         LocalDate today = LocalDate.now(ZoneId.of("Asia/Shanghai"));
@@ -156,7 +156,8 @@ public class ChatController {
             时间信息必须放在 WHERE 日期条件中，不是指标名称的一部分；不能把“前一天的总金额”显示为“当日金额”。
             所有结果中文列名须按本轮问题的真实业务含义生成。优先用 AS 输出中文别名，但不能乱改业务口径。
             SQL 必须是 StarRocks/MySQL 兼容方言，只能查询允许表，不能使用注释、分号、信息模式、写操作。
-            必须使用完整 adsSchema.tableName 表名，日期使用绝对值而不是 CURRENT_DATE/NOW。
+            必须使用元数据中列出的完整 database.tableName 表名，允许的表可能来自不同数据库；不能统一替换成默认库。日期使用绝对值而不是 CURRENT_DATE/NOW。
+            仅生成直接 SELECT、聚合和已批准的 JOIN，禁止 SELECT *、CTE、子查询和窗口函数；GROUP BY、HAVING 请使用物理字段或完整表达式，不使用输出别名。
             不要跨业务粒度错误 SUM 已聚合的比率或重复明细。没有数据时也不能编造值。
             用户提到的城市简称必须与系统提供的实际 ADS 城市维度值对齐：例如西安应使用字段中真实存在的西安市。
             如果系统没有提供已验证的实体映射，不要自行发明城市值；需要时先说明不确定性。

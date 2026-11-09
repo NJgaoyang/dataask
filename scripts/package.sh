@@ -2,24 +2,25 @@
 set -euo pipefail
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 cd "$ROOT"
-java -version 2>&1 | head -1 | grep -q '"21\.' || { echo "需要 Java 21"; exit 1; }
-command -v mvn >/dev/null || { echo "需要 Maven 3.9+"; exit 1; }
-command -v npm >/dev/null || { echo "需要 Node.js 22 和 npm"; exit 1; }
-BUILD_SHA="$(git rev-parse --short=8 HEAD 2>/dev/null || echo unknown)"
-BUILT_AT="$(date -u '+%Y-%m-%dT%H:%M:%SZ')"
-(cd web && if [ -f package-lock.json ]; then npm ci; else npm install --no-audit --no-fund; fi && DATAASK_BUILD_SHA="$BUILD_SHA" npm run build)
-mkdir -p src/main/resources/static
-rm -rf src/main/resources/static/*
-cp -R web/dist/. src/main/resources/static/
-printf '{"buildSha":"%s","builtAt":"%s","uiLayout":"desktop-three-pane","modelManagement":"web"}\n' "$BUILD_SHA" "$BUILT_AT" > src/main/resources/static/build-info.json
+for TOOL in java mvn node npm tar unzip; do command -v "$TOOL" >/dev/null || { echo "缺少构建工具: $TOOL"; exit 1; }; done
 mvn -B clean package
+JAR="$ROOT/target/dataask-0.1.0-SNAPSHOT.jar"
+INFO="$(unzip -p "$JAR" BOOT-INF/classes/static/build-info.json)"
+echo "$INFO" | grep -F 'table-column-selector-v1' >/dev/null || { echo "JAR 中缺少新版前端，拒绝发布"; exit 1; }
+BUILD_SHA="$(printf '%s' "$INFO" | sed -n 's/.*"buildSha":"\([^" ]*\)".*/\1/p')"
+[ -n "$BUILD_SHA" ] || { echo "缺少构建版本"; exit 1; }
 OUT="$ROOT/release/dataask-0.1.0"
 rm -rf "$OUT"
 mkdir -p "$OUT/bin" "$OUT/conf" "$OUT/lib" "$OUT/logs"
-cp target/dataask-0.1.0-SNAPSHOT.jar "$OUT/lib/dataask.jar"
-cp scripts/runtime/start.sh scripts/runtime/stop.sh scripts/runtime/upgrade.sh "$OUT/bin/"
+cp "$JAR" "$OUT/lib/dataask.jar"
+cp scripts/runtime/*.sh "$OUT/bin/"
 cp scripts/runtime/application.yml "$OUT/conf/application.yml"
+printf '%s\n' "$INFO" > "$OUT/build-info.json"
 chmod +x "$OUT/bin/"*.sh
-tar -czf "$ROOT/release/dataask-0.1.0.tar.gz" -C "$ROOT/release" dataask-0.1.0
-echo "完成: release/dataask-0.1.0.tar.gz (build: $BUILD_SHA)"
-echo "部署后在浏览器打开 /build-info.json，可确认服务器实际运行的新版本"
+ARCHIVE="$ROOT/release/dataask-0.1.0-$BUILD_SHA.tar.gz"
+tar -czf "$ARCHIVE" -C "$ROOT/release" dataask-0.1.0
+cp "$ARCHIVE" "$ROOT/release/dataask-0.1.0.tar.gz"
+(cd "$ROOT/release" && sha256sum "$(basename "$ARCHIVE")" > "$(basename "$ARCHIVE").sha256")
+echo "完成: $ARCHIVE"
+echo "构建信息: $INFO"
+echo "请升级实际运行目录，并访问 /api/build-info 核对 buildSha 和启动 PID。"

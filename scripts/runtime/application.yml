@@ -1,23 +1,12 @@
+# 仅配置启动必需的元数据库连接和服务端口。
+# 模型、StarRocks 分析连接、数据库/表/字段均在管理员页面设置并存入 MySQL。
 server:
   port: ${DATAASK_PORT:8087}
-# DataAsk 部署模板，部署后填写真实参数并 chmod 600 conf/application.yml
 spring:
   datasource:
-    url: jdbc:mysql://127.0.0.1:3306/dataask?useUnicode=true&characterEncoding=utf8
-    username: dataask
-    password: ""
-dataask:
-  admin-password: ""
-  # 使用 openssl rand -hex 32 生成，至少32字节；修改后旧 token 将失效
-  jwt-secret: ""
-  starrocks:
-    jdbc-url: ""
-    username: ""
-    password: ""
-    schema: ads
-  # AI 模型和 Embedding 模型可在系统管理的 Web 页面配置；
-  # 以下仅为未通过 Web 保存时的默认示例，无需在这里填写 Key。
-  ai:
-    base-url: "https://api.deepseek.com"
-    api-key: ""
-    model: "deepseek-flash"
+    url: ${DATAASK_MYSQL_URL:jdbc:mysql://127.0.0.1:3306/dataask?useUnicode=true&characterEncoding=utf8}
+    username: ${DATAASK_MYSQL_USER:root}
+    password: ${DATAASK_MYSQL_PASSWORD:123456}
+# 旧安装升级时保留原配置文件：旧 JWT/业务配置只在首次迁移时读取，之后以 MySQL 为准。
+# 已有账号密码不会改变。全新安装可用 DATAASK_ADMIN_PASSWORD 指定初始密码，
+# 未指定时启动日志只输出一次自动生成的 admin 初始密码。

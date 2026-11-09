@@ -33,8 +33,16 @@ public class JoinRuleService {
     }
 
     public List<Rule> allowed(Set<String> allowedTables) {
+        Map<String,Set<String>> selected = new HashMap<>();
+        for (var table : gateway.discover()) {
+            Set<String> names = new HashSet<>();
+            table.columns().forEach(c -> names.add(c.name()));
+            selected.put(table.name(), names);
+        }
         return all().stream()
             .filter(r -> allowedTables.contains(r.leftTable()) && allowedTables.contains(r.rightTable()))
+            .filter(r -> selected.getOrDefault(r.leftTable(), Set.of()).containsAll(r.leftKeys()) &&
+                selected.getOrDefault(r.rightTable(), Set.of()).containsAll(r.rightKeys()))
             .toList();
     }
 
