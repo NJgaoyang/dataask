@@ -30,7 +30,7 @@ jobs:
       - name: Package distribution and verify embedded frontend version
         run: |
           bash scripts/package.sh
-          unzip -p target/dataask-0.1.0-SNAPSHOT.jar BOOT-INF/classes/static/build-info.json | grep -F 'desktop-global-layout-v4'
+          unzip -p target/dataask-0.1.0-SNAPSHOT.jar BOOT-INF/classes/static/build-info.json | grep -F 'desktop-bluewhite-account-v5'
           unzip -p target/dataask-0.1.0-SNAPSHOT.jar BOOT-INF/classes/static/miniapp/index.html | grep -F '/api/mini/bootstrap'
           tar -tzf release/dataask-0.1.0.tar.gz | grep -F 'dataask-0.1.0/bin/upgrade.sh'
 
