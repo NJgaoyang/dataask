@@ -46,6 +46,8 @@ fn.setMode(a.id,'table');
 const tableCard=fn.answerCard({type:'answer',answer:a});
 assert(tableCard.includes('class="chart-viewport"') && tableCard.includes('class="table-data"'),
   'Chart and table modes must share the same fixed-height viewport');
+assert(tableCard.includes('mobile-chart-types'),
+  'Chart style toolbar must remain present in table mode so the outer card height stays fixed');
 fn.setMode(a.id,'chart');
 assert(html.includes('.mobile-result-row .chart-card') && html.includes('grid-column:1 / -1'),
   'Mobile result card must span the avatar and answer columns');
