@@ -867,7 +867,8 @@ async function saveUserProfile() {
     })
     users.value = (await api.get('/admin/users')).data
     showSuccessToast('用户信息已保存')
-    cancelUserEdit()
+    userEditVisible.value = false
+    userEditForm.value = { username:'', displayName:'', role:'USER', password:'' }
   } catch(e) { showFailToast('保存用户失败：'+errorText(e)) }
   finally { userEditSaving.value=false }
 }
