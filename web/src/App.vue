@@ -608,7 +608,7 @@ onBeforeUnmount(() => desktopMedia?.removeEventListener('change', window.__dataA
 </script>
 
 <template>
-  <div class="app-shell" :class="{ 'desktop-no-result': !resultPanelOpen, 'consumer-pc': isDesktop, 'consumer-home': isDesktop && !messages.length && !busy && !desktopFeedback }">
+  <div class="app-shell" :class="{ 'desktop-no-result': !resultPanelOpen, 'consumer-pc': isDesktop, 'quickbi-pc': isDesktop, 'consumer-home': isDesktop && !messages.length && !busy && !desktopFeedback }">
     <div v-if="!loggedIn" class="login-screen">
       <div class="login-logo">问</div>
       <h1>{{ isDesktop ? 'DataAsk' : 'DataAsk 数问' }}</h1>
@@ -625,21 +625,21 @@ onBeforeUnmount(() => desktopMedia?.removeEventListener('change', window.__dataA
       <aside class="desktop-sidebar" aria-label="历史对话侧边栏">
         <div class="sidebar-brand">
           <div class="brand-icon">问</div>
-          <div class="brand-title"><strong>DataAsk</strong><small>你的智能数据搭子</small></div>
+          <div class="brand-title"><strong>DataAsk</strong><small>智能问数 · 数据分析助手</small></div>
         </div>
         <button class="sidebar-new" type="button" @click="newConversation">
-          <van-icon name="plus" size="16"/> 开启新对话
+          <van-icon name="plus" size="16"/> 新建问数
         </button>
         <label class="sidebar-search">
           <van-icon name="search" color="#8997a8"/>
-          <input v-model="sessionSearch" placeholder="找找聊过的话题" aria-label="搜索历史对话"/>
+          <input v-model="sessionSearch" placeholder="搜索历史问数" aria-label="搜索历史对话"/>
         </label>
         <nav class="desktop-main-nav" aria-label="PC 功能导航">
-          <button type="button" class="active" @click="newConversation"><van-icon name="chat-o"/> 开始探索</button>
-          <button type="button" @click="openSavedCharts"><van-icon name="star-o"/> 我的收藏</button>
+          <button type="button" class="active" @click="newConversation"><van-icon name="chat-o"/> 智能问数</button>
+          <button type="button" @click="openSavedCharts"><van-icon name="chart-trending-o"/> 我的图表</button>
         </nav>
         <div class="sidebar-history-heading">
-          <span class="sidebar-label">最近聊过</span>
+          <span class="sidebar-label">历史问数</span>
           <span class="sidebar-history-count" :title="'共 '+visibleSessions.length+' 条对话'">{{ visibleSessions.length }}</span>
         </div>
         <nav class="sidebar-sessions" aria-label="最近对话">
@@ -666,7 +666,7 @@ onBeforeUnmount(() => desktopMedia?.removeEventListener('change', window.__dataA
           <button v-if="isAdmin" type="button" class="sidebar-admin-card" @click="openAdmin" title="打开系统管理">
             <span class="sidebar-admin-icon"><van-icon name="setting-o" size="18"/></span>
             <span class="sidebar-admin-content">
-              <strong>管理后台</strong>
+              <strong>管理中心</strong>
               <small>管理员专属</small>
             </span>
             <van-icon class="sidebar-admin-arrow" name="arrow" size="14"/>
@@ -690,7 +690,7 @@ onBeforeUnmount(() => desktopMedia?.removeEventListener('change', window.__dataA
         <div class="brand">
           <div class="brand-icon">问</div>
           <div class="brand-title"><strong class="mobile-brand">数问</strong>
-            <strong class="desktop-current-session">{{ activeSessionTitle }}</strong>
+            <strong class="desktop-current-session">{{ isDesktop && !sessionId ? '智能问数' : activeSessionTitle }}</strong>
             <small>经营数据助手</small></div>
         </div>
         <div class="top-actions">
@@ -707,27 +707,35 @@ onBeforeUnmount(() => desktopMedia?.removeEventListener('change', window.__dataA
       <main class="conversation">
         <section v-if="!messages.length && (!isDesktop || (!busy && !desktopFeedback))" class="welcome">
           <template v-if="isDesktop">
-            <div class="consumer-hero-mark" aria-hidden="true">
-              <span class="consumer-hero-glyph">✦</span><span class="consumer-hero-dot">•</span>
+            <div class="qbi-welcome-brand">
+              <span class="qbi-welcome-orb" aria-hidden="true"><van-icon name="chart-trending-o" size="29"/></span>
+              <span>DataAsk 智能问数</span>
             </div>
-            <div class="consumer-hero-eyebrow">DATAASK · 轻松探索经营数据</div>
-            <h2>想知道什么，问一句就好。</h2>
-            <p class="consumer-hero-description">从昨天的业绩到最近的变化，像聊天一样找到数据答案。</p>
-            <div class="consumer-examples-header">
-              <span><van-icon name="fire-o"/> 可以从这些问题开始</span>
-              <span>选一个试试 <van-icon name="arrow" size="11"/></span>
+            <h2>你好，今天想分析哪些数据？</h2>
+            <p class="qbi-welcome-description">选择可用数据，直接提问，即可获得真实分析结果和可交互图表。</p>
+            <div class="qbi-dataset-surface">
+              <div class="qbi-dataset-description">
+                <div class="qbi-dataset-symbol"><van-icon name="cluster-o" size="20"/></div>
+                <div>
+                  <strong>当前问数范围</strong>
+                  <span>{{ selectedDatasetName }}</span>
+                </div>
+                <span class="qbi-dataset-count">{{ approvedDatasets.length }} 个已授权数据集</span>
+              </div>
+              <button type="button" class="qbi-dataset-open" @click="toggleDatasetPicker">
+                {{ selectedDataset ? '切换数据集' : '查看可用数据' }} <van-icon name="arrow" size="13"/>
+              </button>
             </div>
-            <div class="quick-grid consumer-quick-grid">
+            <div class="qbi-question-heading">
+              <span><van-icon name="fire-o"/> 你可以这样问</span>
+              <small>这些问题会查询真实的 ADS 数据</small>
+            </div>
+            <div class="quick-grid qbi-quick-grid">
               <button v-for="(item, idx) in quickQuestions" :key="item" :disabled="busy"
                 type="button" @click="ask(item)">
-                <span class="consumer-question-art" :class="'question-art-'+idx">
-                  <van-icon :name="['bar-chart-o','location-o','chart-trending-o','balance-o'][idx]" size="22"/>
-                </span>
-                <span class="consumer-question-content">
-                  <span class="consumer-question-title">{{ item }}</span>
-                  <small>{{ ['快速看看经营表现','发现城市间的差异','用趋势发现新变化','多维度轻松比较'][idx] }}</small>
-                </span>
-                <van-icon name="arrow" class="consumer-question-arrow" size="14"/>
+                <span class="qbi-quick-icon"><van-icon :name="['chart-trending-o','location-o','bar-chart-o','balance-o'][idx]" size="19"/></span>
+                <span class="qbi-quick-title">{{ item }}</span>
+                <van-icon name="arrow" class="qbi-quick-arrow" size="14"/>
               </button>
             </div>
           </template>
@@ -746,8 +754,12 @@ onBeforeUnmount(() => desktopMedia?.removeEventListener('change', window.__dataA
         <section v-for="msg in messages" :key="msg.id" class="turn">
           <div class="user-bubble">{{ msg.question }}</div>
           <div class="answer-card">
-            <div class="answer-heading"><span class="answer-mark">数</span><b>{{ msg.title }}</b>
+            <div class="answer-heading"><span class="answer-mark">{{ isDesktop ? 'Q' : '数' }}</span><b>{{ msg.title }}</b>
               <span v-if="msg.timeLabel" class="answer-time">{{ msg.timeLabel }}</span>
+            </div>
+            <div v-if="isDesktop" class="qbi-answer-source">
+              <span><van-icon name="cluster-o"/> {{ msg.dataset || '全部已授权数据' }}</span>
+              <span><van-icon name="shield-o"/> 已按授权数据查询</span>
             </div>
             <p class="answer-summary" :class="{ 'unsupported-text': msg.unsupported }">{{ msg.summary }}</p>
             <template v-if="msg.rows?.length">
@@ -765,7 +777,14 @@ onBeforeUnmount(() => desktopMedia?.removeEventListener('change', window.__dataA
                   <small :title="col">{{ columnLabel(msg, col, msg.columns.indexOf(col)) }}</small><strong>{{ pretty(msg.rows[0][col]) }}</strong>
                 </div>
               </div>
-              <AnswerChart v-if="['bar','line','pie'].includes(msg.chartType) && msg.rows.length > 1 && (!isDesktop || resultView(msg)==='chart')" :message="msg"/>
+              <div v-if="isDesktop && ['bar','line','pie'].includes(msg.chartType) && msg.rows.length > 1 && resultView(msg)==='chart'" class="qbi-chart-type">
+                <span>图表类型</span>
+                <button type="button" :class="{active:chartStyle(msg)==='bar'}" @click="setChartStyle(msg,'bar')">柱状图</button>
+                <button type="button" :class="{active:chartStyle(msg)==='line'}" @click="setChartStyle(msg,'line')">折线图</button>
+                <button type="button" :class="{active:chartStyle(msg)==='pie'}" @click="setChartStyle(msg,'pie')">饼图</button>
+              </div>
+              <AnswerChart v-if="['bar','line','pie'].includes(msg.chartType) && msg.rows.length > 1 && (!isDesktop || resultView(msg)==='chart')"
+                :message="msg" :chart-type-override="isDesktop ? chartStyle(msg) : ''"/>
               <div v-if="!isDesktop || resultView(msg)==='table'" class="result-table-scroll" role="region" tabindex="0" aria-label="数据结果表格，可独立上下滚动">
                 <table class="result-table">
                   <thead><tr><th v-for="(col, idx) in msg.columns" :key="col" :title="col">{{ columnLabel(msg, col, idx) }}</th></tr></thead>
@@ -862,10 +881,16 @@ onBeforeUnmount(() => desktopMedia?.removeEventListener('change', window.__dataA
       <footer class="composer">
         <div class="composer-row">
           <textarea ref="desktopQuestionRef" v-model="question" :rows="isDesktop ? 3 : 1" maxlength="800"
-            :placeholder="isDesktop ? '想了解什么？直接问我吧…' : '问问经营数据，例如：昨日营业额'"
+            :placeholder="isDesktop ? '例如：昨天各城市的销售额是多少？' : '问问经营数据，例如：昨日营业额'"
             aria-label="输入经营数据问题" @keydown.enter.exact.prevent="ask()"></textarea>
+          <div v-if="isDesktop" class="qbi-composer-dataset">
+            <button type="button" @click="toggleDatasetPicker" title="选择管理员已开放的 ADS 数据集">
+              <van-icon name="cluster-o"/> {{ selectedDatasetName }} <van-icon name="arrow-down" size="10"/>
+            </button>
+            <span><van-icon name="shield-o"/> 查询受权限保护</span>
+          </div>
           <div v-if="isDesktop" class="desktop-composer-hints">
-            <span><van-icon name="shield-o"/> 使用已授权数据回答 · Enter 发送</span>
+            <span>Enter 发送 · Shift + Enter 换行</span>
             <span :class="{ 'near-limit': question.length > 700 }">{{ question.length }}/800</span>
           </div>
           <button v-if="isDesktop && busy" class="send-btn stop-btn" type="button"
@@ -880,6 +905,44 @@ onBeforeUnmount(() => desktopMedia?.removeEventListener('change', window.__dataA
         </div>
         <small>DataAsk · 仅供内部经营分析 · 以实际业务口径为准</small>
       </footer>
+      <van-popup v-if="isDesktop" v-model:show="datasetPickerVisible" position="center" round
+        :style="{ width: 'min(720px,92vw)', maxHeight: 'min(76vh,700px)' }">
+        <div class="qbi-dataset-dialog">
+          <div class="qbi-dialog-title">
+            <div><h3>选择问数数据</h3><p>仅列出管理员已开放的 ADS 数据表。选择后，查询会限定在所选数据表中。</p></div>
+            <button type="button" aria-label="关闭" @click="datasetPickerVisible=false"><van-icon name="cross"/></button>
+          </div>
+          <div class="qbi-dataset-list">
+            <button type="button" class="qbi-dataset-all" :class="{active:!selectedDataset}"
+              @click="pickDataset('')">
+              <van-icon name="apps-o"/><span>全部已授权数据<small>在所有已开放的 ADS 表中分析</small></span>
+              <van-icon v-if="!selectedDataset" name="success"/>
+            </button>
+            <div v-for="name in approvedDatasets" :key="name" class="qbi-dataset-entry">
+              <button type="button" class="qbi-dataset-choose" :class="{active:selectedDataset===name}"
+                @click="pickDataset(name)">
+                <van-icon name="cluster-o"/><span :title="name">{{ name }}</span>
+                <van-icon v-if="selectedDataset===name" name="success"/>
+              </button>
+              <button type="button" class="qbi-dataset-inspect" :disabled="datasetPreviewBusy"
+                @click="inspectDataset(name)">查看字段</button>
+            </div>
+            <p v-if="!approvedDatasets.length" class="qbi-dataset-empty">
+              暂无可用数据，请联系管理员开放 ADS 数据表后再提问。
+            </p>
+          </div>
+          <div v-if="datasetPreviewBusy" class="qbi-preview-loading"><van-loading size="17px"/> 正在读取字段…</div>
+          <div v-else-if="datasetPreview" class="qbi-dataset-preview">
+            <h4>{{ datasetPreview.name }} <small>已授权字段预览（最多 40 列）</small></h4>
+            <div class="qbi-preview-scroller">
+              <table><thead><tr><th>字段</th><th>类型</th><th>业务说明</th></tr></thead>
+              <tbody><tr v-for="item in datasetPreview.columns" :key="item.name">
+                <td>{{ item.name }}</td><td>{{ item.type }}</td><td>{{ item.comment || '—' }}</td>
+              </tr></tbody></table>
+            </div>
+          </div>
+        </div>
+      </van-popup>
       <van-popup v-model:show="chartsVisible" :position="isDesktop ? 'center' : 'bottom'" round
         :style="{ width: isDesktop ? 'min(680px,90vw)' : '100%', height: isDesktop ? 'min(650px,82vh)' : '75%' }">
         <div class="drawer">
