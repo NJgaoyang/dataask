@@ -98,11 +98,12 @@ class JwtTokens {
             throw new IllegalStateException("必须设置不少于32字节的 DATAASK_JWT_SECRET");
     }
 
-    String issue(String username, String role) {
+    String issue(String username, String role, String passwordHash) {
         try {
             String head = ENC.encodeToString("{\"alg\":\"HS256\",\"typ\":\"JWT\"}".getBytes(StandardCharsets.UTF_8));
             String body = ENC.encodeToString(mapper.writeValueAsBytes(Map.of(
-                "sub", username, "role", role, "exp", Instant.now().plusSeconds(43200).getEpochSecond())));
+                "sub", username, "role", role, "pwd", passwordStamp(passwordHash),
+                "exp", Instant.now().plusSeconds(43200).getEpochSecond())));
             String signing = head + "." + body;
             return signing + "." + ENC.encodeToString(hmac(signing));
         } catch (Exception e) { throw new IllegalStateException("令牌签发失败", e); }
@@ -119,9 +120,10 @@ class JwtTokens {
             JsonNode payload = mapper.readTree(DEC.decode(parts[1]));
             String username = payload.path("sub").asText("");
             String role = payload.path("role").asText("");
-            if (username.isBlank() || !(role.equals("USER") || role.equals("ADMIN"))
+            String pwd = payload.path("pwd").asText("");
+            if (username.isBlank() || pwd.isBlank() || !(role.equals("USER") || role.equals("ADMIN"))
                 || payload.path("exp").asLong(0) <= Instant.now().getEpochSecond()) return null;
-            return new Identity(username, role);
+            return new Identity(username, role, pwd);
         } catch (Exception e) { return null; }
     }
 
@@ -130,7 +132,16 @@ class JwtTokens {
         mac.init(new SecretKeySpec(secret.getBytes(StandardCharsets.UTF_8), "HmacSHA256"));
         return mac.doFinal(input.getBytes(StandardCharsets.UTF_8));
     }
-    record Identity(String username, String role) {}
+    static String passwordStamp(String hash) {
+        try {
+            byte[] full = MessageDigest.getInstance("SHA-256")
+                .digest(hash.getBytes(StandardCharsets.UTF_8));
+            return ENC.encodeToString(java.util.Arrays.copyOf(full, 16));
+        } catch (java.security.NoSuchAlgorithmException e) {
+            throw new IllegalStateException("不可用的密码指纹算法", e);
+        }
+    }
+    record Identity(String username, String role, String passwordStamp) {}
 }
 
 @Component
@@ -146,9 +157,11 @@ class JwtFilter extends OncePerRequestFilter {
         if (auth != null && auth.startsWith("Bearer ")) {
             JwtTokens.Identity id = tokens.read(auth.substring(7));
             if (id != null) {
-                List<String> roles = jdbc.query("SELECT role FROM da_users WHERE username=?",
-                    (rs, n) -> rs.getString(1), id.username());
-                if (!roles.isEmpty() && roles.getFirst().equals(id.role())) {
+                List<Map<String,Object>> users = jdbc.queryForList(
+                    "SELECT role,password_hash FROM da_users WHERE username=?", id.username());
+                if (!users.isEmpty() && id.role().equals(users.getFirst().get("role"))
+                    && id.passwordStamp().equals(JwtTokens.passwordStamp(
+                        (String) users.getFirst().get("password_hash")))) {
                     Authentication principal = new UsernamePasswordAuthenticationToken(
                         id.username(), null, List.of(new SimpleGrantedAuthority("ROLE_" + id.role())));
                     org.springframework.security.core.context.SecurityContextHolder.getContext().setAuthentication(principal);
@@ -177,7 +190,8 @@ class AuthController {
         if (users.isEmpty() || !passwords.matches(input.password(), (String) users.getFirst().get("password_hash")))
             throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "用户名或密码错误");
         Map<String, Object> user = users.getFirst();
-        return Map.of("token", tokens.issue((String) user.get("username"), (String) user.get("role")),
+        return Map.of("token", tokens.issue((String) user.get("username"), (String) user.get("role"),
+                (String) user.get("password_hash")),
             "username", user.get("username"), "displayName", user.get("display_name"), "role", user.get("role"));
     }
 
