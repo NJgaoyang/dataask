@@ -35,6 +35,44 @@ const chartsVisible = ref(false)
 const savedCharts = ref([])
 const sharedCharts = ref([])
 const chartsBusy = ref(false)
+const chartSearch = ref('')
+const chartTypeFilter = ref('ALL')
+const chartSortOrder = ref('recent')
+const chartTypeOptions = computed(() => {
+  const types = [...new Set([...savedCharts.value, ...sharedCharts.value]
+    .map(item => String(item.chartType || '').trim())
+    .filter(Boolean))]
+  return types.sort((a,b) => a.localeCompare(b))
+})
+function filterChartItems(items) {
+  const keyword = chartSearch.value.trim().toLowerCase()
+  return [...items].filter(item => {
+    const matchesText = !keyword ||
+      [item.title, item.question, item.ownerUsername].some(
+        value => String(value || '').toLowerCase().includes(keyword))
+    const matchesType = chartTypeFilter.value === 'ALL' ||
+      String(item.chartType || '') === chartTypeFilter.value
+    return matchesText && matchesType
+  }).sort((a,b) => {
+    const at = new Date(a.updatedAt || a.createdAt || 0).getTime() || 0
+    const bt = new Date(b.updatedAt || b.createdAt || 0).getTime() || 0
+    return chartSortOrder.value === 'oldest' ? at-bt : bt-at
+  })
+}
+const filteredSavedCharts = computed(() => filterChartItems(savedCharts.value))
+const filteredSharedCharts = computed(() => filterChartItems(sharedCharts.value))
+function chartTypeLabel(type) {
+  return ({line:'折线图', bar:'柱状图', pie:'饼图', metric:'指标卡', table:'数据表'})[type] || type || '图表'
+}
+function isRedundantSummary(msg) {
+  if (!msg?.rows?.length || msg.unsupported) return false
+  const summary = String(msg.summary || '').replace(/\s+/g,' ').trim()
+  if (!summary) return true
+  // Suppress generic system narration, never hide actual calculated business insights.
+  return /^(已从\s*StarRocks|已查询到|查询到|已返回|已获取|数据查询成功|本次查询返回)/i.test(summary) &&
+    /(\d+\s*行|条数据|真实数据|查询结果|点击下方|继续分析|来自)/.test(summary)
+}
+
 const desktopSection = ref('overview')
 const adminExpanded = ref(false)
 const desktopAdminSections = ['admin-overview','admin-source','admin-model','admin-embedding','admin-tables','admin-joins','admin-metrics','admin-users']
