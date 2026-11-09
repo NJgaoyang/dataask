@@ -40,12 +40,14 @@ public class ChatController {
     private final JoinSafetyGuard joinGuard;
     private final QuestionPresentationService presentation;
     private final EmbeddingSemanticService embeddings;
+    private final ChatCancellationService cancellations;
 
     public ChatController(JdbcTemplate jdbc, StarRocksGateway starrocks, SqlGuard guard,
             ObjectMapper json, RuntimeConfigService settings, EntityValueResolver entities,
             MetricDictionaryService metricDictionary, ColumnLabelService labels,
             JoinRuleService joinRules, JoinSafetyGuard joinGuard,
-            QuestionPresentationService presentation, EmbeddingSemanticService embeddings) {
+            QuestionPresentationService presentation, EmbeddingSemanticService embeddings,
+            ChatCancellationService cancellations) {
         this.jdbc = jdbc; this.starrocks = starrocks; this.guard = guard; this.json = json;
         this.settings = settings;
         this.entities = entities;
@@ -55,10 +57,12 @@ public class ChatController {
         this.joinGuard = joinGuard;
         this.presentation = presentation;
         this.embeddings = embeddings;
+        this.cancellations = cancellations;
         this.http = RestClient.builder().build();
     }
 
-    record AskRequest(String sessionId, @NotBlank @Size(max=800) String question, String sourceMessageId) {}
+    record AskRequest(String sessionId, @NotBlank @Size(max=800) String question, String sourceMessageId, String requestId) {}
+    record CancelRequest(@NotBlank String requestId) {}
     record Answer(String id, String sessionId, String question, String title, String summary,
                   String chartType, List<String> columns, Map<String,String> columnLabels,
                   List<Map<String,Object>> rows, List<String> followUps,
@@ -83,9 +87,16 @@ public class ChatController {
         }).toList();
     }
 
+    @PostMapping("/cancel")
+    Map<String,Boolean> cancel(@Valid @RequestBody CancelRequest request, Authentication user) {
+        return Map.of("cancelled", cancellations.cancel(user.getName(), request.requestId()));
+    }
+
     @PostMapping("/ask")
     Answer ask(@Valid @RequestBody AskRequest input, Authentication user) {
         String username = user.getName();
+        ChatCancellationService.Active active = cancellations.begin(username, input.requestId());
+        try {
         if (!settings.ai().configured())
             throw new ResponseStatusException(HttpStatus.SERVICE_UNAVAILABLE,
                 "尚未配置 AI 模型，请设置 DATAASK_AI_BASE_URL / API_KEY / MODEL");
@@ -169,6 +180,7 @@ public class ChatController {
             "。\n允许使用的表及字段如下：" + metadata + metricHints + semanticHints + joinHints + cityHints +
             "\n" + previous + "\n用户问题：" + question;
         JsonNode plan = plan(instruction, full);
+        active.checkCancelled();
         QuestionPresentationService.Presentation shown =
             presentation.resolve(question, previousQuestion, plan);
         String sql = "";
@@ -191,7 +203,7 @@ public class ChatController {
                     sql = guard.validate(normalizedSql, allowed, starrocks.schema());
                     joinGuard.validate(sql, joinRules.allowed(allowed), starrocks.schema());
                     if (!Set.of("metric","table","bar","line","pie").contains(chart)) chart = "table";
-                    StarRocksGateway.QueryResult data = starrocks.query(sql);
+                    StarRocksGateway.QueryResult data = starrocks.query(sql, active);
                     columns = data.columns();
                     rows = data.rows();
                     columnLabels = presentation.alignLabels(shown, columns, rows,
@@ -228,6 +240,7 @@ public class ChatController {
             followups = List.of();
         }
 
+        active.checkCancelled();
         String messageId = UUID.randomUUID().toString();
         Answer answer = new Answer(messageId, session, question, title, summary, chart, columns,
             columnLabels, rows, followups, shown.metricLabel(), shown.periodLabel(), unsupported);
@@ -240,6 +253,9 @@ public class ChatController {
             throw new IllegalStateException("保存会话失败", e);
         }
         return answer;
+        } finally {
+            cancellations.end(active);
+        }
     }
 
     private JsonNode plan(String system, String user) {
