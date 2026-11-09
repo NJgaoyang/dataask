@@ -24,6 +24,52 @@ const me = ref(JSON.parse(sessionStorage.getItem('dataask_user') || '{}'))
 const verifiedRole = ref('')
 const loginForm = ref({ username: 'admin', password: '' })
 const loggingIn = ref(false)
+// Desktop account actions live in the top-right global header, not the sidebar.
+const accountMenuOpen = ref(false)
+const accountMenuRef = ref(null)
+const changePasswordOpen = ref(false)
+const changePasswordBusy = ref(false)
+const passwordForm = ref({ oldPassword:'', newPassword:'', confirmPassword:'' })
+function handleAccountOutsideClick(event) {
+  if (accountMenuOpen.value && !accountMenuRef.value?.contains(event.target)) {
+    accountMenuOpen.value = false
+  }
+}
+function openPasswordChange() {
+  accountMenuOpen.value = false
+  passwordForm.value = { oldPassword:'', newPassword:'', confirmPassword:'' }
+  changePasswordOpen.value = true
+}
+function closePasswordChange() {
+  if (changePasswordBusy.value) return
+  changePasswordOpen.value = false
+  passwordForm.value = { oldPassword:'', newPassword:'', confirmPassword:'' }
+}
+async function submitPasswordChange() {
+  if (changePasswordBusy.value) return
+  const {oldPassword,newPassword,confirmPassword} = passwordForm.value
+  if (!oldPassword) return showFailToast('请输入当前密码')
+  if (newPassword.length < 10 || newPassword.length > 128)
+    return showFailToast('新密码需为10到128位')
+  if (newPassword === oldPassword) return showFailToast('新密码不能与当前密码相同')
+  if (newPassword !== confirmPassword) return showFailToast('两次输入的新密码不一致')
+  changePasswordBusy.value = true
+  try {
+    await api.post('/auth/change-password', { oldPassword, newPassword })
+    changePasswordOpen.value = false
+    passwordForm.value = { oldPassword:'', newPassword:'', confirmPassword:'' }
+    logout()
+    showSuccessToast('密码已更新，请使用新密码重新登录')
+  } catch(e) {
+    showFailToast(errorText(e))
+  } finally {
+    changePasswordBusy.value = false
+  }
+}
+function desktopLogout() {
+  accountMenuOpen.value = false
+  logout()
+}
 const question = ref('')
 const busy = ref(false)
 const pendingQuestion = ref('')
@@ -278,6 +324,9 @@ function logout() {
   loggedIn.value = false
   verifiedRole.value = ''
   configVisible.value = false
+  accountMenuOpen.value = false
+  changePasswordOpen.value = false
+  passwordForm.value = { oldPassword:'', newPassword:'', confirmPassword:'' }
   messages.value = []; sessionId.value = ''; historyVisible.value = false; adminVisible.value = false
   desktopFeedback.value = null
   desktopSection.value = 'overview'
@@ -741,6 +790,7 @@ onMounted(() => {
   update()
   desktopMedia.addEventListener('change', update)
   window.__dataAskDesktopListener = update
+  document.addEventListener('click', handleAccountOutsideClick)
   if (loggedIn.value) {
     refreshAuthenticatedRole()
     loadSessions()
@@ -748,7 +798,10 @@ onMounted(() => {
     loadSavedCharts()
   }
 })
-onBeforeUnmount(() => desktopMedia?.removeEventListener('change', window.__dataAskDesktopListener))
+onBeforeUnmount(() => {
+  desktopMedia?.removeEventListener('change', window.__dataAskDesktopListener)
+  document.removeEventListener('click', handleAccountOutsideClick)
+})
 </script>
 
 <template>
@@ -784,20 +837,6 @@ onBeforeUnmount(() => desktopMedia?.removeEventListener('change', window.__dataA
           </button>
         </nav>
         <div class="tb-sidebar-fill"></div>
-        <div class="sidebar-bottom">
-          <div class="sidebar-profile-card">
-            <div class="sidebar-profile-left">
-              <span class="sidebar-avatar">{{ (me.displayName || me.username || '用').slice(0,1) }}</span>
-              <span class="sidebar-profile-meta">
-                <strong :title="me.displayName || me.username">{{ me.displayName || me.username }}</strong>
-                <small>{{ isAdmin ? '管理员' : '普通用户' }}</small>
-              </span>
-            </div>
-            <button type="button" class="sidebar-logout" @click="logout" title="退出登录" aria-label="退出登录">
-              <van-icon name="sign" size="17"/>
-            </button>
-          </div>
-        </div>
       </aside>
       <header class="topbar">
         <div v-if="isDesktop" class="tb-header-breadcrumb">
@@ -813,6 +852,26 @@ onBeforeUnmount(() => desktopMedia?.removeEventListener('change', window.__dataA
           <div class="brand-title"><strong class="mobile-brand">数问</strong>
             <strong class="desktop-current-session">{{ activeSessionTitle }}</strong>
             <small>经营数据助手</small></div>
+        </div>
+        <div v-if="isDesktop" class="da-account-menu" ref="accountMenuRef">
+          <button type="button" class="da-account-trigger" :aria-expanded="accountMenuOpen"
+            aria-haspopup="menu" aria-label="当前用户菜单" @click.stop="accountMenuOpen=!accountMenuOpen">
+            <span class="da-account-avatar">{{ (me.displayName || me.username || '用').slice(0,1) }}</span>
+            <span class="da-account-label">{{ me.displayName || me.username }}</span>
+            <van-icon name="arrow-down" size="12"/>
+          </button>
+          <div v-if="accountMenuOpen" class="da-account-dropdown" role="menu" @click.stop>
+            <div class="da-account-dropdown-heading">
+              <strong>{{ me.displayName || me.username }}</strong>
+              <small>{{ isAdmin ? '系统管理员' : '普通用户' }} · {{ me.username }}</small>
+            </div>
+            <button type="button" role="menuitem" @click="openPasswordChange">
+              <van-icon name="lock"/> 修改密码
+            </button>
+            <button type="button" role="menuitem" @click="desktopLogout">
+              <van-icon name="sign"/> 退出登录
+            </button>
+          </div>
         </div>
         <div v-if="!isDesktop" class="top-actions">
           <button class="desktop-toggle-results" type="button"
@@ -1461,6 +1520,27 @@ onBeforeUnmount(() => desktopMedia?.removeEventListener('change', window.__dataA
         </div>
         <small>DataAsk · 仅供内部经营分析 · 以实际业务口径为准</small>
       </footer>
+      <van-popup v-if="isDesktop" v-model:show="changePasswordOpen"
+        position="center" round closeable :close-on-click-overlay="!changePasswordBusy"
+        :style="{width:'min(430px,calc(100vw - 36px))'}"
+        @closed="passwordForm={oldPassword:'',newPassword:'',confirmPassword:''}">
+        <div class="da-password-dialog">
+          <h2>修改密码</h2>
+          <p>为保障账号安全，请验证当前密码。修改后需要重新登录。</p>
+          <van-field v-model="passwordForm.oldPassword" type="password"
+            label="当前密码" placeholder="请输入当前密码" autocomplete="current-password"/>
+          <van-field v-model="passwordForm.newPassword" type="password"
+            label="新密码" placeholder="请输入10到128位的新密码" autocomplete="new-password"/>
+          <van-field v-model="passwordForm.confirmPassword" type="password"
+            label="确认密码" placeholder="再次输入新密码" autocomplete="new-password"
+            @keyup.enter="submitPasswordChange"/>
+          <div class="da-password-actions">
+            <van-button size="normal" :disabled="changePasswordBusy" @click="closePasswordChange">取消</van-button>
+            <van-button type="primary" size="normal" :loading="changePasswordBusy"
+              @click="submitPasswordChange">确认修改</van-button>
+          </div>
+        </div>
+      </van-popup>
       <van-popup v-if="!isDesktop" v-model:show="chartsVisible" :position="isDesktop ? 'center' : 'bottom'" round
         :style="{ width: isDesktop ? 'min(680px,90vw)' : '100%', height: isDesktop ? 'min(650px,82vh)' : '75%' }">
         <div class="drawer">
