@@ -35,6 +35,19 @@
     box-shadow:0 2px 11px rgba(56,103,162,.035);
     padding:18px 20px 23px;
   }
+  .app-shell.tencentbi-pc .tb-admin-table-actions {
+    display:flex;align-items:center;gap:8px;flex-wrap:wrap
+  }
+  .app-shell.tencentbi-pc .tb-table-expand {
+    display:inline-flex;align-items:center;gap:8px;border:0;
+    background:transparent;color:#3e597a;
+    text-align:left;font-size:12px;font-weight:700;padding:6px 0;
+    min-width:0;cursor:pointer;
+  }
+  .app-shell.tencentbi-pc .tb-table-expand .van-icon {color:#5891df}
+  .app-shell.tencentbi-pc .tb-table-expand:focus-visible {
+    outline:3px solid #a5c8f8;outline-offset:2px;border-radius:6px
+  }
   .app-shell.tencentbi-pc .tb-admin-config-fields {
     max-width:100%;width:100%;margin:0;
   }
