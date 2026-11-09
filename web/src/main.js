@@ -6,4 +6,5 @@ import './style.css'
 import './quickbi-pc.css'
 import './tencentbi-pc.css'
 import './admin-compact-pc.css'
+import './pc-bluewhite.css'
 createApp(App).use(Vant).mount('#app')
