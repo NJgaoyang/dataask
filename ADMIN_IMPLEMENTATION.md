@@ -47,7 +47,7 @@ git pull origin dev20261109-miniapp-v2
 bash package.sh
 ```
 
-产物 `release/dataask-0.1.0.tar.gz`。访问 `/build-info.json`，确认 `uiLayout` 为 `desktop-admin-functional-v6`，且 `buildSha` 与当前分支一致。原数据、账户和历史会话保留，不需要删除 MySQL 表或重建数据库。
+产物 `release/dataask-0.1.0.tar.gz`。访问 `/build-info.json`，确认 `uiLayout` 为 `desktop-auto-join-v7`，且 `buildSha` 与当前分支一致。原数据、账户和历史会话保留，不需要删除 MySQL 表或重建数据库。
 
 
 ## 2026-11-10 — 系统管理打开时报 `密码数据无效` 的修复
