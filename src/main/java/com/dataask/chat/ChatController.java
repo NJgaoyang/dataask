@@ -4,8 +4,6 @@ import com.dataask.config.RuntimeConfigService;
 import com.dataask.data.SqlGuard;
 import com.dataask.data.StarRocksGateway;
 import com.dataask.semantic.EntityValueResolver;
-import com.dataask.semantic.JoinRuleService;
-import com.dataask.semantic.JoinSafetyGuard;
 import com.dataask.semantic.EmbeddingSemanticService;
 import com.dataask.metrics.MetricDictionaryService;
 import com.fasterxml.jackson.databind.JsonNode;
@@ -36,8 +34,6 @@ public class ChatController {
     private final EntityValueResolver entities;
     private final MetricDictionaryService metricDictionary;
     private final ColumnLabelService labels;
-    private final JoinRuleService joinRules;
-    private final JoinSafetyGuard joinGuard;
     private final QuestionPresentationService presentation;
     private final EmbeddingSemanticService embeddings;
     private final ChatCancellationService cancellations;
@@ -45,7 +41,6 @@ public class ChatController {
     public ChatController(JdbcTemplate jdbc, StarRocksGateway starrocks, SqlGuard guard,
             ObjectMapper json, RuntimeConfigService settings, EntityValueResolver entities,
             MetricDictionaryService metricDictionary, ColumnLabelService labels,
-            JoinRuleService joinRules, JoinSafetyGuard joinGuard,
             QuestionPresentationService presentation, EmbeddingSemanticService embeddings,
             ChatCancellationService cancellations) {
         this.jdbc = jdbc; this.starrocks = starrocks; this.guard = guard; this.json = json;
@@ -53,8 +48,6 @@ public class ChatController {
         this.entities = entities;
         this.metricDictionary = metricDictionary;
         this.labels = labels;
-        this.joinRules = joinRules;
-        this.joinGuard = joinGuard;
         this.presentation = presentation;
         this.embeddings = embeddings;
         this.cancellations = cancellations;
@@ -179,7 +172,6 @@ public class ChatController {
         List<EntityValueResolver.Match> cityMatches = entities.resolve(question, allowed, discovered);
         String cityHints = entities.hints(cityMatches);
         String metricHints = metricDictionary.promptForQuestion(question, allowed);
-        String joinHints = joinRules.hints(allowed);
         String semanticHints = embeddings.hints(question, allowed);
         LocalDate today = LocalDate.now(ZoneId.of("Asia/Shanghai"));
         String instruction = """
@@ -203,12 +195,13 @@ public class ChatController {
             用户提到的城市简称必须与系统提供的实际 ADS 城市维度值对齐：例如西安应使用字段中真实存在的西安市。
             如果系统没有提供已验证的实体映射，不要自行发明城市值；需要时先说明不确定性。
             用户问同比/环比时，只对 SQL 实际计算到的数据做比较。不要推测不存在的业务因果。
-            多张 ADS 汇总表只在存在管理员批准的 JOIN 关系且粒度已确认时才可关联，
-            ON 子句必须使用批准的所有字段等值关联条件。禁止 CROSS JOIN、隐式关联和未经确认的明细/汇总混合。
-            对于多张聚合表，优先只查询满足业务问题的一张表；必要时才跨表，并避免聚合后相乘造成重复计算。
+            允许在所有已授权读取的 ADS 表之间进行 JOIN 或其他合法 SELECT 关联，不需要预先配置关联规则、关联键或额外审批。
+            关联条件只能使用给定元数据中实际存在的表及字段；字段含义无法确定时不得虚构关联键。
+            对于多张聚合表，优先只查询满足业务问题的一张表；必要时才跨表。
+            关联前应注意双方统计粒度，先适当聚合再关联，避免一对多、多对多造成重复计算；不能因为缺少人工关联规则而拒绝合法 JOIN。
             """.replace("adsSchema", starrocks.schema());
         String full = "当前业务时区 Asia/Shanghai；今天=" + today + "；昨天=" + today.minusDays(1) +
-            "。\n允许使用的表及字段如下：" + metadata + metricHints + semanticHints + joinHints + cityHints +
+            "。\n允许使用的表及字段如下：" + metadata + metricHints + semanticHints + cityHints +
             "\n" + previous + "\n用户问题：" + question;
         JsonNode plan = plan(instruction, full);
         active.checkCancelled();
@@ -232,7 +225,6 @@ public class ChatController {
                     unsupported = true;
                 } else {
                     sql = guard.validate(normalizedSql, allowed, starrocks.schema());
-                    joinGuard.validate(sql, joinRules.allowed(allowed), starrocks.schema());
                     if (!Set.of("metric","table","bar","line","pie").contains(chart)) chart = "table";
                     StarRocksGateway.QueryResult data = starrocks.query(sql, active);
                     columns = data.columns();
