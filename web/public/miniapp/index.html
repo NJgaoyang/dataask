@@ -238,6 +238,29 @@ button,input,textarea{font:inherit}button{border:0;cursor:pointer;color:inherit}
   color:#899bb5;
 }
 
+
+/* Asking for a specific metric is an interactive clarification, not a dead end. */
+.clarify-followups {
+  background:#f6faff;border:1px solid #dbe8ff;
+  border-radius:14px;padding:12px 11px;margin:13px 0 5px;
+}
+.clarify-followups .follow-label {
+  margin:0 0 5px;color:#305d9b;font-weight:760;font-size:13px;
+}
+.clarify-followups .clarify-help {
+  margin:0 0 12px;color:#7489aa;font-size:11px;line-height:1.65;
+}
+.clarify-followups .chips {
+  display:flex;flex-direction:column;align-items:stretch;gap:8px;
+}
+.clarify-followups .chip {
+  display:flex;justify-content:space-between;align-items:center;
+  width:100%;border:1px solid #caddfc;
+  border-radius:10px;padding:10px 12px;
+  min-height:41px;background:#fff;color:#2f75dc;
+  text-align:left;font-size:12px;line-height:1.5;
+}
+
 </style>
 </head>
 <body>
@@ -441,7 +464,9 @@ function answerCard(item){
  (view==='table'?resultTable(data):resultChart(data))+'</div></div>'+
  '<div class="toolbar"><button class="lite-btn '+(saved?'saved':'')+'" data-action="save" data-mid="'+safe(data.id)+'">'+icon('star','sm')+(saved?'已收藏':'收藏图表')+'</button>'+
  '<button class="lite-btn" data-action="share" data-mid="'+safe(data.id)+'">'+icon('share','sm')+'共享</button></div>':'')+
- (data.followUps?.length?'<div class="followups"><div class="follow-label">你还可以继续问：</div><div class="chips">'+data.followUps.map(q=>'<button class="chip" data-action="follow" data-q="'+safe(q)+'">'+icon('sparkle','sm')+safe(q)+'</button>').join('')+'</div></div>':'')+
+ (data.followUps?.length?'<div class="followups '+(data.unsupported?'clarify-followups':'')+'"><div class="follow-label">'+(data.unsupported?'你想查看哪项指标？':'你还可以继续问：')+'</div>'+
+ (data.unsupported?'<p class="clarify-help">选择一个具体指标继续查询，或在输入框补充说明：</p>':'')+
+ '<div class="chips">'+data.followUps.map(q=>'<button class="chip" data-action="follow" data-mid="'+safe(data.id)+'" data-q="'+safe(q)+'">'+icon('sparkle','sm')+safe(q)+'</button>').join('')+'</div></div>':'')+
  '</div></div>';
 }
 
@@ -506,15 +531,15 @@ function showToast(str){state.toast=str;render();clearTimeout(showToast.t);showT
 
 async function openChat(q){state.view='chat';state.chat=[];state.sessionId=null;state.lastMessageId=null;state.chartMode='chart';await askText(q,false)}
 
-async function followChat(q){await askText(q,true)}
+async function followChat(q, sourceId){await askText(q,true,sourceId)}
 
-async function askText(question,follow){
+async function askText(question,follow,sourceId){
  const q=String(question||'').trim();if(!q){showToast('请输入业务问题');return}if(!state.loggedIn){state.modal={type:'login'};render();return}
  if(state.loading)return;
  if(!follow){state.chat=[];state.sessionId=null;state.lastMessageId=null;state.chartMode='chart'}
  state.view='chat';state.chat.push({type:'user',text:q});const pending={type:'answer',pending:true};state.chat.push(pending);state.loading=true;state.scrollBottom=true;render();
  try {
-  const body={question:q,sessionId:state.sessionId,sourceMessageId:follow?state.lastMessageId:null};
+  const body={question:q,sessionId:state.sessionId,sourceMessageId:follow?(sourceId||state.lastMessageId):null};
   const answer=await api('/api/chat/ask','POST',body);
   state.sessionId=answer.sessionId;state.lastMessageId=answer.id;Object.assign(pending,{pending:false,answer});await loadHistory(false);
  }catch(e){Object.assign(pending,{pending:false,error:e.message})}finally{state.loading=false;state.scrollBottom=true;render()}
@@ -554,7 +579,7 @@ async function handleClick(e){
  case 'tab':state.view=target.dataset.view;state.tab=state.view;state.modal=null;render();if(state.view==='history')loadHistory();if(state.view==='charts')loadCharts();break;
  case 'back':state.view='home';render();break;
  case 'question':openChat(target.dataset.q);break;
- case 'follow':followChat(target.dataset.q);break;
+ case 'follow':followChat(target.dataset.q,target.dataset.mid);break;
  case 'ask-home':ask('home-query',false);break;
  case 'ask-chat':ask('chat-query',true);break;
  case 'shuffle':state.sampleSet=(state.sampleSet+1)%sets.length;render();break;
