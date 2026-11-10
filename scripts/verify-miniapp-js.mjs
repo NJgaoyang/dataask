@@ -27,7 +27,7 @@ assert(!html.includes('await openChat(c.question)'),
 const initializer = /startApp\(\);\s*\}\)\(\);\s*$/;
 assert(initializer.test(inline),'Miniapp bootstrap pattern changed: chart smoke tests need updating');
 const probe = inline.replace(initializer,
-  'globalThis.__charts = {resultChart, resultTable, chartable, pieAllowed, answerCard, setType: (id,type) => {state.chartStyles[id]=type}, setMode: (id,mode) => {state.chartModes[id]=mode}}; })();');
+  'globalThis.__charts = {resultChart, resultTable, chartable, pieAllowed, answerCard, chartDetailPage, setDetail: d=>{state.chartDetail=d}, setType: (id,type) => {state.chartStyles[id]=type}, setMode: (id,mode) => {state.chartModes[id]=mode}}; })();');
 const context = { sessionStorage: {getItem:() => null},console };
 runInNewContext(probe,context,{timeout:2000});
 const fn=context.__charts;
@@ -87,4 +87,17 @@ assert(clarificationCard.includes('data-action="follow"') &&
 assert(!clarificationCard.includes('chart-plot'),'Unsupported clarification must not display a fake chart');
 assert(html.includes('sourceId||state.lastMessageId'),
   'Clarification choice must reference the correct source response');
+const metric={
+  id:'metric-001',question:'昨日营业额',chartType:'metric',
+  columns:['amount'],columnLabels:{amount:'营业额'},
+  rows:[{amount:102384}],metricLabel:'营业额',unsupported:false,
+  followUps:[],summary:'营收统计'
+};
+fn.setDetail({chart:{id:'c-1',title:'昨日营业额',question:'昨日营业额'},
+  answer:metric,cached:false,loading:false,refreshing:false,error:''});
+const metricView=fn.chartDetailPage();
+assert(metricView.includes('chart-detail-metric')&&metricView.includes('102384'),
+  'Saved single-metric chart must display a KPI card, not only a table');
+assert(!metricView.includes('data-action="mic"')&&!metricView.includes('data-action="config"'),
+  'Saved chart details must not expose voice or model settings');
 console.log('Miniapp: chart/table same fixed-height viewport, internal scroll, stable chat scroll, 21 rows, labels, no download OK');
