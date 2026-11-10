@@ -241,32 +241,81 @@ public class RuntimeConfigService {
             "ON DUPLICATE KEY UPDATE setting_value=VALUES(setting_value)",name,value);
     }
 
-    public Map<String,Object> adminView() {
-        StarRocksConfig sr=starRocks();
-        AiConfig ai=ai();
-        EmbeddingConfig embedding=embedding();
-        return Map.of(
-            "starrocks", Map.of("jdbcUrl",sr.jdbcUrl(),"username",sr.username(),
-                "schema",sr.schema(),"passwordSet",!sr.password().isBlank()),
-            "ai", Map.of("baseUrl",ai.baseUrl(),"model",ai.model(),
-                "apiKeySet",!ai.apiKey().isBlank()),
-            "embedding", Map.of("baseUrl",embedding.baseUrl(),"model",embedding.model(),
-                "apiKeySet",!embedding.apiKey().isBlank(),
-                "enabled",embedding.enabled(),"dimensions",embedding.dimensions()));
+    private record CredentialHealth(boolean set, boolean unreadable) {}
+    /**
+     * Admin endpoints must remain accessible if *one* encrypted credential is
+     * broken. Never return or log secret values; report only a diagnostic flag.
+     * Runtime use still strictly decrypts credentials and fails closed.
+     */
+    private CredentialHealth credentialHealth(Map<String,String> saved,
+                                              String key, String yamlFallback) {
+        if (!saved.containsKey(key)) return new CredentialHealth(!yamlFallback.isBlank(),false);
+        try {
+            return new CredentialHealth(!decrypt(saved.get(key)).isBlank(),false);
+        } catch (IllegalStateException ex) {
+            return new CredentialHealth(false,true);
+        }
     }
+    private static boolean configuredStarRocks(String url, String user, String schema,
+                                               CredentialHealth password) {
+        return !url.isBlank() && !user.isBlank() &&
+               !schema.isBlank() && !password.unreadable();
+    }
+
+    public Map<String,Object> adminView() {
+        // Read persisted settings once and assess each credential separately;
+        // a damaged AI key must not prevent opening StarRocks and vice versa.
+        Map<String,String> saved=stored();
+        CredentialHealth sr=credentialHealth(saved,"sr.password",yamlStarRocks.password());
+        CredentialHealth ai=credentialHealth(saved,"ai.apiKey",yamlAi.apiKey());
+        CredentialHealth emb=credentialHealth(saved,"embedding.apiKey","");
+        String rawDimensions=saved.get("embedding.dimensions");
+        return Map.of(
+            "starrocks", Map.of(
+                "jdbcUrl",safe(effective(saved,"sr.jdbcUrl",yamlStarRocks.jdbcUrl())),
+                "username",safe(effective(saved,"sr.username",yamlStarRocks.username())),
+                "schema",safe(effective(saved,"sr.schema",yamlStarRocks.schema())),
+                "passwordSet",sr.set(),"passwordUnreadable",sr.unreadable()),
+            "ai", Map.of(
+                "baseUrl",safe(effective(saved,"ai.baseUrl",yamlAi.baseUrl())),
+                "model",safe(effective(saved,"ai.model",yamlAi.model())),
+                "apiKeySet",ai.set(),"apiKeyUnreadable",ai.unreadable()),
+            "embedding", Map.of(
+                "baseUrl",safe(saved.getOrDefault("embedding.baseUrl","https://dashscope.aliyuncs.com/api/v1")),
+                "model",safe(saved.getOrDefault("embedding.model","qwen3.7-text-embedding-flash")),
+                "apiKeySet",emb.set(),"apiKeyUnreadable",emb.unreadable(),
+                "enabled",Boolean.parseBoolean(saved.getOrDefault("embedding.enabled","false")),
+                "dimensions",parseDimensions(rawDimensions)));
+    }
+
     public Map<String,Object> status() {
-        StarRocksConfig sr=starRocks();
-        AiConfig ai=ai();
-        EmbeddingConfig embedding=embedding();
+        Map<String,String> saved=stored();
+        CredentialHealth sr=credentialHealth(saved,"sr.password",yamlStarRocks.password());
+        CredentialHealth ai=credentialHealth(saved,"ai.apiKey",yamlAi.apiKey());
+        CredentialHealth emb=credentialHealth(saved,"embedding.apiKey","");
+        String schema=safe(effective(saved,"sr.schema",yamlStarRocks.schema()));
+        String srUrl=safe(effective(saved,"sr.jdbcUrl",yamlStarRocks.jdbcUrl()));
+        String srUser=safe(effective(saved,"sr.username",yamlStarRocks.username()));
+        String aiBase=safe(effective(saved,"ai.baseUrl",yamlAi.baseUrl()));
+        String aiModel=safe(effective(saved,"ai.model",yamlAi.model()));
+        String embBase=safe(saved.getOrDefault("embedding.baseUrl","https://dashscope.aliyuncs.com/api/v1"));
+        String embModel=safe(saved.getOrDefault("embedding.model","qwen3.7-text-embedding-flash"));
+        boolean embeddingEnabled=Boolean.parseBoolean(saved.getOrDefault("embedding.enabled","false"));
         return Map.ofEntries(
-            Map.entry("starrocksConfigured",sr.configured()),Map.entry("schema",sr.schema()),
-            Map.entry("aiConfigured",ai.configured()),Map.entry("model",ai.model()),
-            Map.entry("aiKeyConfigured",!ai.apiKey().isBlank()),
-            Map.entry("aiUrlConfigured",!ai.baseUrl().isBlank()),
-            Map.entry("aiModelConfigured",!ai.model().isBlank()),
-            Map.entry("embeddingConfigured",embedding.configured()),
-            Map.entry("embeddingEnabled",embedding.enabled()),
-            Map.entry("embeddingModel",embedding.model()));
+            Map.entry("starrocksConfigured",configuredStarRocks(srUrl,srUser,schema,sr)),
+            Map.entry("schema",schema),
+            Map.entry("starrocksCredentialUnreadable",sr.unreadable()),
+            Map.entry("aiConfigured",!aiBase.isBlank() && !aiModel.isBlank() && ai.set()),
+            Map.entry("model",aiModel),
+            Map.entry("aiKeyConfigured",ai.set()),
+            Map.entry("aiCredentialUnreadable",ai.unreadable()),
+            Map.entry("aiUrlConfigured",!aiBase.isBlank()),
+            Map.entry("aiModelConfigured",!aiModel.isBlank()),
+            Map.entry("embeddingConfigured",embeddingEnabled && !embBase.isBlank() &&
+                !embModel.isBlank() && !emb.unreadable()),
+            Map.entry("embeddingEnabled",embeddingEnabled),
+            Map.entry("embeddingModel",embModel),
+            Map.entry("embeddingCredentialUnreadable",emb.unreadable()));
     }
     private String encrypt(String plain) {
         try {
