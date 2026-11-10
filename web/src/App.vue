@@ -81,6 +81,83 @@ const chartsVisible = ref(false)
 const savedCharts = ref([])
 const sharedCharts = ref([])
 const chartsBusy = ref(false)
+// Saving a chart creates a visualization asset, not another chat.
+const activeChart = ref(null)
+const activeChartAnswer = ref(null)
+const activeChartBusy = ref(false)
+const activeChartRefreshing = ref(false)
+const activeChartError = ref('')
+const activeChartCached = ref(true)
+const activeChartMode = ref('chart')
+const activeChartStyle = ref('')
+const activeChartCanPlot = computed(() =>
+  !!activeChartAnswer.value && ['bar','line','pie'].includes(activeChartAnswer.value.chartType) &&
+  (activeChartAnswer.value.rows?.length || 0) > 1)
+function closeChartDetail() {
+  activeChart.value = null
+  activeChartAnswer.value = null
+  activeChartError.value = ''
+  activeChartMode.value = 'chart'
+}
+async function loadChartDetail(chart) {
+  if (!chart?.id || activeChartBusy.value) return
+  activeChart.value = chart
+  activeChartAnswer.value = null
+  activeChartBusy.value = true
+  activeChartError.value = ''
+  activeChartMode.value = 'chart'
+  activeChartStyle.value = chart.chartType || 'bar'
+  if (isDesktop.value) desktopSection.value = 'charts'
+  else chartsVisible.value = true
+  try {
+    const {data} = await api.get('/mini/charts/'+encodeURIComponent(chart.id)+'/view')
+    activeChart.value = data.chart || chart
+    activeChartAnswer.value = data.answer
+    activeChartCached.value = !!data.cached
+    activeChartMode.value = activeChartCanPlot.value ? 'chart' : 'table'
+    activeChartStyle.value = data.answer?.chartType || chart.chartType || 'bar'
+  } catch(e) {
+    activeChartError.value = errorText(e)
+  } finally { activeChartBusy.value = false }
+  if (activeChartAnswer.value) refreshChartDetail()
+}
+async function refreshChartDetail() {
+  if (!activeChart.value?.id || activeChartRefreshing.value) return
+  const id=activeChart.value.id
+  activeChartRefreshing.value = true
+  activeChartError.value = ''
+  try {
+    const {data} = await api.post('/mini/charts/'+encodeURIComponent(id)+'/refresh')
+    if (activeChart.value?.id !== id) return
+    activeChart.value = data.chart || activeChart.value
+    activeChartAnswer.value = data.answer
+    activeChartCached.value = false
+    activeChartStyle.value = data.answer?.chartType || 'bar'
+    activeChartMode.value = activeChartCanPlot.value ? 'chart' : 'table'
+  } catch(e) {
+    if (activeChart.value?.id === id)
+      activeChartError.value = '实时更新失败：'+errorText(e)+
+        (activeChartAnswer.value ? '（当前保留上次已授权查询结果）' : '')
+  } finally { activeChartRefreshing.value = false }
+}
+function openChartShare(chart) {
+  if (!chart) return
+  sharingChart.value=chart
+  shareScope.value=chart.shareScope || 'PRIVATE'
+  shareMembers.value=''
+  sharingVisible.value=true
+}
+async function deleteSavedChart(chart) {
+  if (!chart?.id) return
+  try { await showConfirmDialog({title:'取消收藏',message:'确定取消收藏“'+chart.title+'”吗？'}) }
+  catch {return}
+  try {
+    await api.delete('/mini/charts/'+encodeURIComponent(chart.id))
+    if (activeChart.value?.id===chart.id) closeChartDetail()
+    await loadSavedCharts()
+    showSuccessToast('已取消收藏')
+  } catch(e) { showFailToast(errorText(e)) }
+}
 const chartSearch = ref('')
 const chartTypeFilter = ref('ALL')
 const chartSortOrder = ref('recent')
@@ -367,7 +444,7 @@ function switchDesktopSection(section) {
   if (isDesktop.value && busy.value && section !== 'ask') stopAsk()
   desktopSection.value = section
   if (desktopAdminSections.includes(section)) adminExpanded.value = true
-  if (section === 'charts') loadSavedCharts()
+  if (section === 'charts') { closeChartDetail(); loadSavedCharts() }
   if (section === 'history') loadSessions()
   if (section === 'ask') focusDesktopQuestion()
 }
@@ -420,22 +497,13 @@ async function openSavedCharts() {
   } catch (e) { showFailToast(errorText(e)) }
 }
 async function revisitChart(chart) {
-  chartsVisible.value = false
-  if (isDesktop.value) {
-    await loadApprovedDatasets()
-    if (chart.dataset && !approvedDatasets.value.includes(chart.dataset)) {
-      showFailToast('该图表所用数据集已取消授权，请联系管理员')
-      return
-    }
-  }
-  newConversation()
-  if (isDesktop.value) selectedDataset.value = chart.dataset || ''
-  await ask(chart.question)
+  await loadChartDetail(chart)
 }
 async function saveChart(msg) {
   try {
-    const { data } = await api.post('/mini/charts', { sourceMessageId: msg.id, title: msg.title })
+    const { data } = await api.post('/mini/charts', { sourceMessageId: msg.id, title: msg.question })
     showSuccessToast('图表已收藏')
+    if (isDesktop.value) loadSavedCharts()
     return data
   } catch (e) { showFailToast(errorText(e)); return null }
 }
