@@ -129,10 +129,18 @@ const userBusy = ref(false)
 const userEditVisible = ref(false)
 const userEditSaving = ref(false)
 const userEditForm = ref({ username:'', displayName:'', role:'USER', password:'' })
+const unreadableConfigParts = computed(() => [
+  status.value.starrocksCredentialUnreadable ? 'StarRocks 数据源密码' : null,
+  status.value.aiCredentialUnreadable ? '对话模型 API Key' : null,
+  status.value.embeddingCredentialUnreadable ? 'Embedding API Key' : null,
+].filter(Boolean))
 const configuredStatusRows = computed(() => [
-  { key:'数据源', configured:!!status.value.starrocksConfigured, detail:status.value.schema || '未选择 ADS 数据库', section:'admin-source' },
-  { key:'对话模型', configured:!!status.value.aiConfigured, detail:status.value.model || '尚未配置模型', section:'admin-model' },
-  { key:'Embedding', configured:!!status.value.embeddingConfigured, detail:status.value.embeddingModel || '尚未启用', section:'admin-embedding' },
+  { key:'数据源', configured:!!status.value.starrocksConfigured,
+    detail:status.value.starrocksCredentialUnreadable ? '已保存密码无法解密，请重新填写' : (status.value.schema || '未选择 ADS 数据库'), section:'admin-source' },
+  { key:'对话模型', configured:!!status.value.aiConfigured,
+    detail:status.value.aiCredentialUnreadable ? '已保存 API Key 无法解密，请重新填写' : (status.value.model || '尚未配置模型'), section:'admin-model' },
+  { key:'Embedding', configured:!!status.value.embeddingConfigured,
+    detail:status.value.embeddingCredentialUnreadable ? '已保存 API Key 无法解密，请重新填写' : (status.value.embeddingModel || '尚未启用'), section:'admin-embedding' },
 ])
 
 const desktopSectionTitle = computed(() => ({
@@ -1016,6 +1024,12 @@ onBeforeUnmount(() => {
           </div>
           <span class="tb-admin-heading-badge"><van-icon name="shield-o"/> 管理员权限</span>
         </div>
+        <div v-if="unreadableConfigParts.length && !adminSectionBusy" class="tb-admin-credential-warning" role="alert">
+          <van-icon name="warning-o" size="18"/>
+          <span>以下已保存凭证无法解密：{{ unreadableConfigParts.join('、') }}。
+            请优先确认服务器的 DATAASK_JWT_SECRET 是否曾更换；若已无法恢复原密钥，可进入对应模块重新填写凭证并保存。
+            其他设置不会因此被删除。</span>
+        </div>
         <div v-if="adminSectionBusy" class="tb-admin-loading" role="status">
           <van-loading size="18px"/> 正在加载 {{ desktopSectionTitle }}…
         </div>
@@ -1102,6 +1116,9 @@ onBeforeUnmount(() => {
             <van-field v-model="srForm.username" label="用户名" label-width="85px" placeholder="只读用户名"/>
             <van-field v-model="srForm.password" label="密码" label-width="85px" type="password"
               :placeholder="settingsData.starrocks?.passwordSet ? '已配置，留空不修改' : '请输入密码'"/>
+            <p v-if="settingsData.starrocks?.passwordUnreadable" class="tb-admin-credential-warning">
+              <van-icon name="warning-o"/> 已保存的数据库密码无法解密，请在上方填写新的数据库密码后保存。
+            </p>
             <p class="config-note">数据库密码由后端保存，留空会保留现有密码。</p>
           </template>
           <template v-else-if="configKind === 'ai'">
@@ -1113,6 +1130,9 @@ onBeforeUnmount(() => {
             <van-cell title="清除原有 API Key" label="仅在主动更换为无密钥的本地模型时勾选">
               <template #right-icon><van-switch v-model="aiForm.clearKey" size="20px"/></template>
             </van-cell>
+            <p v-if="settingsData.ai?.apiKeyUnreadable" class="tb-admin-credential-warning">
+              <van-icon name="warning-o"/> 已保存的 API Key 无法解密，请重新填写有效 API Key 后保存；不要留空。
+            </p>
             <p class="config-note">API Key 从此页面提交给后端保存，编辑时不会明文回显。</p>
           </template>
           <template v-else>
@@ -1131,6 +1151,9 @@ onBeforeUnmount(() => {
             <van-cell title="清除原有 API Key"><template #right-icon>
               <van-switch v-model="embeddingForm.clearKey" size="20px"/>
             </template></van-cell>
+            <p v-if="settingsData.embedding?.apiKeyUnreadable" class="tb-admin-credential-warning">
+              <van-icon name="warning-o"/> 已保存的 Embedding API Key 无法解密，请重新填写后保存。
+            </p>
             <div class="semantic-status">
               <strong>语义索引</strong>
               <span>{{ semanticStatus.count || 0 }} 条 · {{ semanticStatus.indexedModel || '尚未构建' }}</span>
