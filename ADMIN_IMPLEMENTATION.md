@@ -49,3 +49,34 @@ bash package.sh
 ```
 
 产物 `release/dataask-0.1.0.tar.gz`。访问 `/build-info.json`，确认 `uiLayout` 为 `desktop-admin-functional-v6`，且 `buildSha` 与当前分支一致。原数据、账户和历史会话保留，不需要删除 MySQL 表或重建数据库。
+
+
+## 2026-11-10 — 系统管理打开时报 `密码数据无效` 的修复
+
+症状：`GET /api/admin/settings` 或 `GET /api/admin/status` 返回 500，后端日志经过
+`RuntimeConfigService.adminView -> ai() -> decrypt()`，内部提示 `密码数据无效`。
+
+原因与修复：
+
+- 旧代码在 AES-GCM 密文长度不足 **29** 字节时报错，但一个**合法的加密空字符串**长度恰为 **28** 字节（12B IV + 16B Tag）。之前执行“清除原有 API Key”会写入这样的密文，随后无法重新读取。
+- 已将长度校验修正为 **不足 28 字节**才拒绝。此修复无需手动更新或删除已有 MySQL 配置。
+- `/api/admin/status` 和 `/api/admin/settings` 改为逐个检查保存的凭证，即使只有一项真正损坏，也不会阻断其他系统管理入口。接口返回 `*CredentialUnreadable` 布尔诊断字段而非密钥原文。
+- 管理员可以在对应模块重新填写新的数据库密码或 API Key 覆盖不可解密的凭证；**显式填写新凭证不会再尝试先解密旧凭证**。
+- 新增了针对 28 字节空密文、正常密文、损坏密文、加密密钥轮换、显式重填凭证的 Java 回归测试。
+
+安全检查：不要向聊天、工单或日志复制 `da_app_settings.setting_value`、`DATAASK_JWT_SECRET` 或 API Key。若要核对历史存储是否为 28 字节的空密文，可以在 MySQL **只查询长度**（不回显敏感值）：
+
+```sql
+SELECT setting_key,
+       CASE
+         WHEN setting_value LIKE 'v1:%'
+           THEN LENGTH(FROM_BASE64(SUBSTRING(setting_value, 4)))
+         ELSE NULL
+       END AS encrypted_bytes
+FROM da_app_settings
+WHERE setting_key IN ('ai.apiKey','embedding.apiKey','sr.password');
+```
+
+若 `encrypted_bytes=28`，符合本次空密文边界错误。若密文并非 28 字节仍无法解密，需检查**发布前后是否更换过 `DATAASK_JWT_SECRET`**，或凭证是否被损坏；优先恢复原密钥（从安全备份）或通过新页面重新填写实际的密码/API Key。不要直接删除 `da_app_settings` 表、用户或历史会话。
+
+修复代码：`RuntimeConfigService.java`、`RuntimeConfigCryptoTest.java`、PC 管理页面凭证错误提示。修复已在 GitHub CI 执行测试，具体真实环境的密钥与数据库状态仍需部署后验证。
