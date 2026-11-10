@@ -25,7 +25,7 @@ jobs:
           cd web
           npm install --no-audit --no-fund
           npm run build
-      - name: Browser smoke test for eight admin modules
+      - name: Browser smoke test for seven admin modules
         run: |
           cd web
           npm install --no-save --no-package-lock --no-audit --no-fund playwright
@@ -51,7 +51,7 @@ jobs:
       - name: Package distribution and verify embedded frontend version
         run: |
           bash scripts/package.sh
-          unzip -p target/dataask-0.1.0-SNAPSHOT.jar BOOT-INF/classes/static/build-info.json | grep -F 'desktop-admin-functional-v6'
+          unzip -p target/dataask-0.1.0-SNAPSHOT.jar BOOT-INF/classes/static/build-info.json | grep -F 'desktop-auto-join-v7'
           unzip -p target/dataask-0.1.0-SNAPSHOT.jar BOOT-INF/classes/static/miniapp/index.html | grep -F '/api/mini/bootstrap'
           tar -tzf release/dataask-0.1.0.tar.gz | grep -F 'dataask-0.1.0/bin/upgrade.sh'
 
