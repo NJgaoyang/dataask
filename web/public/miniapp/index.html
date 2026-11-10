@@ -297,6 +297,18 @@ button,input,textarea{font:inherit}button{border:0;cursor:pointer;color:inherit}
  .chart-detail-card .chart-viewport{height:clamp(260px,45dvh,440px)}
 }
 
+
+/* Compact KPI view for a saved single-number metric, equivalent to PC. */
+.chart-detail-metric {
+ display:flex;flex-direction:column;gap:10px;
+ padding:20px 16px;min-height:135px;
+ background:linear-gradient(115deg,#eef6ff,#fff);
+ border:1px solid #dfebfc;border-radius:11px;
+}
+.chart-detail-metric>div {display:flex;flex-direction:column;gap:9px;min-width:0}
+.chart-detail-metric small {font-size:11px;color:#8399b6}
+.chart-detail-metric strong {font-size:29px;line-height:1.25;color:#2879e9;font-weight:790;overflow-wrap:anywhere}
+
 </style>
 </head>
 <body>
