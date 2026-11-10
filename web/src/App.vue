@@ -239,6 +239,34 @@ let activeRequestId = ''
 let askSequence = 0
 const messages = ref([])
 const sessionId = ref('')
+let conversationVersion = 0
+const composerHeight = ref(148)
+let composerPointerDrag = null
+function boundedComposerHeight(px) { return Math.max(94, Math.min(Math.round(window.innerHeight * 0.52), 430, Math.round(px))) }
+function adjustComposerHeight(delta) {
+  composerHeight.value = boundedComposerHeight(composerHeight.value + delta)
+  localStorage.setItem('dataask_composer_height', String(composerHeight.value))
+}
+function moveComposerPointer(e) {
+  if (!composerPointerDrag || e.pointerId !== composerPointerDrag.id) return
+  composerHeight.value = boundedComposerHeight(composerPointerDrag.height + composerPointerDrag.y - e.clientY)
+}
+function finishComposerPointer() {
+  if (!composerPointerDrag) return
+  composerPointerDrag = null
+  document.removeEventListener('pointermove', moveComposerPointer)
+  document.removeEventListener('pointerup', finishComposerPointer)
+  document.removeEventListener('pointercancel', finishComposerPointer)
+  localStorage.setItem('dataask_composer_height', String(composerHeight.value))
+}
+function beginComposerDrag(e) {
+  if (!isDesktop.value) return
+  e.preventDefault()
+  composerPointerDrag = { id:e.pointerId, y:e.clientY, height:composerHeight.value }
+  document.addEventListener('pointermove', moveComposerPointer)
+  document.addEventListener('pointerup', finishComposerPointer)
+  document.addEventListener('pointercancel', finishComposerPointer)
+}
 const historyVisible = ref(false)
 const sessions = ref([])
 const sessionSearch = ref('')
@@ -440,6 +468,25 @@ async function loadSessions() {
   try { sessions.value = (await api.get('/chat/sessions')).data }
   catch (e) { showFailToast(errorText(e)) }
 }
+let sharedHistoryRefreshPending = false
+async function refreshSharedHistory() {
+  if (!loggedIn.value || document.hidden || sharedHistoryRefreshPending) return
+  sharedHistoryRefreshPending = true
+  try {
+    const {data:list} = await api.get('/chat/sessions')
+    sessions.value = list
+    const currentSession = sessionId.value
+    const version = conversationVersion
+    if (!currentSession || busy.value || (isDesktop.value && desktopSection.value !== 'ask')) return
+    const {data:latest} = await api.get('/chat/sessions/' + encodeURIComponent(currentSession) + '/messages')
+    if (sessionId.value !== currentSession || version !== conversationVersion || busy.value) return
+    if (messages.value.map(m=>m.id).join('|') !== latest.map(m=>m.id).join('|')) {
+      messages.value = latest
+      scrollEnd()
+    }
+  } catch { /* Keep locally rendered conversations when disconnected. */ }
+  finally { sharedHistoryRefreshPending = false }
+}
 function switchDesktopSection(section) {
   const normal = ['overview','ask','charts','history'].includes(section)
   if (!normal && !(desktopAdminSections.includes(section) && isAdmin.value)) return
@@ -448,7 +495,7 @@ function switchDesktopSection(section) {
   if (desktopAdminSections.includes(section)) adminExpanded.value = true
   if (section === 'charts') { closeChartDetail(); loadSavedCharts() }
   if (section === 'history') loadSessions()
-  if (section === 'ask') focusDesktopQuestion()
+  if (section === 'ask') { focusDesktopQuestion(); if (sessionId.value) refreshSharedHistory() }
 }
 async function loadSavedCharts() {
   if (!loggedIn.value) return
@@ -465,20 +512,24 @@ async function loadSavedCharts() {
 }
 async function openSession(item) {
   if (isDesktop.value && busy.value) stopAsk()
+  const version = ++conversationVersion
   try {
-    messages.value = (await api.get('/chat/sessions/' + item.id + '/messages')).data
+    const {data:history} = await api.get('/chat/sessions/' + encodeURIComponent(item.id) + '/messages')
+    if (version !== conversationVersion) return
+    messages.value = history
     sessionId.value = item.id
     if (isDesktop.value) desktopSection.value = 'ask'
-    const lastDataset = messages.value.at(-1)?.dataset || ''
-    selectedDataset.value = lastDataset
+    selectedDataset.value = messages.value.at(-1)?.dataset || ''
     historyVisible.value = false
     desktopFeedback.value = null
     scrollEnd()
-  } catch (e) { showFailToast(errorText(e)) }
+  } catch (e) { if (version === conversationVersion) showFailToast(errorText(e)) }
 }
 function newConversation() {
   if (busy.value) stopAsk()
-  sessionId.value = ''; messages.value = []; historyVisible.value = false
+  conversationVersion++
+  sessionId.value = ''; messages.value = []; question.value = ''; historyVisible.value = false
+  selectedDataset.value = ''
   if (isDesktop.value) {
     desktopSection.value = 'ask'
     // The desktop dataset chooser is intentionally hidden; a new conversation uses all approved tables.
@@ -557,7 +608,7 @@ async function ask(text = question.value, sourceMessageId = null) {
   scrollEnd()
   try {
     const { data } = await api.post('/chat/ask', {
-      question: text, sessionId: sessionId.value || null, sourceMessageId, requestId,
+      question: text, sessionId: sessionId.value || null, sourceMessageId: sessionId.value ? sourceMessageId : null, requestId,
       dataset: isDesktop.value ? selectedDataset.value : null
     }, { signal: controller.signal })
     if (sequence !== askSequence || controller.signal.aborted) return
@@ -956,12 +1007,16 @@ function pretty(v) {
   return String(v)
 }
 onMounted(() => {
+  const storedHeight = Number(localStorage.getItem('dataask_composer_height'))
+  if (Number.isFinite(storedHeight) && storedHeight > 0) composerHeight.value = boundedComposerHeight(storedHeight)
   desktopMedia = window.matchMedia('(min-width: 1024px)')
   const update = () => { isDesktop.value = desktopMedia.matches }
   update()
   desktopMedia.addEventListener('change', update)
   window.__dataAskDesktopListener = update
   document.addEventListener('click', handleAccountOutsideClick)
+  window.addEventListener('focus', refreshSharedHistory)
+  document.addEventListener('visibilitychange', refreshSharedHistory)
   if (loggedIn.value) {
     refreshAuthenticatedRole()
     loadSessions()
@@ -972,6 +1027,9 @@ onMounted(() => {
 onBeforeUnmount(() => {
   desktopMedia?.removeEventListener('change', window.__dataAskDesktopListener)
   document.removeEventListener('click', handleAccountOutsideClick)
+  window.removeEventListener('focus', refreshSharedHistory)
+  document.removeEventListener('visibilitychange', refreshSharedHistory)
+  finishComposerPointer()
 })
 </script>
 
@@ -996,6 +1054,7 @@ onBeforeUnmount(() => {
           <div class="brand-title"><strong>DataAsk</strong><small>智能商业分析平台</small></div>
         </div>
         <div class="tb-nav-category">工作空间</div>
+        <button type="button" class="sidebar-new da-new-conversation" @click="newConversation"><van-icon name="plus" size="18"/> 新建会话</button>
         <nav class="desktop-main-nav" aria-label="工作空间导航">
           <button type="button" :class="{active:desktopSection==='overview'}" @click="switchDesktopSection('overview')"><van-icon name="home-o"/> 工作台</button>
           <button type="button" :class="{active:desktopSection==='ask'}" @click="switchDesktopSection('ask')"><van-icon name="chat-o"/> 智能问数</button>
@@ -1668,7 +1727,7 @@ onBeforeUnmount(() => {
       <main v-if="isDesktop && desktopSection==='history'" class="tb-page-body tb-content-page">
         <div class="tb-page-heading">
           <div><h1>历史会话</h1><p>找回之前的分析，继续追问业务数据。</p></div>
-          <button type="button" class="tb-secondary-action" @click="loadSessions"><van-icon name="replay"/> 刷新</button>
+          <div class="da-history-header-actions"><button type="button" class="tb-secondary-action" @click="newConversation"><van-icon name="plus"/> 新建会话</button><button type="button" class="tb-secondary-action" @click="loadSessions"><van-icon name="replay"/> 刷新</button></div>
         </div>
         <label class="tb-history-search"><van-icon name="search" size="18"/>
           <input v-model="sessionSearch" aria-label="搜索会话" placeholder="搜索之前问过的问题"/>
@@ -1859,7 +1918,13 @@ onBeforeUnmount(() => {
           </template>
         </div>
       </aside>
-      <footer v-if="!isDesktop || desktopSection==='ask'" class="composer">
+      <footer v-if="!isDesktop || desktopSection==='ask'" class="composer"
+        :style="isDesktop ? { '--da-composer-height': composerHeight + 'px' } : {}">
+        <button v-if="isDesktop" type="button" class="da-composer-resize-handle"
+          title="向上或向下拖动调整提问框高度" aria-label="上下拖动调整提问框高度"
+          @pointerdown="beginComposerDrag"
+          @keydown.up.prevent="adjustComposerHeight(24)"
+          @keydown.down.prevent="adjustComposerHeight(-24)"><span></span></button>
         <div class="composer-row">
           <textarea ref="desktopQuestionRef" v-model="question" :rows="isDesktop ? (messages.length ? 1 : 3) : 1" maxlength="800"
             :placeholder="isDesktop ? '例如：昨天各城市的销售额是多少？' : '问问经营数据，例如：昨日营业额'"

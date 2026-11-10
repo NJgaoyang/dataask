@@ -309,6 +309,9 @@ button,input,textarea{font:inherit}button{border:0;cursor:pointer;color:inherit}
 .chart-detail-metric small {font-size:11px;color:#8399b6}
 .chart-detail-metric strong {font-size:29px;line-height:1.25;color:#2879e9;font-weight:790;overflow-wrap:anywhere}
 
+.mini-new-chat,.history-new-chat{display:inline-flex;align-items:center;justify-content:center;gap:6px;background:#eef5ff;border:1px solid #cfe0ff;border-radius:11px;color:#2e72dc;font-size:12px;font-weight:700;padding:9px 12px;white-space:nowrap}
+.mini-new-chat .icon,.history-new-chat .icon{width:16px;height:16px}
+.history-new-chat{width:100%;margin:0 0 13px;padding:12px 14px}
 </style>
 </head>
 <body>
@@ -348,6 +351,7 @@ const icons={
  bell:'<path d="M18 8a6 6 0 0 0-12 0c0 7-3 7-3 9h18c0-2-3-2-3-9M10 21h4"/>',
  close:'<path d="M5 5l14 14M19 5 5 19"/>',
  link:'<path d="M10 13a5 5 0 0 0 7 .2l3-3a5 5 0 0 0-7-7l-1.6 1.6M14 11a5 5 0 0 0-7-.2l-3 3a5 5 0 0 0 7 7l1.5-1.5"/>',
+ plus:'<path d="M12 4v16M4 12h16"/>',
  copy:'<rect x="8" y="8" width="12" height="12" rx="2"/><path d="M16 8V5a2 2 0 0 0-2-2H5a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h3"/>'
 };
 const icon=(name,cl='')=>`<svg class="icon ${cl}" viewBox="0 0 24 24" aria-hidden="true">${icons[name]||icons.sparkle}</svg>`;
@@ -356,11 +360,11 @@ const robot=()=>`<svg viewBox="0 0 238 210" xmlns="http://www.w3.org/2000/svg" r
 const safe=(s)=>String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 
 const sets=[[['chart','昨日营业额是多少？'],['trending','近7天的订单量趋势如何？'],['pin','按城市看营业额TOP10'],['pie','本月新增用户数及环比？']],[['trending','本周营业额趋势怎么样？'],['pin','哪个城市的营业额最高？'],['chart','昨天订单总数是多少？'],['pie','近30天新增用户情况']]];
-const state={view:'home',tab:'home',sampleSet:0,chartMode:'chart',chartModes:{},chartStyles:{},historySearch:'',chat:[],sessionId:null,lastMessageId:null,modal:null,shareScope:'PRIVATE',sharePerson:'',toast:'',scrollBottom:false,loggedIn:Boolean(sessionStorage.getItem('dataask_token')),profile:null,sessions:[],charts:[],shared:[],chartDetail:null,loading:false};
+const state={view:'home',tab:'home',sampleSet:0,chartMode:'chart',chartModes:{},chartStyles:{},historySearch:'',chat:[],sessionId:null,lastMessageId:null,modal:null,shareScope:'PRIVATE',sharePerson:'',toast:'',scrollBottom:false,loggedIn:Boolean(sessionStorage.getItem('dataask_token')),profile:null,sessions:[],charts:[],shared:[],chartDetail:null,loading:false,chatEpoch:0,activeRequestId:null};
 function statusBar(){return `<div class="status"><span>10:24</span><div class="status-right"><svg width="17" height="13" viewBox="0 0 17 13"><rect x="0" y="9" width="3" height="4" rx=".7"/><rect x="5" y="6" width="3" height="7" rx=".7"/><rect x="10" y="3" width="3" height="10" rx=".7"/><rect x="15" y="0" width="2" height="13" rx=".7"/></svg><svg width="17" height="14" viewBox="0 0 17 14"><path d="M1 4Q8-2 16 4M4 7Q8 4 13 7M7 10Q8.5 9 10 10" stroke="#10192d" stroke-width="1.8" fill="none" stroke-linecap="round"/><circle cx="8.5" cy="12" r="1"/></svg><svg width="24" height="12" viewBox="0 0 24 12"><rect x=".5" y=".5" width="20" height="11" rx="2.6" stroke="#10192d" fill="none"/><rect x="2.3" y="2.2" width="16.3" height="7.6" rx="1.3" fill="#10192d"/><rect x="21" y="3.5" width="2.5" height="5" rx="1" fill="#10192d"/></svg></div></div>`}
 function capsule(){return `<div class="capsule"><button data-action="more" aria-label="更多">${icon('dots','sm')}</button><div class="cut"></div><button data-action="more" aria-label="小程序菜单">${icon('target','sm')}</button></div>`}
 function header(){if(state.view==='home')return `<div class="appbar"><div class="brand">${logo()}<span>DataAsk 智能问数</span></div>${capsule()}</div>`;
-if(state.view==='chat'||state.view==='chart-detail')return `<div class="appbar"><button class="back" data-action="back" aria-label="返回">${icon('left','lg')}</button><div class="page-title">${state.view==='chart-detail'?'图表详情':'智能问数'}</div>${capsule()}</div>`;
+if(state.view==='chat'||state.view==='chart-detail')return `<div class="appbar"><button class="back" data-action="back" aria-label="返回">${icon('left','lg')}</button><div class="page-title">${state.view==='chart-detail'?'图表详情':'智能问数'}</div>${state.view==='chat'?'<button class="mini-new-chat" data-action="new-session" aria-label="新建会话">'+icon('plus')+' 新建</button>':capsule()}</div>`;
 const names={history:'历史会话',charts:'我的图表',profile:'个人中心'};return `<div class="appbar"><div class="brand">${logo()}<span>${names[state.view]||'DataAsk'}</span></div>${capsule()}</div>`}
 function homePage(){return `<div class="home"><section class="hero" aria-label="DataAsk 智能问数介绍"><div class="hero-copy"><h1>用自然语言，<br>快速获取业务数据</h1></div><div class="hero-robot">${robot()}</div><div class="hero-features"><span>${icon('message')}自然对话</span><span>${icon('layers')}自动分析</span><span>${icon('chart')}智能图表</span></div></section><div class="ask-outer"><div class="ask-box">${icon('sparkle','ask-spark')}<input id="home-query" enterkeyhint="send" aria-label="输入问题" placeholder="试试输入你的问题..."/><button class="send" data-action="ask-home" aria-label="发送问题">${icon('send')}</button></div></div><section class="section"><div class="section-head"><h2>你可以这样问</h2><button class="muted-action" data-action="shuffle">换一换 ${icon('refresh','sm')}</button></div><div class="examples">${sets[state.sampleSet].slice(0,3).map(([ic,q])=>`<button class="example" data-action="question" data-q="${safe(q)}"><span class="example-icon">${icon(ic)}</span><span class="example-label">${safe(q)}</span>${icon('arrow','example-arrow')}</button>`).join('')}</div></section><section class="section quick-section"><div class="section-head"><h2>我的常用</h2><button class="muted-action" data-action="tab" data-view="charts">查看全部 ${icon('arrow','sm')}</button></div><div class="quick-grid"><button class="quick" data-action="tab" data-view="charts">${icon('star')}我的收藏</button><button class="quick" data-action="tab" data-view="history">${icon('clock')}历史问答</button><button class="quick" data-action="tab" data-view="charts">${icon('chart')}我的图表</button><button class="quick" data-action="open-share">${icon('share')}分享给我</button></div></section></div>`}
 async function api(path,method='GET',body){
@@ -386,13 +390,34 @@ async function login(){
 }
 
 function logout(){
+ state.chatEpoch++;
+ const active=state.activeRequestId;
+ state.activeRequestId=null;state.loading=false;
  sessionStorage.removeItem('dataask_token');state.loggedIn=false;state.profile=null;state.sessionId=null;state.lastMessageId=null;state.chat=[];state.charts=[];state.sessions=[];state.modal={type:'login'};state.view='home';render();
+ if(active)api('/api/chat/cancel','POST',{requestId:active}).catch(()=>{});
 }
 
 async function loadHistory(redraw=true){
  try{state.sessions=await api('/api/chat/sessions');if(redraw)render()}catch(e){showToast(e.message)}
 }
 
+// Both clients use the shared Spring Boot API and MySQL message store.
+async function refreshSharedHistory(){
+ if(!state.loggedIn||document.hidden)return;
+ await loadHistory(state.view==='history');
+ if(state.view!=='chat'||!state.sessionId||state.loading)return;
+ const id=state.sessionId,epoch=state.chatEpoch;
+ try{
+  const answers=await api('/api/chat/sessions/'+encodeURIComponent(id)+'/messages');
+  if(state.chatEpoch!==epoch||state.sessionId!==id||state.loading)return;
+  const ids=state.chat.filter(x=>x.type==='answer'&&x.answer).map(x=>x.answer.id).join('|');
+  if(ids!==answers.map(x=>x.id).join('|')){
+   state.chat=[];state.lastMessageId=null;
+   for(const a of answers){state.chat.push({type:'user',text:a.question},{type:'answer',answer:a});state.lastMessageId=a.id}
+   state.scrollBottom=true;render();
+  }
+ }catch{/* Keep the current conversation visible when disconnected. */}
+}
 async function loadCharts(redraw=true){
  try{state.charts=await api('/api/mini/charts?view=mine');state.shared=await api('/api/mini/charts?view=shared');if(redraw)render()}catch(e){showToast(e.message)}
 }
@@ -524,7 +549,7 @@ function chatPage(){
 
 function historyPage(){
  const items=state.sessions.filter(s=>(s.title||'').includes(state.historySearch));
- return '<div class="inner-page"><h1 class="inner-title">每次探索，都有记录</h1><div class="inner-desc">查看自己的真实问数会话，点击继续追问</div><div class="search-mini">'+icon('search')+'<input id="history-search" placeholder="搜索历史问题" value="'+safe(state.historySearch)+'"/></div><div class="list-heading">最近会话</div>'+
+ return '<div class="inner-page"><h1 class="inner-title">每次探索，都有记录</h1><div class="inner-desc">PC 和 App 使用同一账号的历史会话</div><button class="history-new-chat" data-action="new-session">'+icon('plus')+' 新建会话</button><div class="search-mini">'+icon('search')+'<input id="history-search" placeholder="搜索历史问题" value="'+safe(state.historySearch)+'"/></div><div class="list-heading">最近会话</div>'+
  (items.length?items.map(s=>'<div class="history-item"><button class="history-main" style="text-align:left;background:none;flex:1;min-width:0" data-action="session" data-id="'+safe(s.id)+'"><strong>'+safe(s.title)+'</strong><small>'+safe(s.updatedAt||'')+'</small></button><button class="muted-action" data-action="remove-session" data-id="'+safe(s.id)+'">'+icon('close','sm')+'</button></div>').join(''):'<p class="inner-desc">暂无历史问答，试着在首页输入一个问题</p>')+'</div>';
 }
 
@@ -613,27 +638,49 @@ function render(){
 
 function showToast(str){state.toast=str;render();clearTimeout(showToast.t);showToast.t=setTimeout(()=>{state.toast='';render()},2600)}
 
-async function openChat(q){state.view='chat';state.chat=[];state.sessionId=null;state.lastMessageId=null;state.chartMode='chart';await askText(q,false)}
+function newConversation(redraw=true){
+ // New chat starts without a session ID, source message or prior SQL context.
+ const active=state.activeRequestId;
+ state.chatEpoch++;
+ state.activeRequestId=null;state.loading=false;
+ state.sessionId=null;state.lastMessageId=null;state.chat=[];state.chartMode='chart';
+ state.view='chat';state.scrollBottom=false;
+ if(active)api('/api/chat/cancel','POST',{requestId:active}).catch(()=>{});
+ if(redraw)render();
+}
+async function openChat(q){newConversation(false);await askText(q,true)}
 
 async function followChat(q, sourceId){await askText(q,true,sourceId)}
 
 async function askText(question,follow,sourceId){
  const q=String(question||'').trim();if(!q){showToast('请输入业务问题');return}if(!state.loggedIn){state.modal={type:'login'};render();return}
  if(state.loading)return;
- if(!follow){state.chat=[];state.sessionId=null;state.lastMessageId=null;state.chartMode='chart'}
+ if(!follow)newConversation(false);
+ const epoch=state.chatEpoch;
+ const requestId=(globalThis.crypto?.randomUUID?.()||('mobile-'+Date.now()+'-'+Math.random().toString(36).slice(2)));
+ state.activeRequestId=requestId;
  state.view='chat';state.chat.push({type:'user',text:q});const pending={type:'answer',pending:true};state.chat.push(pending);state.loading=true;state.scrollBottom=true;render();
- try {
-  const body={question:q,sessionId:state.sessionId,sourceMessageId:follow?(sourceId||state.lastMessageId):null};
+ try{
+  const body={question:q,sessionId:state.sessionId,sourceMessageId:state.sessionId&&follow?(sourceId||state.lastMessageId):null,requestId};
   const answer=await api('/api/chat/ask','POST',body);
+  if(epoch!==state.chatEpoch)return;
   state.sessionId=answer.sessionId;state.lastMessageId=answer.id;Object.assign(pending,{pending:false,answer});await loadHistory(false);
- }catch(e){Object.assign(pending,{pending:false,error:e.message})}finally{state.loading=false;state.scrollBottom=true;render()}
+ }catch(e){if(epoch===state.chatEpoch)Object.assign(pending,{pending:false,error:e.message})}
+ finally{if(epoch===state.chatEpoch){state.loading=false;state.activeRequestId=null;state.scrollBottom=true;render()}}
 }
 
 function ask(inputId,follow){const val=document.getElementById(inputId)?.value;askText(val,follow)}
 
 async function openSession(id){
- try{const answers=await api('/api/chat/sessions/'+encodeURIComponent(id)+'/messages');state.chat=[];state.sessionId=id;state.chartMode='chart';for(const a of answers){state.chat.push({type:'user',text:a.question},{type:'answer',answer:a});state.lastMessageId=a.id}state.view='chat';render()}
- catch(e){showToast(e.message)}
+ newConversation(false);
+ const epoch=state.chatEpoch;
+ try{
+  const answers=await api('/api/chat/sessions/'+encodeURIComponent(id)+'/messages');
+  if(epoch!==state.chatEpoch)return;
+  state.chat=[];state.sessionId=id;state.lastMessageId=null;state.chartMode='chart';
+  for(const a of answers){state.chat.push({type:'user',text:a.question},{type:'answer',answer:a});state.lastMessageId=a.id}
+  state.view='chat';render();
+ }catch(e){if(epoch===state.chatEpoch)showToast(e.message)}
 }
 
 async function saveAnswer(id){
@@ -693,6 +740,7 @@ async function handleClick(e){
  switch(a){
  case 'tab':state.view=target.dataset.view;state.tab=state.view;state.modal=null;render();if(state.view==='history')loadHistory();if(state.view==='charts')loadCharts();break;
  case 'back':state.view=state.view==='chart-detail'?'charts':'home';state.chartDetail=null;render();break;
+ case 'new-session':newConversation();break;
  case 'question':openChat(target.dataset.q);break;
  case 'follow':followChat(target.dataset.q,target.dataset.mid);break;
  case 'ask-home':ask('home-query',false);break;
@@ -735,6 +783,8 @@ function startApp(){
  document.addEventListener('click',handleClick);
  document.addEventListener('keydown',e=>{if(e.key==='Enter'&&e.target.id==='home-query'){e.preventDefault();ask('home-query',false)}else if(e.key==='Enter'&&e.target.id==='chat-query'){e.preventDefault();ask('chat-query',true)}else if(e.key==='Enter'&&['login-user','login-pass'].includes(e.target.id)){e.preventDefault();login()}else if(e.key==='Escape'&&state.modal?.type!=='login'){state.modal=null;render()}});
  document.addEventListener('input',e=>{if(e.target.id==='history-search'){state.historySearch=e.target.value;const sel=e.target.selectionStart;render();const next=document.getElementById('history-search');if(next){next.focus();next.setSelectionRange(sel,sel)}}else if(e.target.id==='share-member'){state.sharePerson=e.target.value}});
+ document.addEventListener('visibilitychange',()=>{if(!document.hidden)refreshSharedHistory()});
+ window.addEventListener('focus',refreshSharedHistory);
  render();bootstrap();
 }
 startApp();
