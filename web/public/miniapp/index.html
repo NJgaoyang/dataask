@@ -550,6 +550,9 @@ function chartDetailPage(){
  const toolbar='<div class="chart-detail-top"><div><h2>'+safe(c.title||'我的图表')+'</h2><p>'+safe(c.question||'')+'</p></div><button class="chart-detail-refresh" data-action="chart-refresh" data-id="'+safe(c.id)+'">'+icon('refresh')+' 刷新</button></div>';
  if(item.loading)return '<div class="inner-page chart-detail-page">'+toolbar+'<p class="inner-desc">正在读取已收藏的图表…</p></div>';
  if(!a)return '<div class="inner-page chart-detail-page">'+toolbar+error+'</div>';
+ // A stable height per saved result, shared by bar/line/pie/table. Small
+ // results use a compact area; large rankings scroll inside at a capped height.
+ const viewportHeight=Math.min(480,Math.max(230,(a.rows?.length||0)*32+100));
  const canPlot=chartable(a),isMetric=a.chartType==='metric'&&a.rows?.length===1,
        view=state.chartModes[a.id]||(canPlot?'chart':isMetric?'summary':'table');
  const type=displayType(a);
@@ -565,7 +568,7 @@ function chartDetailPage(){
  return '<div class="inner-page chart-detail-page">'+toolbar+error+
  '<div class="chart-detail-sub">'+busy+'<span>'+safe((a.rows?.length||0)+' 行真实结果')+'</span></div>'+
  '<div class="chart-card chart-detail-card"><div class="chart-head"><b>数据分析结果</b>'+switches+'</div>'+
- choices+'<div class="chart-viewport" tabindex="0" role="region" aria-label="已收藏图表">'+
+ choices+'<div class="chart-viewport" style="height:'+viewportHeight+'px" tabindex="0" role="region" aria-label="已收藏图表">'+
  (isMetric&&view==='summary'?'<div class="chart-detail-metric">'+a.columns.map(col=>
  '<div><small>'+safe(colLabel(a,col))+'</small><strong>'+safe(a.rows[0][col]??'—')+'</strong></div>').join('')+'</div>':
   (view==='table'||!canPlot?resultTable(a):resultChart(a)))+'</div></div>'+
