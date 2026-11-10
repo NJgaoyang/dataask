@@ -1,0 +1,100 @@
+/* DataAsk: one vertically adjustable desktop question composer.
+   The chat message viewport is the remaining grid row; never overlap messages. */
+@media (min-width:1024px) {
+  .app-shell.tencentbi-pc.quickbi-pc.consumer-pc {
+    grid-template-rows:52px minmax(0,1fr) var(--da-composer-height,148px)!important;
+  }
+  .app-shell.tencentbi-pc .composer {
+    position:relative;
+    display:flex;
+    flex-direction:column;
+    height:var(--da-composer-height,148px);
+    min-height:0;
+    box-sizing:border-box;
+    padding-top:17px!important;
+    padding-bottom:9px!important;
+  }
+  .app-shell.tencentbi-pc .composer-row,
+  .app-shell.tencentbi-pc:not(.consumer-home) .composer-row {
+    flex:1 1 auto;
+    width:100%;
+    max-width:none;
+    height:100%!important;
+    min-height:0!important;
+    padding:12px 59px 13px 16px!important;
+    align-items:stretch;
+    overflow:hidden;
+  }
+  .app-shell.tencentbi-pc .composer textarea,
+  .app-shell.tencentbi-pc:not(.consumer-home) .composer textarea {
+    display:block;
+    flex:1 1 auto;
+    width:100%;
+    height:100%!important;
+    min-height:29px!important;
+    max-height:none!important;
+    resize:none!important;
+    overflow-y:auto!important;
+    box-sizing:border-box;
+  }
+  .app-shell.tencentbi-pc .da-composer-resize-handle {
+    position:absolute;
+    top:-4px;
+    left:50%;
+    transform:translateX(-50%);
+    z-index:3;
+    width:84px;
+    height:21px;
+    border:0;
+    border-radius:14px;
+    background:transparent;
+    display:flex;
+    justify-content:center;
+    align-items:center;
+    cursor:ns-resize;
+    touch-action:none;
+    user-select:none;
+  }
+  .app-shell.tencentbi-pc .da-composer-resize-handle span {
+    display:block;
+    width:44px;
+    height:5px;
+    border-radius:8px;
+    background:#adc2df;
+    transition:background .16s;
+  }
+  .app-shell.tencentbi-pc .da-composer-resize-handle:hover span,
+  .app-shell.tencentbi-pc .da-composer-resize-handle:focus-visible span {
+    background:#367ff0;
+  }
+  .app-shell.tencentbi-pc .da-composer-resize-handle:focus-visible {
+    outline:2px solid #79b1ff;
+    outline-offset:1px;
+  }
+  .app-shell.tencentbi-pc .da-new-conversation {
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    gap:8px;
+    flex:0 0 auto;
+    margin:0 12px 12px;
+    padding:11px 14px;
+    border:1px solid #c9dffd;
+    background:#eef6ff;
+    color:#2c70d9;
+    border-radius:10px;
+    font-size:13px;
+    font-weight:700;
+    box-shadow:none;
+  }
+  .app-shell.tencentbi-pc .da-new-conversation:hover {
+    background:#e3f0ff;
+    border-color:#96c5ff;
+  }
+  .da-history-header-actions {
+    display:flex;
+    align-items:center;
+    gap:9px;
+    flex-wrap:wrap;
+  }
+}

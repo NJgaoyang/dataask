@@ -20,6 +20,8 @@ jobs:
         run: node scripts/verify-miniapp-js.mjs
       - name: Verify approved PC workbench layout
         run: node scripts/verify-pc-home.mjs
+      - name: Verify shared PC/App conversations and resizable input
+        run: node scripts/verify-cross-client-sessions.mjs
       - name: Build H5
         run: |
           cd web
