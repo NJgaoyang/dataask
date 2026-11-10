@@ -261,7 +261,7 @@ PC 优化位于独立分支 `dev20261109-miniapp-v2`，重新拉取、打包和�
 
     curl -s http://127.0.0.1:8087/build-info.json
 
-新版本应该返回 buildSha、builtAt、uiLayout 为 desktop-metric-clarification-v8、modelManagement 为 web 的 JSON。为保持 C 端界面简洁，PC 侧栏不再显示技术构建号；可通过此接口检查。返回 404 说明运行的可能是旧 JAR 或访问了错误的服务器。
+新版本应该返回 buildSha、builtAt、uiLayout 为 desktop-chart-studio-v9、modelManagement 为 web 的 JSON。为保持 C 端界面简洁，PC 侧栏不再显示技术构建号；可通过此接口检查。返回 404 说明运行的可能是旧 JAR 或访问了错误的服务器。
 
 浏览器可尝试 Ctrl+Shift+R，或用无痕窗口排除旧缓存；新版本已为 HTML 和构建信息添加无缓存响应头。
 
@@ -291,4 +291,4 @@ PC 优化位于独立分支 `dev20261109-miniapp-v2`，重新拉取、打包和�
 
 当用户只问“查看近7天趋势”“查看西安市近7天趋势”等未明确指标的问题，DataAsk 会在原对话下方显示「你想查看哪项指标？」和可点击的完整问题。例如，若当前已开放 ADS 字段具有真实的订单量、用户数，则可提供“查看近7天订单量趋势”“查看近7天用户数趋势”。候选项仅根据**当前获准读取的 ADS 表的数值字段及中文注释**产生，不显示未授权表，不从模型猜测不存在的指标；时间、地点条件保持不变。选择后直接继续问数。若指标本身不在数据范围内，原“当前问题不支持，请找管理员许愿”提示保持。
 
-PC 和小程序均支持引导按钮，小程序仍不支持下载。可访问 `/build-info.json`，确认本版 `uiLayout` 为 `desktop-metric-clarification-v8`。
+PC 和小程序均支持引导按钮，小程序仍不支持下载。可访问 `/build-info.json`，确认本版 `uiLayout` 为 `desktop-chart-studio-v9`。
