@@ -93,6 +93,8 @@ const activeChartStyle = ref('')
 const activeChartCanPlot = computed(() =>
   !!activeChartAnswer.value && ['bar','line','pie'].includes(activeChartAnswer.value.chartType) &&
   (activeChartAnswer.value.rows?.length || 0) > 1)
+const activeChartIsMetric = computed(() => activeChartAnswer.value?.chartType === 'metric' &&
+  activeChartAnswer.value?.rows?.length === 1)
 function closeChartDetail() {
   activeChart.value = null
   activeChartAnswer.value = null
@@ -114,7 +116,7 @@ async function loadChartDetail(chart) {
     activeChart.value = data.chart || chart
     activeChartAnswer.value = data.answer
     activeChartCached.value = !!data.cached
-    activeChartMode.value = activeChartCanPlot.value ? 'chart' : 'table'
+    activeChartMode.value = activeChartCanPlot.value ? 'chart' : activeChartIsMetric.value ? 'summary' : 'table'
     activeChartStyle.value = data.answer?.chartType || chart.chartType || 'bar'
   } catch(e) {
     activeChartError.value = errorText(e)
@@ -133,7 +135,7 @@ async function refreshChartDetail() {
     activeChartAnswer.value = data.answer
     activeChartCached.value = false
     activeChartStyle.value = data.answer?.chartType || 'bar'
-    activeChartMode.value = activeChartCanPlot.value ? 'chart' : 'table'
+    activeChartMode.value = activeChartCanPlot.value ? 'chart' : activeChartIsMetric.value ? 'summary' : 'table'
   } catch(e) {
     if (activeChart.value?.id === id)
       activeChartError.value = '实时更新失败：'+errorText(e)+
@@ -1527,6 +1529,8 @@ onBeforeUnmount(() => {
                 <div><strong>数据分析结果</strong>
                   <small>本次结果 {{ activeChartAnswer.rows?.length || 0 }} 行</small></div>
                 <div class="da-chart-view-buttons">
+                  <button v-if="activeChartIsMetric" type="button"
+                    :class="{active:activeChartMode==='summary'}" @click="activeChartMode='summary'">指标</button>
                   <button v-if="activeChartCanPlot" type="button"
                     :class="{active:activeChartMode==='chart'}" @click="activeChartMode='chart'">图表</button>
                   <button type="button" :class="{active:activeChartMode==='table'}"
@@ -1539,10 +1543,24 @@ onBeforeUnmount(() => {
                   :key="type" type="button" :class="{active:activeChartStyle===type}"
                   @click="activeChartStyle=type">{{ {bar:'柱状图',line:'折线图',pie:'饼图'}[type] }}</button>
               </div>
+              <div v-if="activeChartIsMetric && activeChartMode==='summary'"
+                class="da-chart-metric">
+                <div v-for="(col,index) in activeChartAnswer.columns" :key="col">
+                  <small>{{ columnLabel(activeChartAnswer,col,index) }}</small>
+                  <strong>{{ pretty(activeChartAnswer.rows[0][col]) }}</strong>
+                </div>
+              </div>
+              <div v-if="activeChartIsMetric && activeChartMode==='summary'"
+                class="da-chart-metric">
+                <div v-for="(col,index) in activeChartAnswer.columns" :key="col">
+                  <small>{{ columnLabel(activeChartAnswer,col,index) }}</small>
+                  <strong>{{ pretty(activeChartAnswer.rows[0][col]) }}</strong>
+                </div>
+              </div>
               <AnswerChart v-if="activeChartCanPlot && activeChartMode==='chart'"
                 :message="activeChartAnswer" :chart-type-override="activeChartStyle"
                 :desktop-expanded="true"/>
-              <div v-if="activeChartMode==='table' || !activeChartCanPlot"
+              <div v-if="activeChartMode==='table' || (!activeChartCanPlot && !activeChartIsMetric)"
                 class="result-table-scroll da-chart-detail-table" role="region" tabindex="0">
                 <table class="result-table"><thead><tr>
                   <th v-for="(col,idx) in activeChartAnswer.columns" :key="col">
@@ -1902,12 +1920,13 @@ onBeforeUnmount(() => {
             <template v-else-if="activeChartAnswer">
               <p class="muted">{{ activeChart.question }} · {{ activeChartCached ? '保存结果' : '实时结果' }}</p>
               <div class="da-chart-view-buttons">
+                <button v-if="activeChartIsMetric" :class="{active:activeChartMode==='summary'}" @click="activeChartMode='summary'">指标</button>
                 <button v-if="activeChartCanPlot" :class="{active:activeChartMode==='chart'}" @click="activeChartMode='chart'">图表</button>
                 <button :class="{active:activeChartMode==='table'}" @click="activeChartMode='table'">表格</button>
               </div>
               <AnswerChart v-if="activeChartCanPlot && activeChartMode==='chart'"
                 :message="activeChartAnswer" :chart-type-override="activeChartStyle"/>
-              <div v-if="!activeChartCanPlot || activeChartMode==='table'" class="result-table-scroll da-chart-detail-table">
+              <div v-if="activeChartMode==='table' || (!activeChartCanPlot && !activeChartIsMetric)" class="result-table-scroll da-chart-detail-table">
                 <table class="result-table"><thead><tr>
                   <th v-for="(col,idx) in activeChartAnswer.columns" :key="col">{{ columnLabel(activeChartAnswer,col,idx) }}</th>
                 </tr></thead><tbody><tr v-for="(row,i) in activeChartAnswer.rows" :key="i">
