@@ -57,7 +57,7 @@ public class ChatController {
 
     record AskRequest(String sessionId, @NotBlank @Size(max=800) String question, String sourceMessageId, String requestId, String dataset) {}
     record CancelRequest(@NotBlank String requestId) {}
-    record Answer(String id, String sessionId, String question, String title, String summary,
+    public record Answer(String id, String sessionId, String question, String title, String summary,
                   String chartType, List<String> columns, Map<String,String> columnLabels,
                   List<Map<String,Object>> rows, List<String> followUps,
                   String metricLabel, String timeLabel, boolean unsupported, String dataset) {}
