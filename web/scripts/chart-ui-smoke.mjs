@@ -69,7 +69,7 @@ try{
   mp.on('pageerror',e=>mErrors.push(e.message));
   await mp.route('**/api/**',mock);
   await mp.goto(base+'/miniapp/index.html',{waitUntil:'networkidle'});
-  await mp.locator('[data-action="tab"][data-view="charts"]').click();
+  await mp.locator('.tabbar [data-action="tab"][data-view="charts"]').click();
   await mp.locator('[data-action="open-chart"][data-id="chart-001"]').click();
   await mp.locator('.chart-detail-page h2').waitFor({state:'visible'});
   await mp.waitForFunction(()=>document.querySelector('.chart-detail-current')!==null,{timeout:10000}).catch(()=>{});
