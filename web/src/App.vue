@@ -1528,7 +1528,7 @@ onBeforeUnmount(() => {
         </section>
         <section v-for="msg in messages" :key="msg.id" class="turn">
           <div class="user-bubble">{{ msg.question }}</div>
-          <div class="answer-card">
+          <div class="answer-card" :class="{ 'answer-needs-clarification': msg.unsupported && msg.followUps?.length }">
             <div class="answer-heading"><span class="answer-mark">{{ isDesktop ? 'Q' : '数' }}</span><b>{{ msg.title }}</b>
               <span v-if="msg.timeLabel" class="answer-time">{{ msg.timeLabel }}</span>
             </div>
