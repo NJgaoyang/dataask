@@ -63,13 +63,19 @@ public final class QuestionClarificationService {
                                 List<StarRocksGateway.TableMeta> discovered) {
         if(question==null || question.isBlank() || discovered==null || granted==null) return List.of();
         Set<String> available=new LinkedHashSet<>();
+        // Match the same bounded metadata that the SQL planner actually sees.
+        int examined=0;
         for(var table:discovered) {
             if(table==null || table.name()==null || !granted.contains(table.name()) ||
                table.columns()==null) continue;
             for(var col:table.columns()) {
+                if(examined++>=500) break;
                 if(col==null || col.type()==null || col.name()==null ||
                    !NUMERIC.matcher(col.type()).matches()) continue;
                 String descriptor=col.name()+" "+Objects.toString(col.comment(),"");
+                // A numeric ID, ratio or growth rate is not a business count.
+                if(col.name().matches("(?i).*(?:_id|_rate|_ratio|_pct|_percentage|_percent)$") ||
+                   descriptor.matches(".*(?:同比|环比|增长率|占比|比例|比率).*")) continue;
                 if(ORDERS.matcher(descriptor).find()) available.add("订单量");
                 if(USERS.matcher(descriptor).find()) available.add("用户数");
                 if(REVENUE.matcher(descriptor).find()) available.add("营业额");
