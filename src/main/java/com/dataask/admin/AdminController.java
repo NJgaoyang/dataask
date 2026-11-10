@@ -2,7 +2,6 @@ package com.dataask.admin;
 
 import com.dataask.config.RuntimeConfigService;
 import com.dataask.data.StarRocksGateway;
-import com.dataask.semantic.JoinRuleService;
 import com.dataask.semantic.EmbeddingSemanticService;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import jakarta.validation.Valid;
@@ -34,15 +33,13 @@ public class AdminController {
     private final JdbcTemplate jdbc;
     private final PasswordEncoder encoder;
     private final ObjectMapper json;
-    private final JoinRuleService joinRules;
     private final EmbeddingSemanticService embeddings;
 
     public AdminController(StarRocksGateway starrocks, RuntimeConfigService settings,
             JdbcTemplate jdbc, PasswordEncoder encoder, ObjectMapper json,
-            JoinRuleService joinRules, EmbeddingSemanticService embeddings) {
+            EmbeddingSemanticService embeddings) {
         this.starrocks=starrocks; this.settings=settings;
         this.jdbc=jdbc; this.encoder=encoder; this.json=json;
-        this.joinRules=joinRules;
         this.embeddings=embeddings;
     }
 
@@ -126,26 +123,6 @@ public class AdminController {
 
     @PostMapping("/semantic/rebuild")
     Map<String,Object> rebuildSemantics() { return embeddings.rebuild(); }
-
-    @GetMapping("/join-rules")
-    List<JoinRuleService.Rule> listJoinRules() {
-        return joinRules.all();
-    }
-
-    @PostMapping("/join-rules")
-    Map<String,Object> createJoinRule(@RequestBody JoinRuleService.JoinInput input) {
-        Set<String> allowed = new HashSet<>(jdbc.query(
-            "SELECT table_name FROM da_allowed_tables WHERE enabled=1",
-            (rs,n)->rs.getString(1)));
-        long id = joinRules.create(input, allowed);
-        return Map.of("success", true, "id", id);
-    }
-
-    @DeleteMapping("/join-rules/{id}")
-    Map<String,Object> deleteJoinRule(@PathVariable long id) {
-        joinRules.delete(id);
-        return Map.of("success",true);
-    }
 
     @GetMapping("/tables")
     List<Map<String,Object>> tables() {
