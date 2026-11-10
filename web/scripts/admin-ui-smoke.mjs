@@ -22,7 +22,6 @@ let users = [
   {username:'admin',displayName:'系统管理员',role:'ADMIN'},
   {username:'alice',displayName:'Alice',role:'USER'}
 ];
-let rules = [];
 let metrics = {total:0,batches:[],definitions:[]};
 let failNextAdminSettings = false;
 
@@ -51,13 +50,6 @@ async function mockBackend(route) {
   if(path==='/api/admin/tables' && method==='GET') return ok(tables);
   if(path==='/api/admin/table-allow' && method==='POST') {
     const body=req.postDataJSON();tables=tables.map(t=>t.name===body.tableName?{...t,enabled:body.enabled}:t);return ok({success:true});
-  }
-  if(path==='/api/admin/join-rules' && method==='GET') return ok(rules);
-  if(path==='/api/admin/join-rules' && method==='POST'){
-    const input=req.postDataJSON();rules.push({...input,id:12,leftKeys:input.leftKeys.split(','),rightKeys:input.rightKeys.split(',')});return ok({success:true,id:12});
-  }
-  if(path.startsWith('/api/admin/join-rules/') && method==='DELETE') {
-    rules=[];return ok({success:true});
   }
   if(path==='/api/admin/metrics' && method==='GET') return ok(metrics);
   if(path==='/api/admin/metrics/preview' && method==='POST')
@@ -140,22 +132,11 @@ try {
   const tableSwitch=page.locator('.admin-table .van-switch').first();
   await tableSwitch.click();
   await requireCall('POST /api/admin/table-allow');
-  // Restore the table permission so the subsequent JOIN test has two approved tables.
+  // Restore the authorization so subsequent tests retain their original grants.
   await tableSwitch.click();
   for(let i=0;i<80 && calls.filter(x=>x==='POST /api/admin/table-allow').length<2;i++)
     await new Promise(resolve=>setTimeout(resolve,40));
   assert.equal(tables.filter(t=>t.enabled).length,2,'Restoring table permission failed');
-
-  await clickTile(page,'表关联规则');
-  await visible(page.locator('.join-editor'),'Join editor');
-  const selects=page.locator('.join-editor select');
-  await selects.nth(0).selectOption('ads.city_orders');
-  await selects.nth(1).selectOption('ads.sales');
-  await page.locator('.join-editor input[placeholder="city_name,dt"]').fill('city');
-  await page.locator('.join-editor input[placeholder="city,dt"]').fill('city');
-  await page.locator('.join-editor textarea').fill('两张表均按城市唯一汇总，键为城市字段');
-  await page.getByRole('button',{name:'保存关联规则'}).click();
-  await requireCall('POST /api/admin/join-rules');
 
   await clickTile(page,'指标口径');
   await visible(page.locator('.tb-admin-metrics-page'),'Metric page');
@@ -215,7 +196,7 @@ try {
   await userPage.goto(base,{waitUntil:'networkidle'});
   assert.equal(await userPage.locator('.tb-single-admin-nav').count(),0,'Regular users must not see admin modules');
   await ctxUser.close();
-  console.log('PASS: eight admin tiles, real HTTP requests, role restrictions, editor and password reset, desktop browser');
+  console.log('PASS: seven admin tiles, real HTTP requests, role restrictions, editor and password reset, desktop browser');
 } catch(e) {
   if(debugPage && !debugPage.isClosed()) {
     await mkdir('artifacts',{recursive:true});
