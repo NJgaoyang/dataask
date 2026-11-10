@@ -33,6 +33,7 @@ public class ChatController {
     private final RuntimeConfigService settings;
     private final EntityValueResolver entities;
     private final MetricDictionaryService metricDictionary;
+    private final QuestionClarificationService clarification = new QuestionClarificationService();
     private final ColumnLabelService labels;
     private final QuestionPresentationService presentation;
     private final EmbeddingSemanticService embeddings;
@@ -203,7 +204,16 @@ public class ChatController {
         String full = "当前业务时区 Asia/Shanghai；今天=" + today + "；昨天=" + today.minusDays(1) +
             "。\n允许使用的表及字段如下：" + metadata + metricHints + semanticHints + cityHints +
             "\n" + previous + "\n用户问题：" + question;
-        JsonNode plan = plan(instruction, full);
+        // Do not let the model silently choose a metric for a clearly vague
+        // question like “查看近7天趋势”. Only propose metrics actually present
+        // as numeric columns in currently authorized ADS metadata.
+        List<String> metricOptions = clarification.choices(question, allowed, discovered);
+        boolean needsMetric = metricOptions.size() >= 2 &&
+            clarification.metricMissing(question, previousQuestion);
+        JsonNode plan = needsMetric
+            ? json.createObjectNode().put("unsupported",true)
+                .put("clarification","请确认要分析的业务指标")
+            : plan(instruction, full);
         active.checkCancelled();
         QuestionPresentationService.Presentation shown =
             presentation.resolve(question, previousQuestion, plan);
@@ -253,14 +263,21 @@ public class ChatController {
         }
 
         if (unsupported) {
-            title = "暂不支持";
-            summary = QuestionPresentationService.UNSUPPORTED;
+            boolean promptForMetric = metricOptions.size() >= 2 &&
+                (needsMetric || clarification.isMetricClarification(
+                    plan.path("clarification").asText("")));
+            title = promptForMetric ? "请确认查询指标" : "暂不支持";
+            summary = promptForMetric
+                ? "你想查看哪项业务数据？请选择一个指标继续查询，也可以直接输入更具体的问题。"
+                : QuestionPresentationService.UNSUPPORTED;
             chart = "table";
             sql = "";
             columns = List.of();
             columnLabels = Map.of();
             rows = List.of();
-            followups = List.of();
+            // Unsupported out-of-scope queries keep the existing safe fallback.
+            // Metric ambiguity offers grounded, clickable complete questions.
+            followups = promptForMetric ? metricOptions : List.of();
         }
 
         active.checkCancelled();
