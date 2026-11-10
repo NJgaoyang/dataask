@@ -292,3 +292,20 @@
   .da-narrow-charts .da-chart-detail-table{max-height:450px;overflow:auto}
   .da-narrow-charts .da-chart-detail-error{padding:12px;background:#fff7eb;color:#a16a36;border-radius:9px}
 }
+
+
+/* Single-measure chart detail: mirror the KPI treatment used in chat responses. */
+.da-chart-metric {
+  display:grid;
+  grid-template-columns:repeat(auto-fit,minmax(180px,1fr));
+  gap:14px;margin:14px 0;padding:18px;
+  border:1px solid #e1eafa;background:linear-gradient(120deg,#f3f8ff,#fff);
+  border-radius:11px;
+}
+.da-chart-metric>div {display:flex;flex-direction:column;gap:10px;min-width:0}
+.da-chart-metric small {color:#7992b2;font-size:12px}
+.da-chart-metric strong {color:#2379e8;font-size:clamp(23px,2.2vw,33px);font-weight:800;font-variant-numeric:tabular-nums}
+@media(max-width:1023px){
+  .da-chart-metric{grid-template-columns:1fr;padding:13px;margin:10px 0}
+  .da-chart-metric strong{font-size:27px}
+}
