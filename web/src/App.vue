@@ -1567,13 +1567,27 @@ onBeforeUnmount(() => {
               </div>
               <p v-if="!isDesktop || resultView(msg)==='table'" class="table-foot">当前显示 {{ msg.rows.length }} 行，表格区域可独立上下滚动（最多200行）。</p>
             </template>
+            <div v-if="msg.unsupported && msg.followUps?.length" class="metric-clarification" aria-label="请选择查询指标">
+              <div class="metric-clarification-heading">
+                <van-icon name="question-o" size="18"/>
+                <strong>你想查看哪项指标？</strong>
+              </div>
+              <p>以下选项根据当前已授权的数据字段生成，点击即可继续查询：</p>
+              <div class="metric-clarification-options">
+                <button v-for="item in msg.followUps" :key="item" type="button" :disabled="busy"
+                  @click="ask(item, msg.id)">
+                  {{ item }} <van-icon name="arrow" size="12"/>
+                </button>
+              </div>
+              <small>也可以在输入框中说明需要的具体指标。</small>
+            </div>
             <div v-if="isDesktop" class="desktop-answer-tools">
               <button type="button" @click="copyAnswer(msg)"><van-icon name="description"/> 复制结果</button>
               <button v-if="!msg.unsupported && msg.rows?.length" type="button" @click="saveChart(msg)"><van-icon name="star-o"/> 收藏</button>
               <button v-if="!msg.unsupported && msg.rows?.length" type="button" @click="shareChart(msg)"><van-icon name="share-o"/> 分享</button>
               <button type="button" :disabled="busy" @click="ask(msg.question)"><van-icon name="replay"/> 重新查询</button>
             </div>
-            <div v-if="msg.followUps?.length" class="followups">
+            <div v-if="!msg.unsupported && msg.followUps?.length" class="followups">
               <button v-for="item in msg.followUps" :key="item" :disabled="busy"
                 @click="ask(item, msg.id)">{{ item }} <van-icon name="arrow" size="10"/></button>
             </div>
