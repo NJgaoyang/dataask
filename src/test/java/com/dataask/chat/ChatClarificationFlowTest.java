@@ -69,5 +69,16 @@ class ChatClarificationFlowTest {
         verify(starrocks,never()).query(anyString(),any());
         verify(jdbc).update(contains("INSERT INTO da_messages"),
             any(),any(),any(),any(),any(),any(),any(),any());
+
+        // A saved visualization refresh runs the same planner, but without any
+        // INSERT or UPDATE into conversation history.
+        clearInvocations(jdbc);
+        ChatController.Answer transientResult=controller.previewChart(
+            "查看近7天趋势","",new UsernamePasswordAuthenticationToken(
+                "tester",null,List.of()));
+        assertThat(transientResult.followUps()).contains(
+            "查看近7天订单量趋势","查看近7天用户数趋势");
+        verify(jdbc,never()).update(anyString(),any(Object[].class));
+        verifyNoInteractions(guard);
     }
 }
