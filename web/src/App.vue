@@ -643,6 +643,8 @@ async function loadAdminSectionData(section) {
   }
 }
 async function openAdmin() {
+  // Model/data-source management is a desktop-only experience.
+  if (!isDesktop.value) return
   if (!requireAdmin()) return
   if (isDesktop.value) {
     adminVisible.value = false
@@ -1046,7 +1048,6 @@ onBeforeUnmount(() => {
             <van-icon name="apps-o" size="19"/>
           </button>
           <button title="历史对话" @click="historyVisible = true"><van-icon name="clock-o" size="21"/></button>
-          <button v-if="isAdmin" title="管理员" @click="openAdmin"><van-icon name="setting-o" size="21"/></button>
           <button title="新对话" @click="newConversation"><van-icon name="add-o" size="21"/></button>
         </div>
       </header>
