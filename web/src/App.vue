@@ -1842,15 +1842,49 @@ onBeforeUnmount(() => {
           </div>
         </div>
       </van-popup>
-      <van-popup v-if="!isDesktop" v-model:show="chartsVisible" :position="isDesktop ? 'center' : 'bottom'" round
-        :style="{ width: isDesktop ? 'min(680px,90vw)' : '100%', height: isDesktop ? 'min(650px,82vh)' : '75%' }">
-        <div class="drawer">
-          <div class="drawer-header"><b>我的图表</b><van-icon name="cross" @click="chartsVisible=false"/></div>
-          <p class="muted">收藏保存查询口径，点击图表会重新查询最新业务数据。</p>
-          <div v-for="item in savedCharts" :key="item.id" class="session-item" @click="revisitChart(item)">
-            <van-icon name="chart-trending-o"/><span>{{ item.title }}</span><van-icon name="arrow"/>
+      <van-popup v-if="!isDesktop" v-model:show="chartsVisible" position="bottom" round
+        :style="{ width:'100%', height:'86%' }" @closed="closeChartDetail">
+        <div class="drawer da-narrow-charts">
+          <div class="drawer-header">
+            <b>{{ activeChart ? activeChart.title : '我的图表' }}</b>
+            <van-icon name="cross" @click="chartsVisible=false"/>
           </div>
-          <p v-if="!savedCharts.length" class="muted">暂时没有收藏的图表</p>
+          <template v-if="activeChart">
+            <button type="button" class="da-chart-back" @click="closeChartDetail"><van-icon name="arrow-left"/> 返回图表列表</button>
+            <div class="da-narrow-detail-actions">
+              <button @click="refreshChartDetail" :disabled="activeChartRefreshing"><van-icon name="replay"/> 刷新数据</button>
+              <button v-if="activeChart.ownerUsername===me.username || isAdmin"
+                @click="openChartShare(activeChart)"><van-icon name="share-o"/> 共享</button>
+            </div>
+            <p v-if="activeChartError" class="da-chart-detail-error">{{ activeChartError }}</p>
+            <van-loading v-if="activeChartBusy" size="22px">正在打开图表…</van-loading>
+            <template v-else-if="activeChartAnswer">
+              <p class="muted">{{ activeChart.question }} · {{ activeChartCached ? '保存结果' : '实时结果' }}</p>
+              <div class="da-chart-view-buttons">
+                <button v-if="activeChartCanPlot" :class="{active:activeChartMode==='chart'}" @click="activeChartMode='chart'">图表</button>
+                <button :class="{active:activeChartMode==='table'}" @click="activeChartMode='table'">表格</button>
+              </div>
+              <AnswerChart v-if="activeChartCanPlot && activeChartMode==='chart'"
+                :message="activeChartAnswer" :chart-type-override="activeChartStyle"/>
+              <div v-if="!activeChartCanPlot || activeChartMode==='table'" class="result-table-scroll da-chart-detail-table">
+                <table class="result-table"><thead><tr>
+                  <th v-for="(col,idx) in activeChartAnswer.columns" :key="col">{{ columnLabel(activeChartAnswer,col,idx) }}</th>
+                </tr></thead><tbody><tr v-for="(row,i) in activeChartAnswer.rows" :key="i">
+                  <td v-for="col in activeChartAnswer.columns" :key="col">{{ pretty(row[col]) }}</td>
+                </tr></tbody></table>
+              </div>
+            </template>
+          </template>
+          <template v-else>
+            <p class="muted">点击收藏即可直接查看图表，无需返回对话。</p>
+            <div v-for="item in savedCharts" :key="item.id" class="session-item" @click="revisitChart(item)">
+              <van-icon name="chart-trending-o"/><span>{{ item.title }}</span><van-icon name="arrow"/>
+            </div>
+            <div v-for="item in sharedCharts" :key="item.id" class="session-item" @click="revisitChart(item)">
+              <van-icon name="share-o"/><span>{{ item.title }}</span><van-icon name="arrow"/>
+            </div>
+            <p v-if="!savedCharts.length && !sharedCharts.length" class="muted">暂时没有收藏或共享的图表</p>
+          </template>
         </div>
       </van-popup>
       <van-popup v-model:show="sharingVisible" :position="isDesktop ? 'center' : 'bottom'" round
