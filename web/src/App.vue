@@ -1453,6 +1453,73 @@ onBeforeUnmount(() => {
         </section>
       </main>
       <main v-if="isDesktop && desktopSection==='charts'" class="tb-page-body tb-content-page tb-charts-page">
+        <template v-if="activeChart">
+          <div class="da-chart-detail">
+            <div class="da-chart-detail-heading">
+              <div>
+                <button type="button" class="da-chart-back" @click="closeChartDetail">
+                  <van-icon name="arrow-left"/> 返回我的图表
+                </button>
+                <h1>{{ activeChart.title }}</h1>
+                <p>{{ activeChart.question }}</p>
+              </div>
+              <div class="da-chart-detail-actions">
+                <span v-if="activeChartRefreshing" class="da-chart-refreshing"><van-loading size="14px"/> 正在更新数据…</span>
+                <span v-else-if="activeChartCached" class="da-chart-cached">上次保存结果</span>
+                <span v-else class="da-chart-current">实时更新成功</span>
+                <button type="button" :disabled="activeChartBusy || activeChartRefreshing"
+                  @click="refreshChartDetail"><van-icon name="replay"/> 刷新数据</button>
+                <button v-if="activeChart.ownerUsername===me.username || isAdmin"
+                  type="button" @click="openChartShare(activeChart)"><van-icon name="share-o"/> 共享</button>
+                <button v-if="activeChart.ownerUsername===me.username || isAdmin"
+                  type="button" @click="deleteSavedChart(activeChart)"><van-icon name="delete-o"/> 取消收藏</button>
+              </div>
+            </div>
+            <div v-if="activeChartError" class="da-chart-detail-error" role="alert">
+              <van-icon name="warning-o"/> {{ activeChartError }}
+            </div>
+            <div v-if="activeChartBusy" class="da-chart-detail-loading">
+              <van-loading size="24px"/> 正在读取图表…
+            </div>
+            <div v-else-if="activeChartAnswer" class="da-chart-detail-body">
+              <div class="da-chart-detail-bar">
+                <div><strong>数据分析结果</strong>
+                  <small>本次结果 {{ activeChartAnswer.rows?.length || 0 }} 行</small></div>
+                <div class="da-chart-view-buttons">
+                  <button v-if="activeChartCanPlot" type="button"
+                    :class="{active:activeChartMode==='chart'}" @click="activeChartMode='chart'">图表</button>
+                  <button type="button" :class="{active:activeChartMode==='table'}"
+                    @click="activeChartMode='table'">表格</button>
+                </div>
+              </div>
+              <div v-if="activeChartCanPlot && activeChartMode==='chart'" class="da-chart-style-switch">
+                <span>切换展示</span>
+                <button v-for="type in ['bar','line',...(pieSupported(activeChartAnswer)?['pie']:[])]"
+                  :key="type" type="button" :class="{active:activeChartStyle===type}"
+                  @click="activeChartStyle=type">{{ {bar:'柱状图',line:'折线图',pie:'饼图'}[type] }}</button>
+              </div>
+              <AnswerChart v-if="activeChartCanPlot && activeChartMode==='chart'"
+                :message="activeChartAnswer" :chart-type-override="activeChartStyle"
+                :desktop-expanded="true"/>
+              <div v-if="activeChartMode==='table' || !activeChartCanPlot"
+                class="result-table-scroll da-chart-detail-table" role="region" tabindex="0">
+                <table class="result-table"><thead><tr>
+                  <th v-for="(col,idx) in activeChartAnswer.columns" :key="col">
+                    {{ columnLabel(activeChartAnswer,col,idx) }}</th>
+                </tr></thead><tbody>
+                  <tr v-for="(row,i) in activeChartAnswer.rows" :key="i">
+                    <td v-for="col in activeChartAnswer.columns" :key="col">{{ pretty(row[col]) }}</td>
+                  </tr>
+                </tbody></table>
+              </div>
+              <div class="da-chart-detail-footer">
+                <span><van-icon name="shield-o"/> 数据来自当前授权的 ADS 表</span>
+                <span>展示实际查询结果，不会创建新的聊天会话</span>
+              </div>
+            </div>
+          </div>
+        </template>
+        <template v-else>
         <div class="tb-page-heading">
           <div><h1>我的图表</h1><p>查看已收藏或他人共享的分析，重新查询即可获取最新数据。</p></div>
           <button type="button" class="tb-secondary-action" :disabled="chartsBusy" @click="loadSavedCharts">
@@ -1537,6 +1604,7 @@ onBeforeUnmount(() => {
             </div>
           </section>
         </div>
+        </template>
       </main>
       <main v-if="isDesktop && desktopSection==='history'" class="tb-page-body tb-content-page">
         <div class="tb-page-heading">
