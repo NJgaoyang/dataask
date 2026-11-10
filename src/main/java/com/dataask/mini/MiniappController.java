@@ -1,5 +1,10 @@
 package com.dataask.mini;
 
+import com.dataask.chat.ChatController;
+import com.dataask.data.SqlGuard;
+import com.dataask.data.StarRocksGateway;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.JsonNode;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Size;
@@ -15,13 +20,33 @@ import java.util.stream.Collectors;
 
 /**
  * Mobile/H5 miniapp facade. Authentication is inherited from the existing JWT security filter.
- * Chart queries are always re-executed via /api/chat/ask; no synthetic business data is returned.
+ * Saved charts support a permission-checked cached view and a live refresh without
+ * creating conversations. All results originate from an authorized StarRocks query.
  */
 @RestController
 @RequestMapping("/api/mini")
 public class MiniappController {
     private final JdbcTemplate jdbc;
-    public MiniappController(JdbcTemplate jdbc) { this.jdbc = jdbc; }
+    private final ChatController chat;
+    private final ObjectMapper json;
+    private final SqlGuard guard;
+    private final StarRocksGateway starrocks;
+
+    public MiniappController(JdbcTemplate jdbc, ChatController chat,
+                             ObjectMapper json, SqlGuard guard, StarRocksGateway starrocks) {
+        this.jdbc=jdbc;
+        this.chat=chat;
+        this.json=json;
+        this.guard=guard;
+        this.starrocks=starrocks;
+    }
+
+    private Map<String,Object> prettyChart(Map<String,Object> chart) {
+        Map<String,Object> result=new LinkedHashMap<>(chart);
+        result.put("title",ChartTitleFormatter.fromQuestion(
+            Objects.toString(chart.get("question"),"")));
+        return result;
+    }
 
     record SaveChart(@NotBlank String sourceMessageId, @Size(max=180) String title) {}
     record ShareChart(@NotBlank String scope, List<String> users) {}
@@ -50,7 +75,7 @@ public class MiniappController {
             "COALESCE(JSON_UNQUOTE(JSON_EXTRACT(m.payload_json,'$.dataset')),'') AS dataset," +
             "c.created_at AS createdAt,c.updated_at AS updatedAt FROM da_saved_charts c " +
             "LEFT JOIN da_messages m ON m.id=c.source_message_id ";
-        return switch(view) {
+        List<Map<String,Object>> found = switch(view) {
             case "mine" -> jdbc.queryForList(fields +
                 "WHERE c.owner_username=? ORDER BY c.updated_at DESC LIMIT 200", name);
             case "shared" -> jdbc.queryForList(fields +
@@ -63,6 +88,7 @@ public class MiniappController {
             }
             default -> throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "view 只能为 mine/shared/all");
         };
+        return found.stream().map(this::prettyChart).toList();
     }
 
     @GetMapping("/charts/{id}")
@@ -79,6 +105,55 @@ public class MiniappController {
         throw notFound();
     }
 
+    /**
+     * Direct chart detail: show its original result immediately, without redirecting
+     * into the historic conversation. Re-check every referenced table against the
+     * CURRENT ADS allowlist before releasing cached rows to anyone, even owners.
+     */
+    @GetMapping("/charts/{id}/view")
+    public Map<String,Object> view(@PathVariable String id, Authentication user) {
+        Map<String,Object> info = chart(id,user);
+        List<Map<String,Object>> source=jdbc.queryForList(
+            "SELECT generated_sql,payload_json FROM da_messages WHERE id=?",
+            Objects.toString(info.get("sourceMessageId"),""));
+        if(source.isEmpty()) throw notFound();
+        String sql=Objects.toString(source.getFirst().get("generated_sql"),"");
+        if(sql.isBlank())
+            throw new ResponseStatusException(HttpStatus.CONFLICT,"该收藏没有可展示的查询结果");
+        Set<String> readable=new LinkedHashSet<>(jdbc.query(
+            "SELECT table_name FROM da_allowed_tables WHERE enabled=1",
+            (rs,n) -> rs.getString(1)));
+        // SqlGuard also rejects DDL/DML and tables whose authorization was revoked.
+        guard.validate(sql,readable,starrocks.schema());
+        try {
+            JsonNode payload=json.readTree(Objects.toString(source.getFirst().get("payload_json"),""));
+            if(payload==null || payload.path("unsupported").asBoolean(false) ||
+               !payload.path("rows").isArray())
+                throw new ResponseStatusException(HttpStatus.CONFLICT,"收藏的数据已失效");
+            return Map.of("chart",info,"answer",payload,"cached",true);
+        } catch(ResponseStatusException e) {
+            throw e;
+        } catch(Exception e) {
+            throw new ResponseStatusException(HttpStatus.CONFLICT,"保存的图表结果已损坏");
+        }
+    }
+
+    /**
+     * Recalculate from the original business question using the current AI model,
+     * authorized metadata and live StarRocks data. No chat transcript is created.
+     */
+    @PostMapping("/charts/{id}/refresh")
+    public Map<String,Object> refresh(@PathVariable String id, Authentication user) {
+        Map<String,Object> info=chart(id,user);
+        ChatController.Answer answer=chat.previewChart(
+            Objects.toString(info.get("question"),""),
+            Objects.toString(info.get("dataset"),""),user);
+        if(answer.unsupported() || answer.rows().isEmpty())
+            throw new ResponseStatusException(HttpStatus.UNPROCESSABLE_ENTITY,
+                "当前无法刷新该图表，请检查指标口径、ADS 表授权与模型配置");
+        return Map.of("chart",info,"answer",answer,"cached",false);
+    }
+
     @PostMapping("/charts")
     @Transactional
     public Map<String,Object> save(@Valid @RequestBody SaveChart request, Authentication user) {
@@ -91,8 +166,8 @@ public class MiniappController {
             (rs,n)->rs.getString(1),user.getName(),request.sourceMessageId());
         if (!existing.isEmpty()) return rawChart(existing.getFirst());
         Map<String,Object> m = source.getFirst();
-        String title = request.title()==null || request.title().isBlank()
-            ? Objects.toString(m.get("title"),"我的图表") : request.title().trim();
+        String title = ChartTitleFormatter.fromQuestion(
+            Objects.toString(m.get("question"),""));
         String id = UUID.randomUUID().toString();
         jdbc.update("INSERT INTO da_saved_charts(id,owner_username,source_message_id,question,title,chart_type,share_scope) " +
             "VALUES(?,?,?,?,?,?,'PRIVATE')", id,user.getName(),request.sourceMessageId(),
@@ -152,7 +227,7 @@ public class MiniappController {
             "c.created_at AS createdAt,c.updated_at AS updatedAt FROM da_saved_charts c " +
             "LEFT JOIN da_messages m ON m.id=c.source_message_id WHERE c.id=?",id);
         if (rows.isEmpty()) throw notFound();
-        return rows.getFirst();
+        return prettyChart(rows.getFirst());
     }
 
     private void requireManage(String id, Authentication user) {
