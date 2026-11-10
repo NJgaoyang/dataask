@@ -538,13 +538,15 @@ function chartDetailPage(){
  const toolbar='<div class="chart-detail-top"><div><h2>'+safe(c.title||'我的图表')+'</h2><p>'+safe(c.question||'')+'</p></div><button class="chart-detail-refresh" data-action="chart-refresh" data-id="'+safe(c.id)+'">'+icon('refresh')+' 刷新</button></div>';
  if(item.loading)return '<div class="inner-page chart-detail-page">'+toolbar+'<p class="inner-desc">正在读取已收藏的图表…</p></div>';
  if(!a)return '<div class="inner-page chart-detail-page">'+toolbar+error+'</div>';
- const canPlot=chartable(a),view=state.chartModes[a.id]||(!canPlot?'table':'chart');
+ const canPlot=chartable(a),isMetric=a.chartType==='metric'&&a.rows?.length===1,
+       view=state.chartModes[a.id]||(canPlot?'chart':isMetric?'summary':'table');
  const type=displayType(a);
  const choices='<div class="mobile-chart-types">'+
  (canPlot?['bar','line',...(pieAllowed(a)?['pie']:[])].map(t=>
  '<button class="'+(type===t?'active':'')+'" data-action="chart-style" data-mid="'+safe(a.id)+'" data-style="'+t+'">'+
  ({bar:'柱状图',line:'折线图',pie:'饼图'})[t]+'</button>').join(''):'')+'</div>';
  const switches='<div class="chart-mode" role="group">'+
+ (isMetric?'<button class="'+(view==='summary'?'active':'')+'" data-action="chart-mode" data-mid="'+safe(a.id)+'" data-mode="summary">指标</button>':'')+
  (canPlot?'<button class="'+(view==='chart'?'active':'')+'" data-action="chart-mode" data-mid="'+safe(a.id)+'" data-mode="chart">'+icon('chart')+'</button>':'')+
  '<button class="'+(view==='table'?'active':'')+'" data-action="chart-mode" data-mid="'+safe(a.id)+'" data-mode="table">'+icon('table')+'</button></div>';
  const mine=state.charts.some(x=>x.id===c.id);
@@ -552,7 +554,9 @@ function chartDetailPage(){
  '<div class="chart-detail-sub">'+busy+'<span>'+safe((a.rows?.length||0)+' 行真实结果')+'</span></div>'+
  '<div class="chart-card chart-detail-card"><div class="chart-head"><b>数据分析结果</b>'+switches+'</div>'+
  choices+'<div class="chart-viewport" tabindex="0" role="region" aria-label="已收藏图表">'+
- (view==='table'||!canPlot?resultTable(a):resultChart(a))+'</div></div>'+
+ (isMetric&&view==='summary'?'<div class="chart-detail-metric">'+a.columns.map(col=>
+ '<div><small>'+safe(colLabel(a,col))+'</small><strong>'+safe(a.rows[0][col]??'—')+'</strong></div>').join('')+'</div>':
+  (view==='table'||!canPlot?resultTable(a):resultChart(a)))+'</div></div>'+
  (mine?'<div class="chart-detail-actions"><button data-action="share" data-chart="'+safe(c.id)+'">'+icon('share')+'共享图表</button>'+
  '<button data-action="remove-chart" data-id="'+safe(c.id)+'">'+icon('close')+'取消收藏</button></div>':'')+
  '<p class="chart-detail-notice">数据来自已授权 ADS 表 · 此页面不会创建聊天记录</p></div>';
