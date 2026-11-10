@@ -121,7 +121,7 @@ function isRedundantSummary(msg) {
 
 const desktopSection = ref('overview')
 const adminExpanded = ref(false)
-const desktopAdminSections = ['admin-overview','admin-source','admin-model','admin-embedding','admin-tables','admin-joins','admin-metrics','admin-users','admin-status']
+const desktopAdminSections = ['admin-overview','admin-source','admin-model','admin-embedding','admin-tables','admin-metrics','admin-users','admin-status']
 const adminSectionBusy = ref(false)
 const adminSectionError = ref('')
 let adminLoadSequence = 0
@@ -147,7 +147,7 @@ const desktopSectionTitle = computed(() => ({
   overview:'工作台',ask:'智能问数',charts:'我的图表',history:'历史会话',
   'admin-overview':'系统管理','admin-source':'数据源配置','admin-model':'对话模型',
   'admin-embedding':'Embedding 模型','admin-tables':'ADS 表授权',
-  'admin-joins':'表关联规则','admin-metrics':'指标口径','admin-users':'用户管理',
+  'admin-metrics':'指标口径','admin-users':'用户管理',
   'admin-status':'配置状态'
 })[desktopSection.value] || '工作台')
 const desktopIsAdminSection = computed(() => desktopSection.value.startsWith('admin-'))
@@ -216,9 +216,6 @@ const srForm = ref({ jdbcUrl: '', username: '', password: '', schema: 'ads' })
 const allowedTables = ref([])
 const expandedTable = ref('')
 const users = ref([])
-const joinRules = ref([])
-const joinSaving = ref(false)
-const joinForm = ref({ leftTable: '', rightTable: '', leftKeys: '', rightKeys: '', cardinality: 'ONE_TO_ONE', grainNote: '' })
 const metricFileInput = ref(null)
 const selectedMetricFile = ref(null)
 const metricPreview = ref(null)
@@ -563,16 +560,6 @@ async function loadAdminSectionData(section) {
         allowedTables.value = []
         adminSectionError.value = '尚未配置 StarRocks 数据源，请先在数据源配置中连接 ADS 数据库。'
       }
-    } else if (section === 'admin-joins') {
-      await refreshAdminStatus()
-      const [rules, tables] = await Promise.all([
-        api.get('/admin/join-rules'),
-        status.value.starrocksConfigured ? api.get('/admin/tables') : Promise.resolve({data:[]})
-      ])
-      joinRules.value = rules.data
-      allowedTables.value = tables.data
-      if (!status.value.starrocksConfigured)
-        adminSectionError.value = '尚未配置 StarRocks，关联规则可查看，但无法新建。'
     } else if (section === 'admin-metrics') {
       metricInfo.value = (await api.get('/admin/metrics')).data
     } else if (section === 'admin-users') {
@@ -599,7 +586,7 @@ async function openAdmin() {
   try {
     await refreshAdminStatus()
     users.value = (await api.get('/admin/users')).data
-    await Promise.all([reloadTables(),reloadMetrics(),reloadJoinRules(),reloadSemanticStatus()])
+    await Promise.all([reloadTables(),reloadMetrics(),reloadSemanticStatus()])
   } catch(e) { showFailToast('读取系统管理失败：'+errorText(e)) }
 }
 function toggleAdminNavigation() {
@@ -643,43 +630,6 @@ async function rebuildSemanticIndex() {
     configTestMessage.value = errorText(e)
     showFailToast(configTestMessage.value)
   } finally { semanticBusy.value = false }
-}
-async function reloadJoinRules() {
-  try { joinRules.value = (await api.get('/admin/join-rules')).data }
-  catch (e) { showFailToast('读取关联规则失败：' + errorText(e)) }
-}
-async function saveJoinRule() {
-  if (!requireAdmin() || joinSaving.value) return
-  if (!joinForm.value.leftTable || !joinForm.value.rightTable ||
-      joinForm.value.leftTable===joinForm.value.rightTable)
-    return showFailToast('请选择两张不同且已授权的 ADS 数据表')
-  const leftKeys=joinForm.value.leftKeys.split(/[,，]/).map(x=>x.trim()).filter(Boolean)
-  const rightKeys=joinForm.value.rightKeys.split(/[,，]/).map(x=>x.trim()).filter(Boolean)
-  if (!leftKeys.length || leftKeys.length>5 || leftKeys.length!==rightKeys.length)
-    return showFailToast('请填写1至5组左右数量相同的关联字段')
-  if (joinForm.value.grainNote.trim().length<8)
-    return showFailToast('请填写至少8字的业务粒度和唯一性说明')
-  joinSaving.value = true
-  try {
-    await api.post('/admin/join-rules', joinForm.value)
-    showSuccessToast('关联规则已保存')
-    joinForm.value = { leftTable:'', rightTable:'', leftKeys:'', rightKeys:'', cardinality:'ONE_TO_ONE', grainNote:'' }
-    await reloadJoinRules()
-  } catch (e) { showFailToast(errorText(e)) }
-  finally { joinSaving.value = false }
-}
-async function removeJoinRule(rule) {
-  try {
-    await showConfirmDialog({
-      title: '删除关联规则',
-      message: '确定移除 ' + rule.leftTable + ' 与 ' + rule.rightTable + ' 的跨表关系吗？'
-    })
-    await api.delete('/admin/join-rules/' + rule.id)
-    await reloadJoinRules()
-    showSuccessToast('关联规则已删除')
-  } catch (e) {
-    if (e !== 'cancel' && e !== 'close') showFailToast(errorText(e))
-  }
 }
 async function reloadMetrics() {
   try { metricInfo.value = (await api.get('/admin/metrics')).data }
@@ -1060,11 +1010,6 @@ onBeforeUnmount(() => {
               <strong>ADS 表授权</strong><small>控制可查询的数据表</small>
               <van-icon name="arrow" class="tb-admin-overview-arrow"/>
             </button>
-            <button type="button" @click="openAdminSection('admin-joins')">
-              <span class="tb-admin-overview-icon icon-joins"><van-icon name="exchange" size="21"/></span>
-              <strong>表关联规则</strong><small>维护跨表查询关系</small>
-              <van-icon name="arrow" class="tb-admin-overview-arrow"/>
-            </button>
             <button type="button" @click="openAdminSection('admin-metrics')">
               <span class="tb-admin-overview-icon icon-metrics"><van-icon name="description" size="21"/></span>
               <strong>指标口径</strong><small>维护业务指标定义</small>
@@ -1199,48 +1144,6 @@ onBeforeUnmount(() => {
             </div>
           </div>
           <p v-if="!allowedTables.length" class="muted">没有读取到 ADS 表，请检查连接配置。</p>
-        </div>
-        <div v-else-if="desktopSection==='admin-joins'" class="tb-admin-panel-card tb-admin-joins-page">
-          <section class="metric-admin join-admin">
-            <h3>ADS 跨表关联规则</h3>
-            <p class="muted">多张 ADS 汇总表只有明确关联键和业务粒度才能 JOIN。系统不允许未经配置的跨表关联，以免统计金额重复。</p>
-            <div v-for="rule in joinRules" :key="rule.id" class="metric-batch">
-              <div class="metric-batch-details">
-                <b>{{ rule.leftTable }} → {{ rule.rightTable }}</b>
-                <small>关联键：{{ rule.leftKeys.join(', ') }} = {{ rule.rightKeys.join(', ') }}</small>
-                <small>{{ rule.cardinality === 'ONE_TO_ONE' ? '一对一' : '多对一' }} · {{ rule.grainNote }}</small>
-              </div>
-              <button type="button" class="metric-delete" :aria-label="'删除关联规则'+rule.id" @click="removeJoinRule(rule)">
-                <van-icon name="delete-o" size="18"/>
-              </button>
-            </div>
-            <div class="join-editor">
-              <label>主表（已授权）</label>
-              <select v-model="joinForm.leftTable" class="join-select">
-                <option disabled value="">选择 ADS 主表</option>
-                <option v-for="item in allowedTables.filter(t => t.enabled)" :key="item.name" :value="item.name">{{ item.name }}</option>
-              </select>
-              <label>关联表（已授权）</label>
-              <select v-model="joinForm.rightTable" class="join-select">
-                <option disabled value="">选择关联表</option>
-                <option v-for="item in allowedTables.filter(t => t.enabled)" :key="item.name" :value="item.name">{{ item.name }}</option>
-              </select>
-              <van-field v-model="joinForm.leftKeys" label="主表关联键" label-width="90px" placeholder="city_name,dt"/>
-              <van-field v-model="joinForm.rightKeys" label="关联表关联键" label-width="90px" placeholder="city,dt"/>
-              <van-field label="关联关系" label-width="90px">
-                <template #input>
-                  <van-radio-group v-model="joinForm.cardinality" direction="horizontal">
-                    <van-radio name="ONE_TO_ONE">一对一</van-radio>
-                    <van-radio name="MANY_TO_ONE">多对一</van-radio>
-                  </van-radio-group>
-                </template>
-              </van-field>
-              <van-field v-model="joinForm.grainNote" label="粒度说明" label-width="90px"
-                type="textarea" rows="2" maxlength="800" autosize placeholder="例如：两表均按天和城市唯一汇总，city+dt 构成唯一键"/>
-              <van-button type="primary" block plain :loading="joinSaving" @click="saveJoinRule">保存关联规则</van-button>
-              <p class="muted">请先在数据仓库核对唯一性；跨表关联不能代替事实表口径验证。默认禁止多对多关联。</p>
-            </div>
-          </section>
         </div>
         <div v-else-if="desktopSection==='admin-metrics'" class="tb-admin-panel-card tb-admin-metrics-page">
           <section class="metric-admin">
@@ -1839,46 +1742,6 @@ onBeforeUnmount(() => {
             </div>
           </div>
           <p v-if="!allowedTables.length" class="muted">没有读取到 ADS 表，请检查连接配置。</p>
-          <section class="metric-admin join-admin">
-            <h3>ADS 跨表关联规则</h3>
-            <p class="muted">多张 ADS 汇总表只有明确关联键和业务粒度才能 JOIN。系统不允许未经配置的跨表关联，以免统计金额重复。</p>
-            <div v-for="rule in joinRules" :key="rule.id" class="metric-batch">
-              <div class="metric-batch-details">
-                <b>{{ rule.leftTable }} → {{ rule.rightTable }}</b>
-                <small>关联键：{{ rule.leftKeys.join(', ') }} = {{ rule.rightKeys.join(', ') }}</small>
-                <small>{{ rule.cardinality === 'ONE_TO_ONE' ? '一对一' : '多对一' }} · {{ rule.grainNote }}</small>
-              </div>
-              <button type="button" class="metric-delete" :aria-label="'删除关联规则'+rule.id" @click="removeJoinRule(rule)">
-                <van-icon name="delete-o" size="18"/>
-              </button>
-            </div>
-            <div class="join-editor">
-              <label>主表（已授权）</label>
-              <select v-model="joinForm.leftTable" class="join-select">
-                <option disabled value="">选择 ADS 主表</option>
-                <option v-for="item in allowedTables.filter(t => t.enabled)" :key="item.name" :value="item.name">{{ item.name }}</option>
-              </select>
-              <label>关联表（已授权）</label>
-              <select v-model="joinForm.rightTable" class="join-select">
-                <option disabled value="">选择关联表</option>
-                <option v-for="item in allowedTables.filter(t => t.enabled)" :key="item.name" :value="item.name">{{ item.name }}</option>
-              </select>
-              <van-field v-model="joinForm.leftKeys" label="主表关联键" label-width="90px" placeholder="city_name,dt"/>
-              <van-field v-model="joinForm.rightKeys" label="关联表关联键" label-width="90px" placeholder="city,dt"/>
-              <van-field label="关联关系" label-width="90px">
-                <template #input>
-                  <van-radio-group v-model="joinForm.cardinality" direction="horizontal">
-                    <van-radio name="ONE_TO_ONE">一对一</van-radio>
-                    <van-radio name="MANY_TO_ONE">多对一</van-radio>
-                  </van-radio-group>
-                </template>
-              </van-field>
-              <van-field v-model="joinForm.grainNote" label="粒度说明" label-width="90px"
-                type="textarea" rows="2" maxlength="800" autosize placeholder="例如：两表均按天和城市唯一汇总，city+dt 构成唯一键"/>
-              <van-button type="primary" block plain :loading="joinSaving" @click="saveJoinRule">保存关联规则</van-button>
-              <p class="muted">请先在数据仓库核对唯一性；跨表关联不能代替事实表口径验证。默认禁止多对多关联。</p>
-            </div>
-          </section>
           <section class="metric-admin">
             <div class="metric-section-title">
               <h3>指标口径 · Excel</h3>
