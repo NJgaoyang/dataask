@@ -114,6 +114,19 @@ public class ChatController {
 
     @PostMapping("/ask")
     Answer ask(@Valid @RequestBody AskRequest input, Authentication user) {
+        return execute(input,user,true);
+    }
+
+    /**
+     * Refresh a saved visualization using the exact same current NL2SQL pipeline,
+     * but NEVER append messages or create a new chat session.
+     * Access to the saved chart is checked by MiniappController first.
+     */
+    public Answer previewChart(String question, String dataset, Authentication user) {
+        return execute(new AskRequest(null,question,null,null,dataset),user,false);
+    }
+
+    private Answer execute(AskRequest input, Authentication user, boolean persist) {
         String username = user.getName();
         ChatCancellationService.Active active = cancellations.begin(username, input.requestId());
         try {
@@ -284,6 +297,7 @@ public class ChatController {
         String messageId = UUID.randomUUID().toString();
         Answer answer = new Answer(messageId, session, question, title, summary, chart, columns,
             columnLabels, rows, followups, shown.metricLabel(), shown.periodLabel(), unsupported, dataset);
+        if (persist) {
         try {
             String serialized = json.writeValueAsString(answer);
             active.checkCancelled();
@@ -298,6 +312,7 @@ public class ChatController {
             jdbc.update("UPDATE da_sessions SET updated_at=CURRENT_TIMESTAMP WHERE id=?", session);
         } catch (Exception e) {
             throw new IllegalStateException("保存会话失败", e);
+        }
         }
         return answer;
         } finally {
