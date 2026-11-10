@@ -1,6 +1,6 @@
 # DataAsk 系统管理 — PC 功能实装与验收
 
-目标：系统管理不再是仅可看的 4×2 功能卡片，而是每张卡片进入独立的、可加载/可保存/可报错/可重试的右侧模块页面。PC 左侧只保留「系统管理」一级导航。移动端小程序 HTML 和普通智能问数页面不改。
+目标：系统管理不再是仅可看的管理功能卡片，而是每张卡片进入独立的、可加载/可保存/可报错/可重试的右侧模块页面。PC 左侧只保留「系统管理」一级导航。移动端小程序 HTML 和普通智能问数页面不改。
 
 ## 功能清单（管理员专用）
 
@@ -10,7 +10,6 @@
 | 对话模型 | 编辑 Base URL、模型名、API Key；测试 OpenAI-compatible Chat Completions；保存生效 | POST /api/admin/settings/ai/test；POST /api/admin/settings/ai |
 | Embedding 模型 | 启用/关闭、Base URL/模型/维度/API Key、测试服务、保存、重建语义索引 | POST /api/admin/settings/embedding/test；POST /api/admin/settings/embedding；POST /api/admin/semantic/rebuild |
 | ADS 表授权 | 从 StarRocks 读取真实表与列名、展开字段、逐表启用/取消授权、刷新列表 | GET /api/admin/tables；POST /api/admin/table-allow |
-| 表关联规则 | 查看、创建和删除 1:1 / N:1 的跨表关联，校验授权表、左右关联键和业务粒度 | GET/POST /api/admin/join-rules；DELETE /api/admin/join-rules/{id} |
 | 指标口径 | 下载 Excel 模板、上传解析/预览、确认导入、查看批次、按批次删除 | GET /api/admin/metrics/template；POST /api/admin/metrics/preview；POST /api/admin/metrics/import；DELETE /api/admin/metrics/batches/{id} |
 | 用户管理 | 查看/创建账号、编辑显示名称及角色、管理员重置密码；防止自降权和移除最后管理员 | GET/POST /api/admin/users；PUT /api/admin/users/{username}；POST /api/admin/users/{username}/reset-password |
 | 配置状态 | 查看数据源/对话模型/Embedding 是否配置完整、手动刷新，并进入详细配置页 | GET /api/admin/status；GET /api/admin/settings |
@@ -25,15 +24,15 @@
 - `web/src/admin-functional-pc.css`：完整配置表单、状态列表、用户表格与操作表单的正式 PC 样式。
 - `src/main/java/com/dataask/admin/AdminController.java`：用户编辑及密码重置 REST API，保持管理员安全限制。
 - `src/test/java/com/dataask/admin/AdminUserManagementTest.java`：角色变更、最后管理员、自降权、密码策略测试。
-- `web/scripts/admin-ui-smoke.mjs`：真实 Chromium 运行前端，对所有 8 个管理模块实际点击、模拟 REST 返回并检查 API 请求。
+- `web/scripts/admin-ui-smoke.mjs`：真实 Chromium 运行前端，对所有 7 个管理模块实际点击、模拟 REST 返回并检查 API 请求。
 - `.github/workflows/build.yml`：加入 Chromium 测试与 UI 截图，之后才运行 Java 验证与打包。
 
 ## 生产部署前验收
 
-1. 使用管理员账号登录，进入系统管理。8 个功能卡片都能切到右侧独立页面；切回后仍可再次打开，加载失败出现重试按钮。
+1. 使用管理员账号登录，进入系统管理。7 个功能卡片都能切到右侧独立页面；切回后仍可再次打开，加载失败出现重试按钮。
 2. 数据源中填写真实 StarRocks **只读**账号，点击「测试连接」后再保存；只有能连通并有 ADS 元数据，才开放数据表。
 3. 模型配置填入阿里云百炼实际 Base URL、Model、API Key，测试后保存；Embedding 模型还需根据实际模型维度重建索引。
-4. ADS 授权开关应在 MySQL 元数据中生效；新建跨表规则前必须明确字段、粒度和主键/唯一性。
+4. ADS 授权开关应在 MySQL 元数据中生效；对已授权的 ADS 表，跨表 JOIN 无需再配置人工规则；仍需关注聚合粒度和指标口径。
 5. 上传真实 Excel 指标口径，先预览再导入，并在列表里核对与删除测试批次。
 6. 创建测试普通用户，验证其完全没有系统管理入口且直接调用 `/api/admin/**` 返回 403。管理员编辑该用户角色/重置密码；旧 JWT 应失效并要求重新登录。
 7. 实机观察 1366×768、1920×1080 PC；确认数据字段、按钮和下拉菜单没有被截断。
@@ -80,3 +79,14 @@ WHERE setting_key IN ('ai.apiKey','embedding.apiKey','sr.password');
 若 `encrypted_bytes=28`，符合本次空密文边界错误。若密文并非 28 字节仍无法解密，需检查**发布前后是否更换过 `DATAASK_JWT_SECRET`**，或凭证是否被损坏；优先恢复原密钥（从安全备份）或通过新页面重新填写实际的密码/API Key。不要直接删除 `da_app_settings` 表、用户或历史会话。
 
 修复代码：`RuntimeConfigService.java`、`RuntimeConfigCryptoTest.java`、PC 管理页面凭证错误提示。修复已在 GitHub CI 执行测试，具体真实环境的密钥与数据库状态仍需部署后验证。
+
+## 2026-11-10 — 自动跨表关联、对话模型测试修复
+
+- 移除「表关联规则」管理页面和接口，系统管理首页现在保留七个实际功能模块。
+- 智能问数不再调用 `JoinRuleService` / `JoinSafetyGuard`，也不要求提前批准关联键或映射。只要涉及的 ADS 表均已开放，就允许单条只读 SELECT 中跨表 JOIN。
+- `SqlGuard` 仍然检查单条只读 SQL 与引用表白名单，不允许访问非授权表，不会放开写入操作。
+- 从新部署版本的 `schema.sql` 移除旧手动关联规则表创建语句；已有表与记录不会自动删除。
+- 对话模型测试界面：开启「清除原有 API Key」时不再发送可能产生误导性 HTTP 401 的测试请求；清除操作保存前需要二次确认。实际接口返回 HTTP 401 时给出明确的认证错误说明。
+- PC 系统管理子页面的「返回系统管理」按钮改为显眼的浅蓝按钮，高度至少 43px。
+
+`mvn test` 中加入已授权多表 JOIN 放行、未授权表 JOIN 拒绝及清除 API Key 时拒绝测试的回归检查。
