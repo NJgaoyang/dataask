@@ -11,6 +11,18 @@ for (const url of ['/api/auth/login','/api/chat/ask','/api/mini/bootstrap','/api
 }
 assert(!html.includes('8,463,520')&&!html.includes('数据为交互原型演示'),'Hard-coded business data detected');
 assert(!html.includes('data-action="export"')&&!html.includes('exportCSV(')&&!html.includes('.download='),'Mobile downloads must be unavailable');
+assert(!html.includes('data-action="mic"') && !html.includes('data-action="config"'),
+  'Mobile must never show microphone recording or model/data configuration');
+for(const token of [
+  "function chartDetailPage()",
+  "state.view==='chart-detail'?chartDetailPage()",
+  "/api/mini/charts/'+encodeURIComponent(id)+'/view",
+  "/api/mini/charts/'+encodeURIComponent(id)+'/refresh",
+  "function refreshSaved(id)"
+]) assert(html.includes(token),'Mobile saved-chart detail missing: '+token);
+assert(!html.includes('await openChat(c.question)'),
+  'Opening saved chart must not jump back to a conversation');
+
 
 const initializer = /startApp\(\);\s*\}\)\(\);\s*$/;
 assert(initializer.test(inline),'Miniapp bootstrap pattern changed: chart smoke tests need updating');
