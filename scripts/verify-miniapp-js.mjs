@@ -60,4 +60,19 @@ assert(fn.pieAllowed(a),'Positive-value pie chart expected');
 assert(fn.resultChart(a).includes('<circle'),'Pie chart missing');
 const table=fn.resultTable(a);
 assert(table.includes('城市21')&&table.includes('订单数'),'Full table missing rows/Chinese labels');
+const clarificationAnswer={
+  id:'clarify-1',question:'查看近7天趋势',title:'请确认查询指标',
+  summary:'你想查看哪项业务数据？请选择一个指标继续查询。',
+  unsupported:true,rows:[],columns:[],
+  followUps:['查看近7天订单量趋势','查看近7天用户数趋势']
+};
+const clarificationCard=fn.answerCard({type:'answer',answer:clarificationAnswer});
+assert(clarificationCard.includes('你想查看哪项指标？'),'Mobile clarification heading missing');
+assert(clarificationCard.includes('查看近7天订单量趋势') &&
+  clarificationCard.includes('查看近7天用户数趋势'), 'Missing grounded metric candidates');
+assert(clarificationCard.includes('data-action="follow"') &&
+  clarificationCard.includes('data-mid="clarify-1"'),'Clarification choices must be clickable');
+assert(!clarificationCard.includes('chart-plot'),'Unsupported clarification must not display a fake chart');
+assert(html.includes('sourceId||state.lastMessageId'),
+  'Clarification choice must reference the correct source response');
 console.log('Miniapp: chart/table same fixed-height viewport, internal scroll, stable chat scroll, 21 rows, labels, no download OK');
