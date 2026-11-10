@@ -32,7 +32,6 @@ class AuthorizedDatasetsTest {
             jdbc,starrocks,mock(SqlGuard.class),new ObjectMapper(),
             mock(RuntimeConfigService.class),mock(EntityValueResolver.class),
             mock(MetricDictionaryService.class),mock(ColumnLabelService.class),
-            mock(JoinRuleService.class),mock(JoinSafetyGuard.class),
             mock(QuestionPresentationService.class),mock(EmbeddingSemanticService.class),
             new ChatCancellationService());
     }
