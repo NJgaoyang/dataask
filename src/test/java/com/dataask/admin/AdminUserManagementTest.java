@@ -104,4 +104,15 @@ class AdminUserManagementTest {
         assertEquals(HttpStatus.BAD_REQUEST,error.getStatusCode());
         verifyNoInteractions(encoder,jdbc);
     }
+    @Test
+    void refusesModelTestWhenClearApiKeyIsSelected() {
+        ResponseStatusException problem=assertThrows(ResponseStatusException.class,
+            () -> controller.testAi(new RuntimeConfigService.ModelInput(
+                "https://api.deepseek.com", "deepseek-chat", "", true)));
+        assertEquals(HttpStatus.BAD_REQUEST,problem.getStatusCode());
+        assertTrue(problem.getReason().contains("清除"));
+        // Reject before touching saved credentials or attempting network connection.
+        verifyNoInteractions(jdbc);
+    }
+
 }
