@@ -1,0 +1,294 @@
+/* DataAsk · coherent enterprise-grade chart details and configuration workspaces.
+   CSS is additive and explicitly desktop scoped except for the narrow chart drawer. */
+@media (min-width:1024px) {
+  .app-shell.tencentbi-pc .tb-admin-config-page {
+    background:#f9fbff!important;
+    padding:0!important;
+    overflow:hidden;
+    border:1px solid #dce7f6;
+    box-shadow:0 6px 20px rgba(37,88,155,.045);
+  }
+  .app-shell.tencentbi-pc .da-admin-config-intro {
+    display:flex;align-items:center;gap:17px;
+    padding:21px 25px;
+    border-bottom:1px solid #e5edf8;
+    background:linear-gradient(115deg,#fff 8%,#f0f6ff 100%);
+  }
+  .app-shell.tencentbi-pc .da-admin-config-icon {
+    flex:0 0 51px;width:51px;height:51px;
+    display:flex;align-items:center;justify-content:center;
+    border-radius:14px;background:#dfedff;color:#2c7ce5;
+    border:1px solid #cfe2fb;
+  }
+  .app-shell.tencentbi-pc .da-admin-config-heading{min-width:0;flex:1}
+  .app-shell.tencentbi-pc .da-admin-config-heading strong {
+    display:block;color:#213b60;font-size:17px;font-weight:760;letter-spacing:-.2px
+  }
+  .app-shell.tencentbi-pc .da-admin-config-heading p {
+    color:#8298b3;font-size:12px;line-height:1.6;margin:6px 0 0
+  }
+  .app-shell.tencentbi-pc .da-admin-status-badge {
+    display:inline-flex;align-items:center;gap:6px;
+    border:1px solid #f2dfb5;background:#fff9ed;color:#ac7b36;
+    border-radius:20px;padding:7px 12px;font-size:11px;font-weight:650;
+    flex:0 0 auto;
+  }
+  .app-shell.tencentbi-pc .da-admin-status-badge.ok {
+    color:#238e67;background:#e9f8f1;border-color:#c4ebd9
+  }
+  .app-shell.tencentbi-pc .da-admin-config-grid {
+    display:grid;grid-template-columns:minmax(0,1fr) minmax(240px,300px);
+    gap:0;align-items:stretch;min-width:0;
+  }
+  .app-shell.tencentbi-pc .da-admin-config-main {
+    min-width:0;background:#fff;
+    padding:24px 26px 29px;
+  }
+  .app-shell.tencentbi-pc .da-admin-config-form-title{
+    display:flex;flex-direction:column;gap:6px;
+    padding:0 0 15px;margin-bottom:18px;
+    border-bottom:1px solid #e8eff8;
+  }
+  .app-shell.tencentbi-pc .da-admin-config-form-title strong {
+    font-size:14px;font-weight:760;color:#284364
+  }
+  .app-shell.tencentbi-pc .da-admin-config-form-title small {
+    font-size:11px;color:#99aac1;line-height:1.5
+  }
+  .app-shell.tencentbi-pc .da-admin-config-main .tb-admin-config-fields {
+    width:100%;max-width:910px;
+  }
+  .app-shell.tencentbi-pc .da-admin-config-main .tb-admin-config-fields > .muted {
+    margin:2px 0 14px;font-size:12px;line-height:1.7;
+    color:#758da8;
+  }
+  .app-shell.tencentbi-pc .da-admin-config-main .van-field,
+  .app-shell.tencentbi-pc .da-admin-config-main .van-cell {
+    border:1px solid #dfe8f4;
+    border-radius:9px;
+    background:#fff;
+    box-shadow:0 1px 2px rgba(36,94,149,.02);
+    padding:14px 15px;
+    min-height:54px;
+    margin:8px 0!important;
+  }
+  .app-shell.tencentbi-pc .da-admin-config-main .van-cell:focus-within{
+    border-color:#80b2f9;
+    box-shadow:0 0 0 3px rgba(54,126,235,.08);
+  }
+  .app-shell.tencentbi-pc .da-admin-config-main .van-field__label {
+    color:#485e7b;font-size:12px;font-weight:640;
+    margin-right:17px;
+  }
+  .app-shell.tencentbi-pc .da-admin-config-main .van-field__control {
+    color:#213a5c;font-size:13px;line-height:1.6;
+  }
+  .app-shell.tencentbi-pc .da-admin-config-main .van-field__control::placeholder{
+    color:#b4bfd0;
+  }
+  .app-shell.tencentbi-pc .da-admin-config-main .config-note {
+    padding:7px 0 0;
+    color:#899db7;font-size:11px;line-height:1.65;
+  }
+  .app-shell.tencentbi-pc .da-admin-config-main .config-actions{
+    display:flex;align-items:center;gap:12px;flex-wrap:wrap;
+    margin:22px 0 0!important;padding-top:18px;
+    border-top:1px solid #e7eef7;
+  }
+  .app-shell.tencentbi-pc .da-admin-config-main .config-actions .van-button{
+    height:40px;width:150px!important;min-width:125px!important;
+    border-radius:9px;font-size:12px;font-weight:660;
+  }
+  .app-shell.tencentbi-pc .da-admin-config-main .config-feedback{
+    padding:11px 12px;border-radius:9px;font-size:12px;line-height:1.65
+  }
+  .app-shell.tencentbi-pc .da-admin-config-aside{
+    display:flex;flex-direction:column;min-width:0;
+    border-left:1px solid #e6edf7;
+    background:#f6f9fe;
+    padding:26px 21px 20px;
+  }
+  .app-shell.tencentbi-pc .da-admin-config-aside h3{
+    display:flex;gap:8px;align-items:center;
+    margin:0 0 20px;font-size:14px;font-weight:740;color:#345478;
+  }
+  .app-shell.tencentbi-pc .da-admin-config-aside h3 .van-icon{color:#4388d9}
+  .app-shell.tencentbi-pc .da-admin-guide-step{
+    display:flex;align-items:flex-start;gap:12px;
+    position:relative;margin-bottom:21px;
+  }
+  .app-shell.tencentbi-pc .da-admin-guide-step>span{
+    flex:0 0 29px;height:29px;width:29px;display:flex;
+    align-items:center;justify-content:center;
+    color:#387de0;background:#e7f1ff;border:1px solid #d5e6fb;
+    border-radius:9px;font-size:10px;font-weight:770;
+  }
+  .app-shell.tencentbi-pc .da-admin-guide-step>div{min-width:0;flex:1}
+  .app-shell.tencentbi-pc .da-admin-guide-step b{
+    display:block;font-size:12px;color:#42617f;font-weight:720;
+  }
+  .app-shell.tencentbi-pc .da-admin-guide-step p{
+    color:#8197ae;font-size:11px;line-height:1.8;margin:5px 0 0;
+  }
+  .app-shell.tencentbi-pc .da-admin-config-security{
+    display:flex;align-items:flex-start;gap:8px;margin-top:auto;
+    padding:14px 12px;border:1px solid #dfeaf8;
+    background:#fff;color:#8199b4;border-radius:10px;
+    font-size:11px;line-height:1.65;
+  }
+  .app-shell.tencentbi-pc .da-admin-config-security .van-icon{
+    color:#5897e7;flex:0 0 auto;font-size:15px
+  }
+
+  /* Chart detail is a first-class dashboard, not another conversation. */
+  .app-shell.tencentbi-pc .da-chart-detail{
+    width:calc(100% - 24px);
+    margin:0 12px 14px;min-width:0;
+  }
+  .app-shell.tencentbi-pc .da-chart-detail-heading {
+    display:flex;align-items:flex-end;justify-content:space-between;
+    flex-wrap:wrap;gap:16px;
+    margin-bottom:14px;padding:0 2px 2px;
+  }
+  .app-shell.tencentbi-pc .da-chart-detail-heading>div:first-child {
+    flex:1;min-width:250px;
+  }
+  .app-shell.tencentbi-pc .da-chart-back {
+    display:inline-flex;align-items:center;gap:7px;
+    color:#397ad1;background:transparent;
+    border:0;padding:5px 0;font-size:12px;cursor:pointer;
+  }
+  .app-shell.tencentbi-pc .da-chart-back:hover{color:#165cb5}
+  .app-shell.tencentbi-pc .da-chart-detail-heading h1{
+    margin:8px 0 6px;color:#233e61;font-size:22px;
+    font-weight:780;line-height:1.3;
+  }
+  .app-shell.tencentbi-pc .da-chart-detail-heading p{
+    color:#93a5bc;font-size:12px;margin:0;line-height:1.5
+  }
+  .app-shell.tencentbi-pc .da-chart-detail-actions {
+    display:flex;align-items:center;gap:8px;flex-wrap:wrap;
+  }
+  .app-shell.tencentbi-pc .da-chart-detail-actions>button{
+    display:flex;align-items:center;gap:7px;
+    height:37px;padding:0 12px;background:#fff;
+    color:#4a76ad;border:1px solid #d8e7f7;
+    border-radius:9px;white-space:nowrap;font-size:11px;
+    cursor:pointer;
+  }
+  .app-shell.tencentbi-pc .da-chart-detail-actions>button:hover{
+    background:#edf5ff;border-color:#b7d3f8;
+  }
+  .app-shell.tencentbi-pc .da-chart-detail-actions>button:disabled{
+    opacity:.55;cursor:not-allowed;
+  }
+  .app-shell.tencentbi-pc .da-chart-refreshing,
+  .app-shell.tencentbi-pc .da-chart-cached,
+  .app-shell.tencentbi-pc .da-chart-current{
+    display:inline-flex;align-items:center;gap:5px;
+    padding:7px 9px;border-radius:8px;
+    background:#eff5fd;color:#6990c3;font-size:11px;
+  }
+  .app-shell.tencentbi-pc .da-chart-current{
+    background:#e9f8ee;color:#2b9968
+  }
+  .app-shell.tencentbi-pc .da-chart-detail-body{
+    background:#fff;border:1px solid #e0eaf6;
+    border-radius:13px;padding:22px;min-width:0;
+    box-shadow:0 3px 16px rgba(38,94,162,.035);
+  }
+  .app-shell.tencentbi-pc .da-chart-detail-bar {
+    display:flex;align-items:center;justify-content:space-between;
+    gap:15px;border-bottom:1px solid #edf1f8;
+    padding-bottom:14px;margin-bottom:12px;
+  }
+  .app-shell.tencentbi-pc .da-chart-detail-bar>div:first-child{
+    display:flex;align-items:center;gap:12px;
+  }
+  .app-shell.tencentbi-pc .da-chart-detail-bar strong{
+    color:#2c4869;font-size:14px;font-weight:760
+  }
+  .app-shell.tencentbi-pc .da-chart-detail-bar small{
+    color:#97aac0;font-size:11px;
+  }
+  .app-shell.tencentbi-pc .da-chart-view-buttons {
+    display:inline-flex;gap:3px;padding:3px;
+    border:1px solid #e0e9f7;background:#f0f5fc;
+    border-radius:8px;
+  }
+  .app-shell.tencentbi-pc .da-chart-view-buttons>button {
+    border:0;background:transparent;color:#7a94b6;
+    font-size:11px;padding:8px 15px;border-radius:6px;
+    cursor:pointer;
+  }
+  .app-shell.tencentbi-pc .da-chart-view-buttons>button.active{
+    color:#2f77d6;background:#fff;box-shadow:0 1px 5px #d9e4f3;
+    font-weight:700;
+  }
+  .app-shell.tencentbi-pc .da-chart-style-switch{
+    display:flex;align-items:center;justify-content:flex-end;gap:6px;
+    margin-bottom:12px;
+  }
+  .app-shell.tencentbi-pc .da-chart-style-switch span{
+    color:#91a4bb;font-size:11px;margin-right:7px
+  }
+  .app-shell.tencentbi-pc .da-chart-style-switch button{
+    padding:7px 11px;background:#fff;color:#728cac;
+    border:1px solid #e0e9f7;border-radius:7px;font-size:11px;
+  }
+  .app-shell.tencentbi-pc .da-chart-style-switch button.active{
+    background:#eaf3ff;color:#2772d1;border-color:#bed9fa;
+    font-weight:700;
+  }
+  .app-shell.tencentbi-pc .da-chart-detail .chart-shell{
+    width:100%;max-width:none;border-radius:11px;padding:17px;
+    border-color:#e8eef7;
+  }
+  .app-shell.tencentbi-pc .da-chart-detail-table{
+    max-height:600px;overflow:auto;
+  }
+  .app-shell.tencentbi-pc .da-chart-detail-footer{
+    display:flex;justify-content:space-between;flex-wrap:wrap;gap:9px;
+    border-top:1px solid #e9eff6;padding-top:14px;
+    margin-top:17px;color:#95a7bc;font-size:11px;
+  }
+  .app-shell.tencentbi-pc .da-chart-detail-footer>span{
+    display:flex;align-items:center;gap:6px;
+  }
+  .app-shell.tencentbi-pc .da-chart-detail-error{
+    display:flex;align-items:center;gap:8px;
+    padding:12px 15px;margin-bottom:14px;border:1px solid #f0d9bc;
+    background:#fff7ea;color:#a77941;border-radius:9px;
+    font-size:12px;line-height:1.6;
+  }
+  .app-shell.tencentbi-pc .da-chart-detail-loading{
+    display:flex;align-items:center;gap:12px;
+    padding:45px;color:#7e9bbd;
+    background:#fff;border:1px solid #e0eaf6;border-radius:12px;
+  }
+}
+@media (min-width:1024px) and (max-width:1190px) {
+  .app-shell.tencentbi-pc .da-admin-config-grid{
+    grid-template-columns:minmax(0,1fr) 225px;
+  }
+  .app-shell.tencentbi-pc .da-admin-config-main{padding:18px}
+  .app-shell.tencentbi-pc .da-admin-config-aside{padding:20px 14px}
+}
+@media (max-width:1023px) {
+  .da-narrow-charts{height:100%;overflow-y:auto;padding-bottom:25px}
+  .da-narrow-charts .da-chart-back{margin:12px 0;color:#3676cd;font-size:12px;background:transparent}
+  .da-narrow-charts .da-narrow-detail-actions{display:flex;gap:10px;margin:5px 0 10px}
+  .da-narrow-charts .da-narrow-detail-actions button{
+    border:1px solid #dbe8f9;border-radius:9px;padding:9px 11px;
+    display:flex;align-items:center;gap:7px;background:#f7fbff;color:#337bd7
+  }
+  .da-narrow-charts .da-chart-view-buttons{display:flex;gap:6px;margin:9px 0}
+  .da-narrow-charts .da-chart-view-buttons button{
+    border:1px solid #dbe8f9;border-radius:8px;padding:8px 15px;background:#fff;
+    font-size:12px;color:#6082ab
+  }
+  .da-narrow-charts .da-chart-view-buttons button.active{background:#eaf3ff;color:#246dd5}
+  .da-narrow-charts .chart-view{min-height:260px}
+  .da-narrow-charts .da-chart-detail-table{max-height:450px;overflow:auto}
+  .da-narrow-charts .da-chart-detail-error{padding:12px;background:#fff7eb;color:#a16a36;border-radius:9px}
+}
