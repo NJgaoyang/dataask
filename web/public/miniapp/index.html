@@ -493,6 +493,35 @@ function chartsPage(){
  (state.shared.length?state.shared.map(c=>chartTile(c,false)).join(''):'<p class="inner-desc">暂无其他成员分享的图表</p>')+'</div>';
 }
 
+function chartDetailPage(){
+ const item=state.chartDetail;
+ if(!item)return '<div class="inner-page"><p class="inner-desc">请从我的图表选择一个图表。</p></div>';
+ const c=item.chart||{},a=item.answer;
+ const busy=item.refreshing?'<span class="chart-detail-live">正在更新…</span>':(item.cached?'<span class="chart-detail-cached">保存时结果</span>':'<span class="chart-detail-current">实时结果</span>');
+ const error=item.error?'<p class="chart-detail-error">'+safe(item.error)+'</p>':'';
+ const toolbar='<div class="chart-detail-top"><div><h2>'+safe(c.title||'我的图表')+'</h2><p>'+safe(c.question||'')+'</p></div><button class="chart-detail-refresh" data-action="chart-refresh" data-id="'+safe(c.id)+'">'+icon('refresh')+' 刷新</button></div>';
+ if(item.loading)return '<div class="inner-page chart-detail-page">'+toolbar+'<p class="inner-desc">正在读取已收藏的图表…</p></div>';
+ if(!a)return '<div class="inner-page chart-detail-page">'+toolbar+error+'</div>';
+ const canPlot=chartable(a),view=state.chartModes[a.id]||(!canPlot?'table':'chart');
+ const type=displayType(a);
+ const choices='<div class="mobile-chart-types">'+
+ (canPlot?['bar','line',...(pieAllowed(a)?['pie']:[])].map(t=>
+ '<button class="'+(type===t?'active':'')+'" data-action="chart-style" data-mid="'+safe(a.id)+'" data-style="'+t+'">'+
+ ({bar:'柱状图',line:'折线图',pie:'饼图'})[t]+'</button>').join(''):'')+'</div>';
+ const switches='<div class="chart-mode" role="group">'+
+ (canPlot?'<button class="'+(view==='chart'?'active':'')+'" data-action="chart-mode" data-mid="'+safe(a.id)+'" data-mode="chart">'+icon('chart')+'</button>':'')+
+ '<button class="'+(view==='table'?'active':'')+'" data-action="chart-mode" data-mid="'+safe(a.id)+'" data-mode="table">'+icon('table')+'</button></div>';
+ const mine=state.charts.some(x=>x.id===c.id);
+ return '<div class="inner-page chart-detail-page">'+toolbar+error+
+ '<div class="chart-detail-sub">'+busy+'<span>'+safe((a.rows?.length||0)+' 行真实结果')+'</span></div>'+
+ '<div class="chart-card chart-detail-card"><div class="chart-head"><b>数据分析结果</b>'+switches+'</div>'+
+ choices+'<div class="chart-viewport" tabindex="0" role="region" aria-label="已收藏图表">'+
+ (view==='table'||!canPlot?resultTable(a):resultChart(a))+'</div></div>'+
+ (mine?'<div class="chart-detail-actions"><button data-action="share" data-chart="'+safe(c.id)+'">'+icon('share')+'共享图表</button>'+
+ '<button data-action="remove-chart" data-id="'+safe(c.id)+'">'+icon('close')+'取消收藏</button></div>':'')+
+ '<p class="chart-detail-notice">数据来自已授权 ADS 表 · 此页面不会创建聊天记录</p></div>';
+}
+
 function profilePage(){
  const p=state.profile||{},admin=p.role==='ADMIN';
  return '<div class="inner-page"><div class="profile-banner"><div class="profile-avatar">'+icon('user')+'</div><div><b>'+safe(p.display_name||p.username||'未登录')+'</b><small>'+safe(p.username||'')+' · '+(admin?'管理员':'普通成员')+'</small></div></div><div class="profile-group"><button class="profile-row" data-action="tab" data-view="charts">'+icon('star')+'<span>我的收藏与图表</span>'+icon('arrow')+'</button><button class="profile-row" data-action="tab" data-view="history">'+icon('clock')+'<span>历史会话</span>'+icon('arrow')+'</button><button class="profile-row" data-action="tab" data-view="charts">'+icon('share')+'<span>共享给我的图表</span>'+icon('arrow')+'</button></div><div class="profile-group"><button class="profile-row" data-action="about">'+icon('shield')+'<span>隐私与数据权限</span>'+icon('arrow')+'</button><button class="profile-row" data-action="logout">'+icon('left')+'<span>退出登录</span>'+icon('arrow')+'</button></div><p class="inner-desc" style="text-align:center">DataAsk · 小程序 H5 接口联调版</p></div>';
@@ -559,7 +588,38 @@ async function saveAnswer(id){
  try{const chart=await api('/api/mini/charts','POST',{sourceMessageId:id,title:item.answer.title});await loadCharts(false);showToast('已收藏至我的图表');return chart}catch(e){showToast(e.message);return null}
 }
 
-async function openSaved(id){try{const c=await api('/api/mini/charts/'+encodeURIComponent(id));await openChat(c.question)}catch(e){showToast(e.message)}}
+async function openSaved(id){
+ const chart=[...state.charts,...state.shared].find(c=>c.id===id)||{id,title:'我的图表'};
+ state.view='chart-detail';
+ state.chartDetail={chart,answer:null,cached:true,loading:true,refreshing:false,error:''};
+ render();
+ try{
+   const data=await api('/api/mini/charts/'+encodeURIComponent(id)+'/view');
+   if(state.chartDetail?.chart?.id!==id)return;
+   state.chartDetail={chart:data.chart,answer:data.answer,cached:true,loading:false,refreshing:false,error:''};
+   render();
+   refreshSaved(id);
+ }catch(e){
+   if(state.chartDetail?.chart?.id!==id)return;
+   state.chartDetail.loading=false;state.chartDetail.error=e.message;render();
+ }
+}
+async function refreshSaved(id){
+ if(!state.chartDetail || state.chartDetail.chart?.id!==id || state.chartDetail.refreshing)return;
+ state.chartDetail.refreshing=true;state.chartDetail.error='';render();
+ try{
+   const data=await api('/api/mini/charts/'+encodeURIComponent(id)+'/refresh','POST');
+   if(state.chartDetail?.chart?.id!==id)return;
+   state.chartDetail.chart=data.chart;
+   state.chartDetail.answer=data.answer;
+   state.chartDetail.cached=false;
+ }catch(e){
+   if(state.chartDetail?.chart?.id!==id)return;
+   state.chartDetail.error='更新失败：'+e.message+(state.chartDetail.answer?'，当前显示保存时的图表':'');
+ }finally{
+   if(state.chartDetail?.chart?.id===id){state.chartDetail.refreshing=false;render()}
+ }
+}
 
 async function removeChart(id){if(!window.confirm('确定取消收藏这个图表吗？'))return;try{await api('/api/mini/charts/'+encodeURIComponent(id),'DELETE');await loadCharts();showToast('已取消收藏')}catch(e){showToast(e.message)}}
 
