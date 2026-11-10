@@ -261,6 +261,42 @@ button,input,textarea{font:inherit}button{border:0;cursor:pointer;color:inherit}
   text-align:left;font-size:12px;line-height:1.5;
 }
 
+
+/* Direct saved-chart view. Uses exactly the same SVG drawing helpers as chat. */
+.chart-detail-page{padding:13px 9px 22px;min-width:0}
+.chart-detail-top{display:flex;align-items:center;justify-content:space-between;gap:9px;min-width:0}
+.chart-detail-top>div{min-width:0;flex:1}
+.chart-detail-top h2{margin:4px 0 7px;font-size:19px;line-height:1.35;color:#1a3357}
+.chart-detail-top p{margin:0;color:#8697af;font-size:11px;line-height:1.5;overflow-wrap:anywhere}
+.chart-detail-refresh{display:flex;align-items:center;gap:5px;border:1px solid #ccdefa;border-radius:9px;padding:9px 10px;background:#f1f7ff;color:#2a76da;flex:0 0 auto;font-size:11px}
+.chart-detail-refresh .icon{width:15px;height:15px}
+.chart-detail-sub{display:flex;align-items:center;gap:8px;color:#8aa0be;font-size:11px;margin:12px 0 8px}
+.chart-detail-sub>span:first-child{padding:5px 8px;border-radius:6px;background:#edf5ff;color:#3577c8}
+.chart-detail-sub>.chart-detail-current{background:#e9f8f0;color:#299d71}
+.chart-detail-error{padding:11px;border-radius:9px;color:#a96b33;border:1px solid #f4dbbd;background:#fff8ef;font-size:11px;line-height:1.5;margin:9px 0}
+.chart-detail-card{padding:12px 9px 11px;border-radius:14px;margin-top:7px}
+.chart-detail-card .chart-viewport{
+  box-sizing:border-box;width:100%;
+  height:clamp(280px,48dvh,500px);
+  overflow-y:auto;overflow-x:hidden;overscroll-behavior:contain;
+  -webkit-overflow-scrolling:touch;scrollbar-width:thin;
+  padding:7px 2px;border:1px solid #e6edf9;border-radius:10px;background:#fcfdff;
+}
+.chart-detail-card .chart-viewport .chart-plot{border:0;padding:0;margin:0;overflow:visible;background:transparent}
+.chart-detail-card .chart-viewport .chart-svg{max-width:100%;height:auto;display:block}
+.chart-detail-card .chart-viewport .chart-table-scroll{max-height:none;border:0;overflow-x:auto}
+.chart-detail-card .chart-head b{font-size:13px}
+.chart-detail-card .mobile-chart-types{margin:9px 0}
+.chart-detail-actions{display:flex;align-items:center;justify-content:flex-end;gap:8px;margin:12px 0}
+.chart-detail-actions button{display:flex;align-items:center;gap:6px;border:1px solid #dbe6f9;background:#fff;color:#5f7fa9;border-radius:9px;font-size:11px;padding:9px 12px}
+.chart-detail-actions .icon{width:15px;height:15px}
+.chart-detail-notice{margin:14px 0;color:#98a8bd;font-size:10px;text-align:center;line-height:1.6}
+@media(max-width:375px){
+ .chart-detail-page{padding-left:6px;padding-right:6px}
+ .chart-detail-card{padding:10px 6px}
+ .chart-detail-card .chart-viewport{height:clamp(260px,45dvh,440px)}
+}
+
 </style>
 </head>
 <body>
@@ -621,7 +657,7 @@ async function refreshSaved(id){
  }
 }
 
-async function removeChart(id){if(!window.confirm('确定取消收藏这个图表吗？'))return;try{await api('/api/mini/charts/'+encodeURIComponent(id),'DELETE');await loadCharts();showToast('已取消收藏')}catch(e){showToast(e.message)}}
+async function removeChart(id){if(!window.confirm('确定取消收藏这个图表吗？'))return;try{await api('/api/mini/charts/'+encodeURIComponent(id),'DELETE');if(state.chartDetail?.chart?.id===id){state.chartDetail=null;state.view='charts'}await loadCharts();showToast('已取消收藏')}catch(e){showToast(e.message)}}
 
 async function removeSession(id){if(!window.confirm('删除此会话及其消息吗？'))return;try{await api('/api/mini/sessions/'+encodeURIComponent(id),'DELETE');await loadHistory();showToast('会话已删除')}catch(e){showToast(e.message)}}
 
