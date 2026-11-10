@@ -164,18 +164,18 @@ public class RuntimeConfigService {
 
     public AiConfig candidateAi(ModelInput input) {
         if (input==null) throw invalid("模型配置不能为空");
-        AiConfig current=ai();
+        // An explicit replacement/clear must be possible even when the prior key
+        // cannot be decrypted (for example after an operator rotated the secret).
         String key=input.clearKey() ? "" :
-            (input.apiKey()==null || input.apiKey().isBlank() ? current.apiKey() : input.apiKey().trim());
+            (input.apiKey()==null || input.apiKey().isBlank() ? ai().apiKey() : input.apiKey().trim());
         if (key.length()>4096) throw invalid("API Key 过长");
         return new AiConfig(validateModelUrl(input.baseUrl()),key,validateModelName(input.model()));
     }
 
     public EmbeddingConfig candidateEmbedding(EmbeddingInput input) {
         if (input==null) throw invalid("Embedding 配置不能为空");
-        EmbeddingConfig current=embedding();
         String key=input.clearKey() ? "" :
-            (input.apiKey()==null || input.apiKey().isBlank() ? current.apiKey() : input.apiKey().trim());
+            (input.apiKey()==null || input.apiKey().isBlank() ? embedding().apiKey() : input.apiKey().trim());
         if (key.length()>4096) throw invalid("API Key 过长");
         if (!input.enabled()) {
             return new EmbeddingConfig(safe(input.baseUrl()),key,safe(input.model()),false,
@@ -209,12 +209,13 @@ public class RuntimeConfigService {
 
     public StarRocksConfig validateStarRocks(StarRocksInput data) {
         if (data==null) throw invalid("缺少数据源配置");
-        StarRocksConfig previous=starRocks();
         String username=safe(data.username());
         String schema=safe(data.schema());
         String url=normalizeStarRocksUrl(data.jdbcUrl(),schema);
+        // If a replacement password is supplied, never try to decrypt a
+        // corrupted existing credential before allowing the repair.
         String pass=(data.password()==null || data.password().isBlank())
-                ? previous.password() : data.password();
+                ? starRocks().password() : data.password();
         // Use a simple JDBC URL; untrusted JDBC parameters must not be accepted.
         if (!url.matches("jdbc:mysql://[A-Za-z0-9.-]+:[0-9]{1,5}/[A-Za-z_][A-Za-z0-9_]*")) {
             throw invalid("JDBC 地址应为 jdbc:mysql://FE地址:9030/ads，不允许额外参数");
@@ -283,7 +284,9 @@ public class RuntimeConfigService {
         try {
             if (value==null || !value.startsWith("v1:")) throw new IllegalStateException("密码数据格式无效");
             byte[] packed=Base64.getDecoder().decode(value.substring(3));
-            if (packed.length<29) throw new IllegalStateException("密码数据无效");
+            // AES-GCM: 12-byte IV + 16-byte authentication tag is valid for empty plaintext.
+            // clearKey saves an encrypted empty string: its packed length is exactly 28.
+            if (packed.length<28) throw new IllegalStateException("密码数据无效");
             Cipher cipher=Cipher.getInstance("AES/GCM/NoPadding");
             cipher.init(Cipher.DECRYPT_MODE,encryptionKey,
                 new GCMParameterSpec(128,Arrays.copyOfRange(packed,0,12)));
