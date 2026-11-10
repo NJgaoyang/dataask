@@ -308,13 +308,13 @@ const robot=()=>`<svg viewBox="0 0 238 210" xmlns="http://www.w3.org/2000/svg" r
 const safe=(s)=>String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 
 const sets=[[['chart','昨日营业额是多少？'],['trending','近7天的订单量趋势如何？'],['pin','按城市看营业额TOP10'],['pie','本月新增用户数及环比？']],[['trending','本周营业额趋势怎么样？'],['pin','哪个城市的营业额最高？'],['chart','昨天订单总数是多少？'],['pie','近30天新增用户情况']]];
-const state={view:'home',tab:'home',sampleSet:0,chartMode:'chart',chartModes:{},chartStyles:{},historySearch:'',chat:[],sessionId:null,lastMessageId:null,modal:null,shareScope:'PRIVATE',sharePerson:'',toast:'',scrollBottom:false,loggedIn:Boolean(sessionStorage.getItem('dataask_token')),profile:null,sessions:[],charts:[],shared:[],loading:false};
+const state={view:'home',tab:'home',sampleSet:0,chartMode:'chart',chartModes:{},chartStyles:{},historySearch:'',chat:[],sessionId:null,lastMessageId:null,modal:null,shareScope:'PRIVATE',sharePerson:'',toast:'',scrollBottom:false,loggedIn:Boolean(sessionStorage.getItem('dataask_token')),profile:null,sessions:[],charts:[],shared:[],chartDetail:null,loading:false};
 function statusBar(){return `<div class="status"><span>10:24</span><div class="status-right"><svg width="17" height="13" viewBox="0 0 17 13"><rect x="0" y="9" width="3" height="4" rx=".7"/><rect x="5" y="6" width="3" height="7" rx=".7"/><rect x="10" y="3" width="3" height="10" rx=".7"/><rect x="15" y="0" width="2" height="13" rx=".7"/></svg><svg width="17" height="14" viewBox="0 0 17 14"><path d="M1 4Q8-2 16 4M4 7Q8 4 13 7M7 10Q8.5 9 10 10" stroke="#10192d" stroke-width="1.8" fill="none" stroke-linecap="round"/><circle cx="8.5" cy="12" r="1"/></svg><svg width="24" height="12" viewBox="0 0 24 12"><rect x=".5" y=".5" width="20" height="11" rx="2.6" stroke="#10192d" fill="none"/><rect x="2.3" y="2.2" width="16.3" height="7.6" rx="1.3" fill="#10192d"/><rect x="21" y="3.5" width="2.5" height="5" rx="1" fill="#10192d"/></svg></div></div>`}
 function capsule(){return `<div class="capsule"><button data-action="more" aria-label="更多">${icon('dots','sm')}</button><div class="cut"></div><button data-action="more" aria-label="小程序菜单">${icon('target','sm')}</button></div>`}
 function header(){if(state.view==='home')return `<div class="appbar"><div class="brand">${logo()}<span>DataAsk 智能问数</span></div>${capsule()}</div>`;
-if(state.view==='chat')return `<div class="appbar"><button class="back" data-action="back" aria-label="返回">${icon('left','lg')}</button><div class="page-title">智能问数</div>${capsule()}</div>`;
+if(state.view==='chat'||state.view==='chart-detail')return `<div class="appbar"><button class="back" data-action="back" aria-label="返回">${icon('left','lg')}</button><div class="page-title">${state.view==='chart-detail'?'图表详情':'智能问数'}</div>${capsule()}</div>`;
 const names={history:'历史会话',charts:'我的图表',profile:'个人中心'};return `<div class="appbar"><div class="brand">${logo()}<span>${names[state.view]||'DataAsk'}</span></div>${capsule()}</div>`}
-function homePage(){return `<div class="home"><section class="hero" aria-label="DataAsk 智能问数介绍"><div class="hero-copy"><h1>用自然语言，<br>快速获取业务数据</h1></div><div class="hero-robot">${robot()}</div><div class="hero-features"><span>${icon('message')}自然对话</span><span>${icon('layers')}自动分析</span><span>${icon('chart')}智能图表</span></div></section><div class="ask-outer"><div class="ask-box">${icon('sparkle','ask-spark')}<input id="home-query" enterkeyhint="send" aria-label="输入问题" placeholder="试试输入你的问题..."/><button class="mic" data-action="mic" aria-label="语音提问">${icon('microphone','lg')}</button><button class="send" data-action="ask-home" aria-label="发送问题">${icon('send')}</button></div></div><section class="section"><div class="section-head"><h2>你可以这样问</h2><button class="muted-action" data-action="shuffle">换一换 ${icon('refresh','sm')}</button></div><div class="examples">${sets[state.sampleSet].slice(0,3).map(([ic,q])=>`<button class="example" data-action="question" data-q="${safe(q)}"><span class="example-icon">${icon(ic)}</span><span class="example-label">${safe(q)}</span>${icon('arrow','example-arrow')}</button>`).join('')}</div></section><section class="section quick-section"><div class="section-head"><h2>我的常用</h2><button class="muted-action" data-action="tab" data-view="charts">查看全部 ${icon('arrow','sm')}</button></div><div class="quick-grid"><button class="quick" data-action="tab" data-view="charts">${icon('star')}我的收藏</button><button class="quick" data-action="tab" data-view="history">${icon('clock')}历史问答</button><button class="quick" data-action="tab" data-view="charts">${icon('chart')}我的图表</button><button class="quick" data-action="open-share">${icon('share')}分享给我</button></div></section></div>`}
+function homePage(){return `<div class="home"><section class="hero" aria-label="DataAsk 智能问数介绍"><div class="hero-copy"><h1>用自然语言，<br>快速获取业务数据</h1></div><div class="hero-robot">${robot()}</div><div class="hero-features"><span>${icon('message')}自然对话</span><span>${icon('layers')}自动分析</span><span>${icon('chart')}智能图表</span></div></section><div class="ask-outer"><div class="ask-box">${icon('sparkle','ask-spark')}<input id="home-query" enterkeyhint="send" aria-label="输入问题" placeholder="试试输入你的问题..."/><button class="send" data-action="ask-home" aria-label="发送问题">${icon('send')}</button></div></div><section class="section"><div class="section-head"><h2>你可以这样问</h2><button class="muted-action" data-action="shuffle">换一换 ${icon('refresh','sm')}</button></div><div class="examples">${sets[state.sampleSet].slice(0,3).map(([ic,q])=>`<button class="example" data-action="question" data-q="${safe(q)}"><span class="example-icon">${icon(ic)}</span><span class="example-label">${safe(q)}</span>${icon('arrow','example-arrow')}</button>`).join('')}</div></section><section class="section quick-section"><div class="section-head"><h2>我的常用</h2><button class="muted-action" data-action="tab" data-view="charts">查看全部 ${icon('arrow','sm')}</button></div><div class="quick-grid"><button class="quick" data-action="tab" data-view="charts">${icon('star')}我的收藏</button><button class="quick" data-action="tab" data-view="history">${icon('clock')}历史问答</button><button class="quick" data-action="tab" data-view="charts">${icon('chart')}我的图表</button><button class="quick" data-action="open-share">${icon('share')}分享给我</button></div></section></div>`}
 async function api(path,method='GET',body){
  const token=sessionStorage.getItem('dataask_token');
  const resp=await fetch(path,{method,headers:{'Accept':'application/json',...(body?{'Content-Type':'application/json'}:{}),...(token?{'Authorization':'Bearer '+token}:{})},...(body?{body:JSON.stringify(body)}:{})});
@@ -481,13 +481,13 @@ function historyPage(){
 }
 
 function chartTile(c,owned=true){
- return '<div class="chart-list-item"><div class="chart-list-top"><strong>'+safe(c.title)+'</strong><span class="pill">'+safe(c.chartType||'table')+'</span></div><div class="chart-list-sub">'+safe(c.question)+' · '+safe(c.ownerUsername)+'</div><div class="chart-list-actions"><button class="tiny-action" data-action="open-chart" data-id="'+safe(c.id)+'">'+icon('refresh')+'实时查询</button>'+
+ return '<div class="chart-list-item"><div class="chart-list-top"><strong>'+safe(c.title)+'</strong><span class="pill">'+safe(c.chartType||'table')+'</span></div><div class="chart-list-sub">'+safe(c.question)+' · '+safe(c.ownerUsername)+'</div><div class="chart-list-actions"><button class="tiny-action" data-action="open-chart" data-id="'+safe(c.id)+'">'+icon('chart')+'查看图表</button>'+
  (owned?'<button class="tiny-action" data-action="share" data-chart="'+safe(c.id)+'">'+icon('share')+'共享</button><button class="tiny-action" data-action="remove-chart" data-id="'+safe(c.id)+'">'+icon('close')+'取消收藏</button>':'')+
  '</div></div>';
 }
 
 function chartsPage(){
- return '<div class="inner-page"><h1 class="inner-title">让数据持续产生价值</h1><div class="inner-desc">保存查询口径，打开时重新从 StarRocks 取数</div>'+
+ return '<div class="inner-page"><h1 class="inner-title">让数据持续产生价值</h1><div class="inner-desc">收藏图表可直接查看，系统会自动更新数据，不会打开历史对话</div>'+
  (state.charts.length?state.charts.map(c=>chartTile(c,true)).join(''):'<p class="inner-desc">暂无收藏图表。请先完成一次问数，然后收藏结果。</p>')+
  '<div class="list-heading" style="margin-top:28px">共享给我的图表</div>'+
  (state.shared.length?state.shared.map(c=>chartTile(c,false)).join(''):'<p class="inner-desc">暂无其他成员分享的图表</p>')+'</div>';
@@ -495,7 +495,7 @@ function chartsPage(){
 
 function profilePage(){
  const p=state.profile||{},admin=p.role==='ADMIN';
- return '<div class="inner-page"><div class="profile-banner"><div class="profile-avatar">'+icon('user')+'</div><div><b>'+safe(p.display_name||p.username||'未登录')+'</b><small>'+safe(p.username||'')+' · '+(admin?'管理员':'普通成员')+'</small></div></div><div class="profile-group"><button class="profile-row" data-action="tab" data-view="charts">'+icon('star')+'<span>我的收藏与图表</span>'+icon('arrow')+'</button><button class="profile-row" data-action="tab" data-view="history">'+icon('clock')+'<span>历史会话</span>'+icon('arrow')+'</button><button class="profile-row" data-action="tab" data-view="charts">'+icon('share')+'<span>共享给我的图表</span>'+icon('arrow')+'</button></div><div class="profile-group"><button class="profile-row" data-action="config">'+icon('settings')+'<span>模型与数据配置说明</span>'+icon('arrow')+'</button><button class="profile-row" data-action="about">'+icon('shield')+'<span>隐私与数据权限</span>'+icon('arrow')+'</button><button class="profile-row" data-action="logout">'+icon('left')+'<span>退出登录</span>'+icon('arrow')+'</button></div><p class="inner-desc" style="text-align:center">DataAsk · 小程序 H5 接口联调版</p></div>';
+ return '<div class="inner-page"><div class="profile-banner"><div class="profile-avatar">'+icon('user')+'</div><div><b>'+safe(p.display_name||p.username||'未登录')+'</b><small>'+safe(p.username||'')+' · '+(admin?'管理员':'普通成员')+'</small></div></div><div class="profile-group"><button class="profile-row" data-action="tab" data-view="charts">'+icon('star')+'<span>我的收藏与图表</span>'+icon('arrow')+'</button><button class="profile-row" data-action="tab" data-view="history">'+icon('clock')+'<span>历史会话</span>'+icon('arrow')+'</button><button class="profile-row" data-action="tab" data-view="charts">'+icon('share')+'<span>共享给我的图表</span>'+icon('arrow')+'</button></div><div class="profile-group"><button class="profile-row" data-action="about">'+icon('shield')+'<span>隐私与数据权限</span>'+icon('arrow')+'</button><button class="profile-row" data-action="logout">'+icon('left')+'<span>退出登录</span>'+icon('arrow')+'</button></div><p class="inner-desc" style="text-align:center">DataAsk · 小程序 H5 接口联调版</p></div>';
 }
 
 function nav(){
@@ -503,7 +503,7 @@ function nav(){
  return '<nav class="tabbar" aria-label="底部导航">'+tabs.map(([view,ic,name])=>'<button class="tab '+(state.view===view?'active':'')+'" data-action="tab" data-view="'+view+'">'+icon(ic)+name+'</button>').join('')+'</nav>';
 }
 
-function composer(){return '<div class="composer-wrap"><div class="composer">'+icon('sparkle','ask-spark')+'<input id="chat-query" enterkeyhint="send" aria-label="继续提问" placeholder="继续追问..."/><button class="mic" data-action="mic">'+icon('microphone','lg')+'</button><button class="send" data-action="ask-chat">'+icon('send')+'</button></div></div>'}
+function composer(){return '<div class="composer-wrap"><div class="composer">'+icon('sparkle','ask-spark')+'<input id="chat-query" enterkeyhint="send" aria-label="继续提问" placeholder="继续追问..."/><button class="send" data-action="ask-chat">'+icon('send')+'</button></div></div>'}
 
 function modal(){
  if(!state.modal)return '';
@@ -516,14 +516,14 @@ function modal(){
  (state.shareScope==='SELECTED'?'<input id="share-member" class="sheet-input" placeholder="成员用户名，多个用逗号隔开" value="'+safe(state.sharePerson)+'"/>':'')+
  '<div class="sheet-actions"><button data-action="close">取消</button><button class="primary" data-action="apply-share">确认共享</button></div>';
  } else{
- body='<h3>'+ (type==='voice'?'语音功能':type==='config'?'模型与数据配置':'关于 DataAsk')+'</h3><p>'+(type==='voice'?'此页面为 H5 接口版，语音录入需在微信原生小程序接入录音和语音识别。':type==='config'?'请在 PC 管理端配置阿里云 Qwen 模型 API Key、指标口径和 StarRocks ADS 数据源。配置未完成时问数接口会返回明确错误。':'数据由登录用户访问已授权 ADS 表获得；共享图表只保存问题与口径，展示时重新执行查询。')+'</p><div class="sheet-actions"><button class="primary" data-action="close">知道了</button></div>';
+ body='<h3>关于 DataAsk</h3><p>智能问数查询已授权的 ADS 数据；图表可直接查看并刷新，分享权限由系统统一控制。</p><div class="sheet-actions"><button class="primary" data-action="close">知道了</button></div>';
  }
  return '<div class="overlay" data-action="close-overlay"><div class="sheet" role="dialog" aria-modal="true">'+body+'</div></div>';
 }
 
 function render(){
  const root=document.getElementById('app');
- root.innerHTML='<div class="device"><div class="screen">'+statusBar()+header()+'<main class="content" id="scroll-area">'+(state.view==='home'?homePage():state.view==='chat'?chatPage():state.view==='history'?historyPage():state.view==='charts'?chartsPage():profilePage())+'</main>'+(state.view==='chat'?composer():nav())+modal()+(state.toast?'<div class="toast">'+safe(state.toast)+'</div>':'')+'</div></div>';
+ root.innerHTML='<div class="device"><div class="screen">'+statusBar()+header()+'<main class="content" id="scroll-area">'+(state.view==='home'?homePage():state.view==='chat'?chatPage():state.view==='history'?historyPage():state.view==='charts'?chartsPage():state.view==='chart-detail'?chartDetailPage():profilePage())+'</main>'+(state.view==='chat'?composer():nav())+modal()+(state.toast?'<div class="toast">'+safe(state.toast)+'</div>':'')+'</div></div>';
  if(state.scrollBottom){const el=document.getElementById('scroll-area');if(el)el.scrollTop=el.scrollHeight;state.scrollBottom=false}
 }
 
@@ -577,13 +577,12 @@ async function handleClick(e){
  const target=e.target.closest('[data-action]');if(!target)return;const a=target.dataset.action;
  switch(a){
  case 'tab':state.view=target.dataset.view;state.tab=state.view;state.modal=null;render();if(state.view==='history')loadHistory();if(state.view==='charts')loadCharts();break;
- case 'back':state.view='home';render();break;
+ case 'back':state.view=state.view==='chart-detail'?'charts':'home';state.chartDetail=null;render();break;
  case 'question':openChat(target.dataset.q);break;
  case 'follow':followChat(target.dataset.q,target.dataset.mid);break;
  case 'ask-home':ask('home-query',false);break;
  case 'ask-chat':ask('chat-query',true);break;
  case 'shuffle':state.sampleSet=(state.sampleSet+1)%sets.length;render();break;
- case 'mic':openModal('voice');break;
  case 'chart-mode':{
    const scroll=document.getElementById('scroll-area')?.scrollTop||0;
    state.chartModes[target.dataset.mid]=target.dataset.mode;
@@ -607,10 +606,10 @@ async function handleClick(e){
  case 'session':openSession(target.dataset.id);break;
  case 'remove-session':removeSession(target.dataset.id);break;
  case 'open-chart':openSaved(target.dataset.id);break;
+ case 'chart-refresh':refreshSaved(target.dataset.id);break;
  case 'remove-chart':removeChart(target.dataset.id);break;
  case 'login':await login();break;
  case 'logout':logout();break;
- case 'config':openModal('config');break;
  case 'about':case 'more':openModal('about');break;
  case 'close':if(state.modal?.type!=='login'){state.modal=null;render()}break;
  case 'close-overlay':if(e.target===target&&state.modal?.type!=='login'){state.modal=null;render()}break;
