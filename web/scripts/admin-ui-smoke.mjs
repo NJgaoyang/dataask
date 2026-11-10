@@ -119,6 +119,17 @@ try {
   await clickTile(page,'对话模型');
   await visible(page.locator('input[placeholder="https://api.example.com/v1"]'),'AI URL');
   await page.getByRole('button',{name:'测试连接'}).click();
+  // Prevent accidental 401 when the operator toggles "clear stored API Key".
+  const modelClear=page.locator('.tb-admin-config-fields .van-switch').first();
+  await modelClear.click();
+  const beforeTestCalls=calls.filter(x=>x==='POST /api/admin/settings/ai/test').length;
+  await page.getByRole('button',{name:'测试连接'}).click();
+  await visible(page.locator('.tb-admin-config-fields .config-feedback'),'Clear API key guidance');
+  assert((await page.locator('.tb-admin-config-fields .config-feedback').innerText()).includes('已开启'),
+    'The UI must explain why key-clearing makes model tests unauthenticated');
+  assert.equal(calls.filter(x=>x==='POST /api/admin/settings/ai/test').length,beforeTestCalls,
+    'Clear-key model test must not call provider without saved authentication');
+  await modelClear.click();
   await page.getByRole('button',{name:'保存配置'}).click();
 
   await clickTile(page,'Embedding 模型');
