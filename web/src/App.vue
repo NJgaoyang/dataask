@@ -741,6 +741,16 @@ async function testConfig() {
   configTestMessage.value = ''
   try {
     const kind = configKind.value
+    if (kind==='ai' && aiForm.value.clearKey) {
+      configTestMessage.value = '已开启“清除原有 API Key”，测试请求将不带原密钥。请先关闭该开关，再测试已保存的模型连接。'
+      showFailToast(configTestMessage.value)
+      return
+    }
+    if (kind==='embedding' && embeddingForm.value.clearKey) {
+      configTestMessage.value = '已开启“清除原有 API Key”。请先关闭开关再测试已保存的 Embedding 模型连接。'
+      showFailToast(configTestMessage.value)
+      return
+    }
     let endpoint = '/admin/settings/starrocks/test'
     if (kind === 'ai') endpoint = '/admin/settings/ai/test'
     else if (kind === 'embedding') endpoint = '/admin/settings/embedding/test'
@@ -764,6 +774,15 @@ async function saveConfig() {
     if (kind === 'ai') endpoint = '/admin/settings/ai'
     else if (kind === 'embedding') endpoint = '/admin/settings/embedding'
     const payload = kind === 'starrocks' ? srForm.value : modelPayload(kind)
+    if ((kind==='ai' || kind==='embedding') && payload.clearKey) {
+      try {
+        await showConfirmDialog({
+          title:'确认清除 API Key',
+          message:'清除后将不再使用当前已保存的 API Key。若模型服务要求认证，后续请求会返回 HTTP 401。确定继续吗？',
+          confirmButtonText:'确认清除', cancelButtonText:'保留密钥'
+        })
+      } catch { return }
+    }
     const { data } = await api.post(endpoint, payload)
     if (kind === 'ai') { aiForm.value.apiKey = ''; aiForm.value.clearKey = false }
     if (kind === 'embedding') { embeddingForm.value.apiKey = ''; embeddingForm.value.clearKey = false }
@@ -1072,9 +1091,12 @@ onBeforeUnmount(() => {
             <van-field v-model="aiForm.model" label="模型名称" label-width="95px" placeholder="输入服务商模型 ID"/>
             <van-field v-model="aiForm.apiKey" label="API Key" label-width="95px" type="password"
               autocomplete="new-password" :placeholder="settingsData.ai?.apiKeySet ? '已设置 · 留空不修改' : '填写 API Key'"/>
-            <van-cell title="清除原有 API Key" label="仅在主动更换为无密钥的本地模型时勾选">
+            <van-cell title="清除原有 API Key" label="仅无密钥本地模型才需要开启；开启后测试不会携带原密钥">
               <template #right-icon><van-switch v-model="aiForm.clearKey" size="20px"/></template>
             </van-cell>
+            <p v-if="aiForm.clearKey" class="tb-admin-credential-warning">
+              <van-icon name="warning-o"/> 当前已勾选清除 API Key。关闭开关即可测试已保存的 Key；保存清除操作前将再次确认。
+            </p>
             <p v-if="settingsData.ai?.apiKeyUnreadable" class="tb-admin-credential-warning">
               <van-icon name="warning-o"/> 已保存的 API Key 无法解密，请重新填写有效 API Key 后保存；不要留空。
             </p>
@@ -1830,9 +1852,12 @@ onBeforeUnmount(() => {
             <van-field v-model="aiForm.model" label="模型名称" label-width="95px" placeholder="输入服务商模型 ID"/>
             <van-field v-model="aiForm.apiKey" label="API Key" label-width="95px" type="password"
               autocomplete="new-password" :placeholder="settingsData.ai?.apiKeySet ? '已设置 · 留空不修改' : '填写 API Key'"/>
-            <van-cell title="清除原有 API Key" label="仅在主动更换为无密钥的本地模型时勾选">
+            <van-cell title="清除原有 API Key" label="仅无密钥本地模型才需要开启；开启后测试不会携带原密钥">
               <template #right-icon><van-switch v-model="aiForm.clearKey" size="20px"/></template>
             </van-cell>
+            <p v-if="aiForm.clearKey" class="tb-admin-credential-warning">
+              <van-icon name="warning-o"/> 当前已勾选清除 API Key。关闭开关即可测试已保存的 Key；保存清除操作前将再次确认。
+            </p>
             <p class="config-note">API Key 从此页面提交给后端保存，编辑时不会明文回显。</p>
           </template>
           <template v-else>
