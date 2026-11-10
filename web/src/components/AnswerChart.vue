@@ -24,7 +24,7 @@ const chartHeight = computed(() => {
 const el = ref(null)
 let chart = null
 let observer = null
-const palette = ['#3478ec', '#12b8a6', '#f49b4e', '#8467d8', '#e86992', '#24a6cf', '#dbc34d', '#62bc80']
+const palette = ['#2f6bff', '#12b8a6', '#f49b4e', '#8467d8', '#e86992', '#24a6cf', '#dbc34d', '#62bc80']
 
 function renderChart() {
   if (!el.value) return

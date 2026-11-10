@@ -6,12 +6,14 @@ java -version 2>&1 | head -1 | grep -q '"21\.' || { echo "需要 Java 21"; exit 
 command -v mvn >/dev/null || { echo "需要 Maven 3.9+"; exit 1; }
 command -v npm >/dev/null || { echo "需要 Node.js 22 和 npm"; exit 1; }
 BUILD_SHA="$(git rev-parse --short=8 HEAD 2>/dev/null || echo unknown)"
+# 未提交的改动也会改变产物，用 -dirty 标记，避免两次打包 buildSha 相同误判为“没更新”
+if [ -n "$(git status --porcelain 2>/dev/null)" ]; then BUILD_SHA="${BUILD_SHA}-dirty"; fi
 BUILT_AT="$(date -u '+%Y-%m-%dT%H:%M:%SZ')"
 (cd web && if [ -f package-lock.json ]; then npm ci; else npm install --no-audit --no-fund; fi && DATAASK_BUILD_SHA="$BUILD_SHA" npm run build)
 mkdir -p src/main/resources/static
 rm -rf src/main/resources/static/*
 cp -R web/dist/. src/main/resources/static/
-printf '{"buildSha":"%s","builtAt":"%s","uiLayout":"desktop-chart-studio-v9","modelManagement":"web"}\n' "$BUILD_SHA" "$BUILT_AT" > src/main/resources/static/build-info.json
+printf '{"buildSha":"%s","builtAt":"%s","uiLayout":"pc-design-system","modelManagement":"web"}\n' "$BUILD_SHA" "$BUILT_AT" > src/main/resources/static/build-info.json
 mvn -B clean package
 OUT="$ROOT/release/dataask-0.1.0"
 rm -rf "$OUT"

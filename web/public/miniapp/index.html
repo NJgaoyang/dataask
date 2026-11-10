@@ -360,7 +360,7 @@ const robot=()=>`<svg viewBox="0 0 238 210" xmlns="http://www.w3.org/2000/svg" r
 const safe=(s)=>String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 
 const sets=[[['chart','昨日营业额是多少？'],['trending','近7天的订单量趋势如何？'],['pin','按城市看营业额TOP10'],['pie','本月新增用户数及环比？']],[['trending','本周营业额趋势怎么样？'],['pin','哪个城市的营业额最高？'],['chart','昨天订单总数是多少？'],['pie','近30天新增用户情况']]];
-const state={view:'home',tab:'home',sampleSet:0,chartMode:'chart',chartModes:{},chartStyles:{},historySearch:'',chat:[],sessionId:null,lastMessageId:null,modal:null,shareScope:'PRIVATE',sharePerson:'',toast:'',scrollBottom:false,loggedIn:Boolean(sessionStorage.getItem('dataask_token')),profile:null,sessions:[],charts:[],shared:[],chartDetail:null,loading:false,chatEpoch:0,activeRequestId:null};
+const state={view:'home',tab:'home',sampleSet:0,chartMode:'chart',chartModes:{},chartStyles:{},historySearch:'',chat:[],sessionId:null,lastMessageId:null,modal:null,shareScope:'PRIVATE',sharePerson:'',toast:'',scrollBottom:false,loggedIn:Boolean(sessionStorage.getItem('dataask_token')),profile:null,sessions:[],charts:[],shared:[],chartDetail:null,loading:false,chatEpoch:0,authEpoch:0,activeRequestId:null};
 function statusBar(){return `<div class="status"><span>10:24</span><div class="status-right"><svg width="17" height="13" viewBox="0 0 17 13"><rect x="0" y="9" width="3" height="4" rx=".7"/><rect x="5" y="6" width="3" height="7" rx=".7"/><rect x="10" y="3" width="3" height="10" rx=".7"/><rect x="15" y="0" width="2" height="13" rx=".7"/></svg><svg width="17" height="14" viewBox="0 0 17 14"><path d="M1 4Q8-2 16 4M4 7Q8 4 13 7M7 10Q8.5 9 10 10" stroke="#10192d" stroke-width="1.8" fill="none" stroke-linecap="round"/><circle cx="8.5" cy="12" r="1"/></svg><svg width="24" height="12" viewBox="0 0 24 12"><rect x=".5" y=".5" width="20" height="11" rx="2.6" stroke="#10192d" fill="none"/><rect x="2.3" y="2.2" width="16.3" height="7.6" rx="1.3" fill="#10192d"/><rect x="21" y="3.5" width="2.5" height="5" rx="1" fill="#10192d"/></svg></div></div>`}
 function capsule(){return `<div class="capsule"><button data-action="more" aria-label="更多">${icon('dots','sm')}</button><div class="cut"></div><button data-action="more" aria-label="小程序菜单">${icon('target','sm')}</button></div>`}
 function header(){if(state.view==='home')return `<div class="appbar"><div class="brand">${logo()}<span>DataAsk 智能问数</span></div>${capsule()}</div>`;
@@ -371,45 +371,49 @@ async function api(path,method='GET',body){
  const token=sessionStorage.getItem('dataask_token');
  const resp=await fetch(path,{method,headers:{'Accept':'application/json',...(body?{'Content-Type':'application/json'}:{}),...(token?{'Authorization':'Bearer '+token}:{})},...(body?{body:JSON.stringify(body)}:{})});
  const raw=await resp.text();let data={};try{data=raw?JSON.parse(raw):{}}catch{data={message:raw.slice(0,200)}}
- if(!resp.ok){if(resp.status===401){state.loggedIn=false;sessionStorage.removeItem('dataask_token');state.modal={type:'login'}}throw Error(data.message||('请求失败 HTTP '+resp.status))}
+ if(!resp.ok){if(resp.status===401&&token===sessionStorage.getItem('dataask_token')){if(state.loggedIn)state.authEpoch++;state.loggedIn=false;sessionStorage.removeItem('dataask_token');state.modal={type:'login'}}throw Error(data.message||('请求失败 HTTP '+resp.status))}
  return data;
 }
 
 async function bootstrap(){
  if(!state.loggedIn){state.modal={type:'login'};render();return}
- try{const data=await api('/api/mini/bootstrap');state.profile=data.user;state.modal=null;state.loggedIn=true;render();await Promise.all([loadHistory(false),loadCharts(false)])}
- catch(e){state.modal={type:'login'};state.loggedIn=false;render()}
+ const epoch=state.authEpoch,token=sessionStorage.getItem('dataask_token');
+ try{const data=await api('/api/mini/bootstrap');if(epoch!==state.authEpoch||token!==sessionStorage.getItem('dataask_token'))return;state.profile=data.user;state.modal=null;state.loggedIn=true;render();await Promise.all([loadHistory(false),loadCharts(false)])}
+ catch(e){if(epoch!==state.authEpoch||token!==sessionStorage.getItem('dataask_token'))return;state.modal={type:'login'};state.loggedIn=false;render()}
 }
 
 async function login(){
  const username=document.getElementById('login-user')?.value?.trim();
  const password=document.getElementById('login-pass')?.value;
  if(!username||!password){showToast('请输入账号和密码');return}
- try{const data=await api('/api/auth/login','POST',{username,password});sessionStorage.setItem('dataask_token',data.token);state.loggedIn=true;state.profile={username:data.username,display_name:data.displayName,role:data.role};state.modal=null;render();await bootstrap();showToast('登录成功')}
+ try{const data=await api('/api/auth/login','POST',{username,password});state.authEpoch++;sessionStorage.setItem('dataask_token',data.token);state.loggedIn=true;state.profile={username:data.username,display_name:data.displayName,role:data.role};state.modal=null;render();await bootstrap();showToast('登录成功')}
  catch(e){showToast(e.message)}
 }
 
 function logout(){
  state.chatEpoch++;
+ state.authEpoch++;
  const active=state.activeRequestId;
  state.activeRequestId=null;state.loading=false;
- sessionStorage.removeItem('dataask_token');state.loggedIn=false;state.profile=null;state.sessionId=null;state.lastMessageId=null;state.chat=[];state.charts=[];state.sessions=[];state.modal={type:'login'};state.view='home';render();
  if(active)api('/api/chat/cancel','POST',{requestId:active}).catch(()=>{});
+ sessionStorage.removeItem('dataask_token');state.loggedIn=false;state.profile=null;state.sessionId=null;state.lastMessageId=null;state.chat=[];state.charts=[];state.shared=[];state.sessions=[];state.modal={type:'login'};state.view='home';render();
 }
 
 async function loadHistory(redraw=true){
- try{state.sessions=await api('/api/chat/sessions');if(redraw)render()}catch(e){showToast(e.message)}
+ const epoch=state.authEpoch,username=state.profile?.username;
+ try{const sessions=await api('/api/chat/sessions');if(epoch!==state.authEpoch||username!==state.profile?.username||!state.loggedIn)return false;state.sessions=sessions;if(redraw)render();return true}catch(e){if(epoch===state.authEpoch)showToast(e.message);return false}
 }
 
 // Both clients use the shared Spring Boot API and MySQL message store.
 async function refreshSharedHistory(){
  if(!state.loggedIn||document.hidden)return;
- await loadHistory(state.view==='history');
+ const authEpoch=state.authEpoch,username=state.profile?.username;
+ if(!await loadHistory(state.view==='history')||authEpoch!==state.authEpoch||username!==state.profile?.username)return;
  if(state.view!=='chat'||!state.sessionId||state.loading)return;
  const id=state.sessionId,epoch=state.chatEpoch;
  try{
   const answers=await api('/api/chat/sessions/'+encodeURIComponent(id)+'/messages');
-  if(state.chatEpoch!==epoch||state.sessionId!==id||state.loading)return;
+  if(authEpoch!==state.authEpoch||username!==state.profile?.username||!state.loggedIn||state.chatEpoch!==epoch||state.sessionId!==id||state.loading)return;
   const ids=state.chat.filter(x=>x.type==='answer'&&x.answer).map(x=>x.answer.id).join('|');
   if(ids!==answers.map(x=>x.id).join('|')){
    state.chat=[];state.lastMessageId=null;
@@ -419,7 +423,8 @@ async function refreshSharedHistory(){
  }catch{/* Keep the current conversation visible when disconnected. */}
 }
 async function loadCharts(redraw=true){
- try{state.charts=await api('/api/mini/charts?view=mine');state.shared=await api('/api/mini/charts?view=shared');if(redraw)render()}catch(e){showToast(e.message)}
+ const epoch=state.authEpoch,username=state.profile?.username;
+ try{const [charts,shared]=await Promise.all([api('/api/mini/charts?view=mine'),api('/api/mini/charts?view=shared')]);if(epoch!==state.authEpoch||username!==state.profile?.username||!state.loggedIn)return;state.charts=charts;state.shared=shared;if(redraw)render()}catch(e){if(epoch===state.authEpoch)showToast(e.message)}
 }
 
 function querySummary(a){

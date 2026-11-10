@@ -1,82 +1,87 @@
-import { readFileSync } from 'node:fs';
+import { readFileSync, existsSync } from 'node:fs';
 import assert from 'node:assert/strict';
 
 const vue = readFileSync('web/src/App.vue','utf8');
-const css = readFileSync('web/src/reference-home-pc.css','utf8');
+const system = readFileSync('web/src/pc-design-system.css','utf8');
+const admin = readFileSync('web/src/pc-admin.css','utf8');
+const base = readFileSync('web/src/style.css','utf8');
 const entry = readFileSync('web/src/main.js','utf8');
 const mobile = readFileSync('web/public/miniapp/index.html','utf8');
-const expected = [
-  'ds-home-intro', 'ds-home-banner', 'ds-home-banner-illustration',
-  'ds-home-shortcut-grid', 'ds-home-history-head',
-  'ds-home-history-row', 'fullSessionTime(item.updatedAt)'
-];
-for (const token of expected) {
-  assert(vue.includes(token), 'Approved home UI component missing: ' + token);
-}
-for (const token of [
-  'grid-template-columns:264px minmax(0,1fr)',
-  '.ds-home-banner', '.ds-home-shortcut-grid',
-  '.ds-home-history-table', '.ds-home-history-head'
+
+// 1. Stylesheet entry order: mobile base -> desktop design system -> desktop admin.
+const order = ["import './style.css'", "import './pc-design-system.css'", "import './pc-admin.css'"];
+for (const token of order) assert(entry.includes(token), 'Stylesheet not imported: ' + token);
+assert(entry.indexOf(order[0]) < entry.indexOf(order[1]) && entry.indexOf(order[1]) < entry.indexOf(order[2]),
+  'Desktop stylesheets must load after the mobile base, admin last');
+for (const legacy of [
+  'quickbi-pc.css', 'tencentbi-pc.css', 'admin-compact-pc.css', 'pc-bluewhite.css',
+  'reference-home-pc.css', 'pc-global-layout-v4.css', 'pc-layout-v5.css',
+  'admin-functional-pc.css', 'visualization-admin-v9.css', 'composer-resize.css', 'clarification.css'
 ]) {
-  assert(css.includes(token), 'Approved layout rule missing: ' + token);
+  assert(!existsSync('web/src/' + legacy), 'Legacy desktop stylesheet must be removed: ' + legacy);
+  assert(!entry.includes(legacy), 'Legacy desktop stylesheet must not be imported: ' + legacy);
 }
-assert(entry.includes("import './reference-home-pc.css'"),
-  'Reference layout stylesheet not imported');
-assert(entry.indexOf("import './reference-home-pc.css'") >
-  entry.indexOf("import './pc-bluewhite.css'"),
-  'Reference layout must have final desktop CSS precedence');
-assert(vue.includes("sessions.slice(0,5)"), 'Recent questions must use actual session data');
+
+// 2. Design tokens are the single source of truth and only apply on desktop.
+for (const token of [
+  '--da-primary:#2f6bff', '--da-canvas:#f5f7fa', '--da-text:#1f2733', '--da-border:#e5e8ee',
+  '--da-sidebar-w:232px', '--da-topbar-h:56px', '--da-chat-max:880px', '--da-fs-kpi:28px',
+  '.app-shell.consumer-pc', 'grid-template-areas:"sidebar topbar" "sidebar content" "sidebar composer"',
+  '.sidebar-collapsed', '.da-composer-bar', '.da-scope-chip', '.da-answer-scope', '.da-answer-insight',
+  '.da-suggestion-grid', '.da-home-ask', '.da-home-stats', '.ds-home-shortcut-grid', '.ds-home-history-head',
+  '.tb-chart-table', '.da-chart-detail-body', '.tb-history-list', '.login-card', '.da-password-dialog',
+  '.da-composer-resize-handle', '.metric-clarification', 'tabular-nums'
+]) {
+  assert(system.includes(token), 'Design system rule missing: ' + token);
+}
+assert(system.trimStart().startsWith('/*') && system.includes('@media (min-width:1024px)'),
+  'Design system must be desktop scoped');
+assert((system.match(/linear-gradient\(/g) || []).length <= 1,
+  'Desktop surfaces must stay flat (only the loading shimmer may use a gradient)');
+assert(!vue.includes('ds-home-wave') && !vue.includes('ds-home-window'),
+  'Illustrated workbench banner must be removed');
+for (const token of [
+  '.tb-admin-page', '.tb-admin-overview-grid', '.tb-admin-panel-card', '.tb-admin-config-fields',
+  '.tb-user-editor', '.tb-user-reset', '.tb-admin-metrics-page', '.tb-config-status-list',
+  '.tb-admin-load-error', '.admin-table', '.metric-preview', '.da-admin-config-grid'
+]) {
+  assert(admin.includes(token), 'Admin rule missing: ' + token);
+}
+assert(admin.includes('@media (min-width:1024px)'), 'Admin stylesheet must be desktop scoped');
+assert(!/@media\s*\(min-width:\s*1024px\)/.test(base) && !/@media\s*\(min-width:\s*1500px\)/.test(base),
+  'style.css must only hold the mobile/H5 base');
+assert(base.includes('@media (max-width:1023px)') && base.includes('.metric-clarification'),
+  'style.css must keep the mobile clarification + desktop element hiding rules');
+
+// 3. Desktop template structure.
+for (const token of [
+  "'consumer-pc': isDesktop", "'sidebar-collapsed'", 'class="da-sidebar-collapse"', 'toggleSidebar',
+  'class="desktop-main-nav"', 'tb-single-admin-nav', 'class="tb-header-breadcrumb"',
+  'class="da-account-menu"', 'openPasswordChange', 'submitPasswordChange', 'desktopLogout', 'changePasswordOpen',
+  'class="ds-home-intro"', '{{ greeting }}', 'class="da-home-ask"', 'askFromHome', 'class="da-home-stats"',
+  '{{ sessions.length }}', '{{ savedCharts.length }}', '{{ sharedCharts.length }}', '{{ approvedDatasets.length }}',
+  'ds-home-shortcut-grid', 'ds-home-history-head', 'ds-home-history-row', 'sessions.slice(0,5)', 'fullSessionTime(item.updatedAt)',
+  'class="composer-row da-composer"', 'class="da-composer-bar"', 'v-model="selectedDataset"', 'class="da-suggestions"',
+  'class="da-answer-scope"', 'answerScope(msg)', 'answer-summary da-answer-insight', 'da-answer-result', 'desktop-result-switch da-segmented',
+  'class="da-followups-label"', 'da-composer-resize-handle', 'tb-chart-open', 'da-chart-view-buttons', 'tb-history-search',
+  "desktopSection==='overview'", "desktopSection==='ask'", "desktopSection==='charts'", "desktopSection==='history'", 'desktopIsAdminSection'
+]) {
+  assert(vue.includes(token), 'Desktop template token missing: ' + token);
+}
+for (const removed of [
+  'desktop-insights', 'resultPanelOpen', 'latestAnswer', 'resultTab', 'desktop-toggle-results',
+  'ds-home-banner', 'ds-home-kicker', 'quickbi-pc', 'tencentbi-pc', 'desktop-no-result', 'sidebar-profile-card', 'qbi-welcome-brand'
+]) {
+  assert(!vue.includes(removed), 'Removed desktop structure still present: ' + removed);
+}
+assert((vue.match(/class="da-chart-metric"/g) || []).length === 1, 'Chart detail KPI block must not be duplicated');
 assert(!vue.includes('张经理') && !vue.includes('2025-01-20 14:28'),
   'Home cannot contain fabricated user/data examples');
+
+// 4. Mobile/miniapp isolation.
 assert(mobile.includes('function resultChart(a)') && mobile.includes('mobile-result-row'),
   'Mobile visual and chart functionality must be kept intact');
-const globalLayout = readFileSync('web/src/pc-global-layout-v4.css','utf8');
-const allDesktopSections = [
-  "desktopSection==='overview'",
-  "desktopSection==='ask'",
-  "desktopSection==='charts'",
-  "desktopSection==='history'",
-  "desktopIsAdminSection"
-];
-for(const section of allDesktopSections){
-  assert(vue.includes(section),'Desktop section unavailable: '+section);
-}
-for(const rule of [
-  'grid-area:sidebar', 'grid-row:1 / -1', 'height:100dvh',
-  'sidebar-bottom',
-  '.tb-page-body', '.tb-page-heading', '.tb-admin-heading',
-  '.tb-admin-panel-intro', '.ds-home-intro', '.qbi-welcome-brand',
-  '.conversation', '.tb-history-search'
-]){
-  assert(globalLayout.includes(rule),'Global PC layout rule missing: '+rule);
-}
-assert(globalLayout.includes('@media (min-width:1024px)'),
-  'Global layout must not affect mobile devices');
-assert(entry.includes("import './pc-global-layout-v4.css'"),
-  'Global PC layout stylesheet missing');
-assert(entry.indexOf("import './pc-global-layout-v4.css'") >
-  entry.indexOf("import './reference-home-pc.css'"),
-  'Global PC geometry must load after all legacy PC styles');
-const v5 = readFileSync('web/src/pc-layout-v5.css','utf8');
-for(const token of [
-  'linear-gradient(160deg,#fff', '.desktop-sidebar',
-  '.da-account-menu', '.da-account-dropdown',
-  '.da-password-dialog', 'padding-left:0!important',
-  '.ds-home-banner', '.tb-page-body', '.conversation'
-]){
-  assert(v5.includes(token),'Latest desktop layout token missing: '+token);
-}
-assert(!globalLayout.includes('#11285f'),
-  'Dark navy sidebar override must be removed');
-assert(entry.indexOf("import './pc-layout-v5.css'") >
-  entry.indexOf("import './pc-global-layout-v4.css'"),
-  'Blue-white layout V5 must have final CSS precedence');
-for(const token of ['class="da-account-menu"', 'openPasswordChange',
-  'submitPasswordChange', 'desktopLogout', 'changePasswordOpen']){
-  assert(vue.includes(token),'Top-right account action missing: '+token);
-}
-assert(!vue.includes('class="sidebar-profile-card"'),
-  'Desktop account controls must not remain in the sidebar');
+assert(!mobile.includes('pc-design-system') && !mobile.includes('--da-primary'),
+  'Miniapp must not depend on the desktop design system');
 
-
-console.log('PC: full-height pale navigation, top-right account, password UI, edge-to-edge workspace, small banner, all page sections and mobile isolation OK');
+console.log('PC: design tokens, two-file desktop stylesheet, collapsible sidebar, inline answer cards, workbench stats, dataset scope and mobile isolation OK');
