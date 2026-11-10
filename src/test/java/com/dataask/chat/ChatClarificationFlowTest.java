@@ -67,6 +67,7 @@ class ChatClarificationFlowTest {
         assertThat(answer.rows()).isEmpty();
         verifyNoInteractions(guard);
         verify(starrocks,never()).query(anyString(),any());
-        verify(jdbc).update(contains("INSERT INTO da_messages"),any(),any(),any(),any(),any(),any(),any());
+        verify(jdbc).update(contains("INSERT INTO da_messages"),
+            any(),any(),any(),any(),any(),any(),any(),any());
     }
 }
