@@ -1136,11 +1136,30 @@ onBeforeUnmount(() => {
         </div>
         <div v-else-if="['admin-source','admin-model','admin-embedding'].includes(desktopSection)"
           class="tb-admin-panel-card tb-admin-config-page">
-          <div class="tb-admin-panel-intro">
-            <strong>{{ configKind==='starrocks' ? 'StarRocks ADS 数据源' : configKind==='ai' ? '对话模型配置' : 'Embedding 语义模型' }}</strong>
-            <p>配置通过服务端验证后保存，密钥和数据库密码不会在页面中回显。</p>
+          <div class="da-admin-config-intro">
+            <div class="da-admin-config-icon">
+              <van-icon :name="configKind==='starrocks' ? 'cluster-o' : configKind==='ai' ? 'chat-o' : 'setting-o'" size="23"/>
+            </div>
+            <div class="da-admin-config-heading">
+              <strong>{{ configKind==='starrocks' ? 'StarRocks 数据连接' : configKind==='ai' ? 'AI 对话模型' : 'Embedding 语义服务' }}</strong>
+              <p>{{ configKind==='starrocks' ? '连接已授权的 ADS 数据表，为智能问数提供可信的经营数据' :
+                configKind==='ai' ? '统一管理自然语言理解、SQL 生成与业务数据分析的模型' :
+                '管理字段语义匹配、指标口径检索与向量索引服务' }}</p>
+            </div>
+            <span class="da-admin-status-badge" :class="{ok:configKind==='starrocks' ? status.starrocksConfigured : configKind==='ai' ? status.aiConfigured : status.embeddingConfigured}">
+              <van-icon :name="configKind==='starrocks' ? (status.starrocksConfigured ? 'passed' : 'info-o') :
+                configKind==='ai' ? (status.aiConfigured ? 'passed' : 'info-o') :
+                (status.embeddingConfigured ? 'passed' : 'info-o')"/>
+              {{ (configKind==='starrocks' ? status.starrocksConfigured : configKind==='ai' ? status.aiConfigured : status.embeddingConfigured) ? '已配置' : '待配置' }}
+            </span>
           </div>
-          <div class="tb-admin-config-fields">
+          <div class="da-admin-config-grid">
+            <section class="da-admin-config-main" aria-label="连接配置表单">
+              <div class="da-admin-config-form-title">
+                <strong>{{ configKind==='starrocks' ? '数据库连接参数' : '模型接入参数' }}</strong>
+                <small>必填信息通过服务端校验，敏感凭证不会显示明文</small>
+              </div>
+              <div class="tb-admin-config-fields">
             <template v-if="configKind === 'starrocks'">
             <p class="muted">配置 StarRocks FE 只读账号，测试连接成功后保存并立即读取 ADS 字段注释。</p>
             <van-field v-model="srForm.jdbcUrl" label="JDBC 地址" label-width="85px" placeholder="jdbc:mysql://192.168.1.10:9030/ads"/>
@@ -1205,6 +1224,27 @@ onBeforeUnmount(() => {
               plain type="primary" :loading="semanticBusy"
               :disabled="configBusy || configTestBusy" @click="rebuildSemanticIndex">重建语义索引</van-button>
           </div>
+              </div>
+            </section>
+            <aside class="da-admin-config-aside" aria-label="配置帮助">
+              <h3><van-icon name="info-o"/> 接入说明</h3>
+              <template v-if="configKind==='starrocks'">
+                <div class="da-admin-guide-step"><span>01</span><div><b>使用只读账号</b><p>为 StarRocks 创建专用只读用户，避免使用 root 或其他高权限账号。</p></div></div>
+                <div class="da-admin-guide-step"><span>02</span><div><b>确认 ADS 数据库</b><p>填写 FE MySQL 协议地址与目标 ADS 库，字段注释用于智能问数语义理解。</p></div></div>
+                <div class="da-admin-guide-step"><span>03</span><div><b>测试后保存</b><p>先验证数据库连接，再保存；需要读取哪些表请进入 ADS 表授权设置。</p></div></div>
+              </template>
+              <template v-else-if="configKind==='ai'">
+                <div class="da-admin-guide-step"><span>01</span><div><b>使用兼容 API</b><p>填写服务商 API 地址和模型 ID，确保支持 Chat Completions 接口。</p></div></div>
+                <div class="da-admin-guide-step"><span>02</span><div><b>保护模型密钥</b><p>API Key 由后端加密保存。留空表示保留当前密钥，明确清除时需二次确认。</p></div></div>
+                <div class="da-admin-guide-step"><span>03</span><div><b>移动端自动生效</b><p>小程序和 PC 共用这份服务端模型配置，无须在手机端重复配置。</p></div></div>
+              </template>
+              <template v-else>
+                <div class="da-admin-guide-step"><span>01</span><div><b>选择语义模型</b><p>使用服务商实际支持的 Embedding 模型，并确认向量维度。</p></div></div>
+                <div class="da-admin-guide-step"><span>02</span><div><b>测试接入</b><p>检查 Base URL、模型名、API Key 和网络访问权限。</p></div></div>
+                <div class="da-admin-guide-step"><span>03</span><div><b>重建索引</b><p>更换模型或维度后，保存设置并重建语义索引。</p></div></div>
+              </template>
+              <div class="da-admin-config-security"><van-icon name="shield-o"/> 仅管理员可修改配置，普通用户与小程序不展示此入口。</div>
+            </aside>
           </div>
         </div>
         <div v-else-if="desktopSection==='admin-tables'" class="tb-admin-panel-card">
