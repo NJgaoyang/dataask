@@ -3,7 +3,6 @@ package com.dataask.admin;
 import com.dataask.config.RuntimeConfigService;
 import com.dataask.data.StarRocksGateway;
 import com.dataask.semantic.EmbeddingSemanticService;
-import com.dataask.semantic.JoinRuleService;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
@@ -36,7 +35,7 @@ class AdminAccessTest {
             return new AdminController(
                 mock(StarRocksGateway.class), mock(RuntimeConfigService.class),
                 mock(JdbcTemplate.class), mock(PasswordEncoder.class), mock(ObjectMapper.class),
-                mock(JoinRuleService.class), mock(EmbeddingSemanticService.class));
+                mock(EmbeddingSemanticService.class));
         }
     }
 
