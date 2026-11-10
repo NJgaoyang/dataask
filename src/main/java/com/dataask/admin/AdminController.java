@@ -70,6 +70,9 @@ public class AdminController {
 
     @PostMapping("/settings/ai/test")
     Map<String,Object> testAi(@RequestBody(required=false) RuntimeConfigService.ModelInput input) {
+        if (input!=null && input.clearKey())
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
+                "已开启清除原有 API Key；请先关闭开关再测试现有模型连接，或保存无密钥配置后再测试");
         RuntimeConfigService.AiConfig config=input==null?settings.ai():settings.candidateAi(input);
         if (config.baseUrl().isBlank() || config.model().isBlank())
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST,"请先填写 Base URL 和模型名称");
@@ -87,8 +90,10 @@ public class AdminController {
             HttpClient client=HttpClient.newBuilder().connectTimeout(Duration.ofSeconds(8)).build();
             HttpResponse<String> reply=client.send(request,HttpResponse.BodyHandlers.ofString());
             if (reply.statusCode()<200 || reply.statusCode()>=300) {
-                throw new ResponseStatusException(HttpStatus.BAD_GATEWAY,
-                    "模型测试失败，HTTP "+reply.statusCode()+"；请检查接口、Key 与模型权限");
+                String reason = reply.statusCode()==401 ?
+                    "模型接口返回 HTTP 401：认证失败。请检查当前模型的 API Key，并确保未启用清除原有 API Key；无需在日志中输出密钥" :
+                    "模型测试失败，HTTP "+reply.statusCode()+"；请检查接口、模型 ID、模型权限及网络";
+                throw new ResponseStatusException(HttpStatus.BAD_GATEWAY,reason);
             }
             com.fasterxml.jackson.databind.JsonNode data=json.readTree(reply.body());
             if (!data.path("choices").isArray() || data.path("choices").isEmpty())
