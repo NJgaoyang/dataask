@@ -80,6 +80,14 @@ class QuestionClarificationServiceTest {
     }
 
     @Test
+    void growthRateOrIdentifierCannotBePresentedAsSalesOrOrderCount() {
+        var metadata=List.of(new StarRocksGateway.TableMeta("ads.ratios",List.of(
+            new StarRocksGateway.ColumnMeta("revenue_growth_rate","decimal(10,4)","营业额增长率"),
+            new StarRocksGateway.ColumnMeta("order_id","bigint","订单ID"))));
+        assertThat(service.choices("查看近7天趋势",Set.of("ads.ratios"),metadata)).isEmpty();
+    }
+
+    @Test
     void asksForMetricsOnlyWhenTheClarificationRefersToThem() {
         assertThat(service.isMetricClarification("你想查询哪个业务指标？")).isTrue();
         assertThat(service.isMetricClarification("订单数还是用户数？")).isTrue();
