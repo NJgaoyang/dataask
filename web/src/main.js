@@ -12,4 +12,5 @@ import './pc-global-layout-v4.css'
 import './pc-layout-v5.css'
 import './admin-functional-pc.css'
 import './clarification.css'
+import './visualization-admin-v9.css'
 createApp(App).use(Vant).mount('#app')
