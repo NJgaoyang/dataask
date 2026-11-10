@@ -36,6 +36,20 @@ jobs:
             sleep 1
           done
           node scripts/admin-ui-smoke.mjs
+      - name: Browser smoke test for saved chart PC and miniapp
+        run: |
+          cd web
+          node scripts/chart-ui-smoke.mjs
+      - name: Upload chart detail screenshots
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: dataask-saved-chart-pc-mobile
+          path: |
+            web/artifacts/chart-detail-pc.png
+            web/artifacts/chart-detail-mobile.png
+          if-no-files-found: ignore
+          retention-days: 7
       - name: Upload UI smoke screenshot
         if: always()
         uses: actions/upload-artifact@v4
