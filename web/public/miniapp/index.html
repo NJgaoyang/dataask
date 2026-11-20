@@ -352,6 +352,12 @@ button,input,textarea{font:inherit}button{border:0;cursor:pointer;color:inherit}
 .mini-new-chat,.history-new-chat{display:inline-flex;align-items:center;justify-content:center;gap:6px;background:#eef5ff;border:1px solid #cfe0ff;border-radius:11px;color:#2e72dc;font-size:12px;font-weight:700;padding:9px 12px;white-space:nowrap}
 .mini-new-chat .icon,.history-new-chat .icon{width:16px;height:16px}
 .history-new-chat{width:100%;margin:0 0 13px;padding:12px 14px}
+.profile-city-permissions{margin:0 0 18px;padding:15px 14px;border:1px solid #e6ebf2;border-radius:12px;background:#fff}
+.profile-permission-heading{display:flex;align-items:center;justify-content:space-between;font-size:14px}
+.profile-permission-heading span{font-size:12px;color:#718096}
+.profile-city-list{display:flex;flex-wrap:wrap;gap:8px;margin:12px 0}
+.profile-city-list>span{padding:7px 10px;background:#eef4fd;border:1px solid #e0eaf8;border-radius:7px;color:#234c82;font-size:12px}
+.profile-permission-note{display:block;margin-top:10px;color:#8492a5;font-size:11px;line-height:1.6}
 </style>
 </head>
 <body>
@@ -665,9 +671,15 @@ function chartDetailPage(){
 
 function profilePage(){
  const p=state.profile||{},admin=p.role==='ADMIN';
- return '<div class="inner-page"><div class="profile-banner"><div class="profile-avatar">'+icon('user')+'</div><div><b>'+safe(p.display_name||p.username||'未登录')+'</b><small>'+safe(p.username||'')+' · '+(admin?'管理员':'普通成员')+'</small></div></div><div class="profile-group"><button class="profile-row" data-action="tab" data-view="charts">'+icon('star')+'<span>我的收藏与图表</span>'+icon('arrow')+'</button><button class="profile-row" data-action="tab" data-view="history">'+icon('clock')+'<span>历史会话</span>'+icon('arrow')+'</button><button class="profile-row" data-action="tab" data-view="charts">'+icon('share')+'<span>共享给我的图表</span>'+icon('arrow')+'</button></div><div class="profile-group"><button class="profile-row" data-action="about">'+icon('shield')+'<span>隐私与数据权限</span>'+icon('arrow')+'</button><button class="profile-row" data-action="logout">'+icon('left')+'<span>退出登录</span>'+icon('arrow')+'</button></div><p class="inner-desc" style="text-align:center">DataAsk · 小程序 H5 接口联调版</p></div>';
+ const cities=Array.isArray(p.cities)?[...new Set(p.cities)]:[];
+ const cityArea='<section class="profile-city-permissions" aria-label="数据权限"><div class="profile-permission-heading"><strong>数据权限 · 管理城市</strong><span>'+cities.length+' 个</span></div>'+
+ (cities.length?'<div class="profile-city-list">'+cities.map(city=>'<span>'+safe(city)+'</span>').join('')+'</div>':
+ '<p class="inner-desc">当前登录手机号没有有效的城市授权，请联系管理员。</p>')+
+ '<small class="profile-permission-note">城市权限由 ADS 授权表维护，仅可查看授权范围内的数据。</small></section>';
+ return '<div class="inner-page"><div class="profile-banner"><div class="profile-avatar">'+icon('user')+'</div><div><b>'+safe(p.display_name||p.username||'未登录')+'</b><small>'+safe(p.username||'')+' · '+(admin?'管理员':'普通成员')+'</small></div></div>'+
+ cityArea+
+ '<div class="profile-group"><button class="profile-row" data-action="tab" data-view="charts">'+icon('star')+'<span>我的收藏与图表</span>'+icon('arrow')+'</button><button class="profile-row" data-action="tab" data-view="history">'+icon('clock')+'<span>历史会话</span>'+icon('arrow')+'</button><button class="profile-row" data-action="tab" data-view="charts">'+icon('share')+'<span>共享给我的图表</span>'+icon('arrow')+'</button></div><div class="profile-group"><button class="profile-row" data-action="about">'+icon('shield')+'<span>隐私与数据权限</span>'+icon('arrow')+'</button><button class="profile-row" data-action="logout">'+icon('left')+'<span>退出登录</span>'+icon('arrow')+'</button></div><p class="inner-desc" style="text-align:center">DataAsk · 企业内部使用</p></div>';
 }
-
 function nav(){
  const tabs=[['home','home','首页'],['history','message','会话'],['charts','chart','图表'],['profile','user','我的']];
  return '<nav class="tabbar" aria-label="底部导航">'+tabs.map(([view,ic,name])=>'<button class="tab '+(state.view===view?'active':'')+'" data-action="tab" data-view="'+view+'">'+icon(ic)+name+'</button>').join('')+'</nav>';

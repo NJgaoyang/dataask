@@ -798,3 +798,13 @@
     .consumer-pc *{transition:none!important;animation:none!important}
   }
 }
+/* Read-only city grants in the existing profile dialog; do not alter the app layout. */
+@media (min-width:1024px){
+.consumer-pc .da-profile-permissions{margin:12px 0;padding:14px;border:1px solid var(--da-border);border-radius:var(--da-radius-md);background:var(--da-surface-2)}
+.consumer-pc .da-profile-permissions-title{display:flex;align-items:center;justify-content:space-between;gap:8px}
+.consumer-pc .da-profile-permissions-title strong{font-weight:600;font-size:13px}
+.consumer-pc .da-profile-permissions-title button{border:0;background:transparent;color:var(--da-primary);cursor:pointer;font-size:12px}
+.consumer-pc .da-profile-permissions p{color:var(--da-text-2);font-size:12px;margin:10px 0 0}
+.consumer-pc .da-profile-city-list{display:flex;flex-wrap:wrap;gap:7px;margin-top:12px}
+.consumer-pc .da-profile-city-list span{background:var(--da-primary-soft);border:1px solid var(--da-primary-border);border-radius:4px;color:var(--da-primary);font-size:12px;padding:5px 8px}
+}

@@ -1,6 +1,9 @@
 package com.dataask.data;
 
 import com.dataask.config.RuntimeConfigService;
+import com.dataask.security.CityPermissionService;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.web.server.ResponseStatusException;
@@ -11,9 +14,31 @@ import java.util.*;
 @Service
 public class StarRocksGateway {
     private final RuntimeConfigService settings;
+    private final CityPermissionService cityPermissions;
+    private final CityRowGuard cityRowGuard;
 
+    @org.springframework.beans.factory.annotation.Autowired
+    public StarRocksGateway(RuntimeConfigService settings, CityPermissionService cityPermissions,
+                            CityRowGuard cityRowGuard) {
+        this.settings=settings;this.cityPermissions=cityPermissions;this.cityRowGuard=cityRowGuard;
+    }
+    /** Legacy constructor for isolated unit tests; production always wires city security. */
     public StarRocksGateway(RuntimeConfigService settings) {
-        this.settings=settings;
+        this.settings=settings;this.cityPermissions=null;this.cityRowGuard=null;
+    }
+    public String cityPermissionFingerprint(String username) {
+        return cityPermissions==null ? null : cityPermissions.fingerprint(username);
+    }
+    public List<String> managedCities(String username) {
+        return cityPermissions==null ? List.of() : cityPermissions.cities(username);
+    }
+    private String restrictedSql(String sql) {
+        if(cityPermissions==null) return sql;
+        Authentication auth=SecurityContextHolder.getContext().getAuthentication();
+        if(auth==null || !auth.isAuthenticated())
+            throw new ResponseStatusException(HttpStatus.FORBIDDEN,"需要登录才能查询城市数据");
+        return cityRowGuard.scope(sql,discover(),
+            cityPermissions.requireCities(auth.getName()),settings.starRocks().schema());
     }
 
     public boolean configured() { return settings.starRocks().configured(); }
@@ -66,6 +91,8 @@ public class StarRocksGateway {
             try (ResultSet rs=ps.executeQuery()) {
                 while(rs.next()) {
                     String table=rs.getString(1);
+                    if("ads".equalsIgnoreCase(config.schema()) &&
+                        "ads_user_city_permission".equalsIgnoreCase(table)) continue;
                     tables.computeIfAbsent(table,ignored -> new ArrayList<>()).add(
                         new ColumnMeta(rs.getString(2),rs.getString(3),
                             rs.getString(4)==null?"":rs.getString(4)));
@@ -99,7 +126,8 @@ public class StarRocksGateway {
                      quote + config.schema() + quote + "." + quote + table + quote +
                      " WHERE " + field + " IS NOT NULL AND " + field + " <> '' LIMIT 500";
         List<String> values = new ArrayList<>();
-        try (Connection c = connect(config); PreparedStatement ps = c.prepareStatement(sql)) {
+        String restricted=restrictedSql(sql);
+        try (Connection c = connect(config); PreparedStatement ps = c.prepareStatement(restricted)) {
             ps.setQueryTimeout(8);
             ps.setMaxRows(500);
             try (ResultSet rs = ps.executeQuery()) {
@@ -132,6 +160,7 @@ public class StarRocksGateway {
 
     public QueryResult query(String sql, QueryCancellation cancellation) {
         RuntimeConfigService.StarRocksConfig config=settings.starRocks();
+        String restricted=restrictedSql(sql);
         if (cancellation != null) cancellation.checkCancelled();
         try (Connection c=connect(config);Statement statement=c.createStatement()) {
             if (cancellation != null) {
@@ -140,7 +169,7 @@ public class StarRocksGateway {
             }
             statement.setQueryTimeout(20);
             statement.setMaxRows(200);
-            try (ResultSet rs=statement.executeQuery(sql)) {
+            try (ResultSet rs=statement.executeQuery(restricted)) {
                 if (cancellation != null) cancellation.checkCancelled();
                 ResultSetMetaData meta=rs.getMetaData();
                 List<String> headers=new ArrayList<>();

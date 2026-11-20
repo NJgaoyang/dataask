@@ -52,6 +52,27 @@ const profileLoading = ref(false)
 const profileSaving = ref(false)
 const profileError = ref('')
 const profileForm = ref({displayName:'',createdAt:''})
+const cityPermissions = ref([])
+const cityPermissionError = ref('')
+const cityPermissionLoading = ref(false)
+
+async function loadCityPermissions() {
+  if (!sessionStorage.getItem('dataask_token')) return
+  const epoch=authEpoch, token=sessionStorage.getItem('dataask_token')
+  cityPermissionLoading.value=true
+  cityPermissionError.value=''
+  try {
+    const {data}=await api.get('/auth/city-permissions')
+    if(epoch!==authEpoch || token!==sessionStorage.getItem('dataask_token')) return
+    cityPermissions.value=Array.isArray(data.cities) ? data.cities : []
+  } catch(e) {
+    if(epoch!==authEpoch || token!==sessionStorage.getItem('dataask_token')) return
+    cityPermissions.value=[]
+    cityPermissionError.value=errorText(e)
+  } finally {
+    if(epoch===authEpoch) cityPermissionLoading.value=false
+  }
+}
 let profileSequence = 0
 const changePasswordOpen = ref(false)
 const changePasswordBusy = ref(false)
@@ -629,6 +650,7 @@ async function login() {
     sessionStorage.setItem('dataask_user', JSON.stringify(user))
     verifiedRole.value = data.role === 'ADMIN' ? 'ADMIN' : 'USER'
     me.value = user; loggedIn.value = true; loginForm.value.password = ''
+    await loadCityPermissions()
     await Promise.all([loadSessions(), loadApprovedDatasets(), loadSavedCharts()])
     if (isDesktop.value) desktopSection.value = 'overview'
   } catch (e) { showFailToast(errorText(e)) }
@@ -652,6 +674,9 @@ function logout(record = true) {
   profileLoading.value = false
   profileError.value = ''
   profileForm.value = {displayName:'',createdAt:''}
+  cityPermissions.value = []
+  cityPermissionError.value = ''
+  cityPermissionLoading.value = false
   changePasswordOpen.value = false
   passwordForm.value = { oldPassword:'', newPassword:'', confirmPassword:'' }
   messages.value = []; sessions.value = []; sessionId.value = ''; historyVisible.value = false; adminVisible.value = false
@@ -1303,9 +1328,11 @@ onMounted(() => {
   document.addEventListener('visibilitychange', refreshSharedHistory)
   if (loggedIn.value) {
     refreshAuthenticatedRole()
-    loadSessions()
-    loadApprovedDatasets()
-    loadSavedCharts()
+    void (async () => {
+      await loadCityPermissions()
+      if (!loggedIn.value) return
+      await Promise.all([loadSessions(),loadApprovedDatasets(),loadSavedCharts()])
+    })()
   }
 })
 onBeforeUnmount(() => {
@@ -2080,6 +2107,19 @@ onBeforeUnmount(() => {
             <van-field :model-value="me.username" label="登录账号" readonly/>
             <van-field v-model="profileForm.displayName" label="显示名称" placeholder="请输入显示名称" maxlength="100" :disabled="profileSaving"/>
             <van-field :model-value="isAdmin ? '系统管理员' : '普通用户'" label="账号角色" readonly/>
+            <section class="da-profile-permissions" aria-label="城市数据权限">
+              <div class="da-profile-permissions-title">
+                <strong>数据权限 · 管理城市（{{ cityPermissions.length }}）</strong>
+                <button type="button" :disabled="cityPermissionLoading" @click="loadCityPermissions">
+                  {{ cityPermissionLoading ? '读取中…' : '刷新' }}
+                </button>
+              </div>
+              <p v-if="cityPermissionError" role="alert">读取失败：{{ cityPermissionError }}</p>
+              <p v-else-if="!cityPermissions.length">当前账号暂无授权城市</p>
+              <div v-else class="da-profile-city-list">
+                <span v-for="city in cityPermissions" :key="city">{{ city }}</span>
+              </div>
+            </section>
             <van-field v-if="profileForm.createdAt" :model-value="fullSessionTime(profileForm.createdAt)" label="加入时间" readonly/>
             <div class="da-password-actions"><van-button :disabled="profileSaving" @click="closeProfile">取消</van-button><van-button type="primary" :loading="profileSaving" @click="saveProfile">保存资料</van-button></div>
           </template>

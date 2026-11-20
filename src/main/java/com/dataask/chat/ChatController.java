@@ -131,9 +131,27 @@ public class ChatController {
         requireSession(sessionId, user.getName());
         List<String> raw = jdbc.query("SELECT payload_json FROM da_messages WHERE session_id=? ORDER BY created_at,id",
             (rs,n) -> rs.getString(1), sessionId);
+        String permission=starrocks.cityPermissionFingerprint(user.getName());
         return raw.stream().map(s -> {
-            try { return SqlVisibility.visible(json.readTree(s),user); }
-            catch (Exception ex) { throw new IllegalStateException("历史对话数据格式错误"); }
+            try {
+                JsonNode answer=json.readTree(s);
+                if(permission!=null && !permission.equals(answer.path("_cityPermissionHash").asText(""))) {
+                    com.fasterxml.jackson.databind.node.ObjectNode masked=answer.deepCopy();
+                    masked.put("unsupported",true);
+                    masked.put("summary","此历史结果未经过当前城市权限验证，请重新提问以获取授权范围的数据");
+                    masked.putArray("columns");
+                    masked.putArray("rows");
+                    masked.putArray("followUps");
+                    masked.putObject("columnLabels");
+                    masked.put("sql","");
+                    masked.remove("semantic");
+                    masked.remove("execution");
+                    return SqlVisibility.visible(masked,user);
+                }
+                return SqlVisibility.visible(answer,user);
+            } catch (com.fasterxml.jackson.core.JsonProcessingException ex) {
+                throw new IllegalStateException("历史对话数据格式错误",ex);
+            }
         }).toList();
     }
 
@@ -194,6 +212,8 @@ public class ChatController {
         ChatCancellationService.Active active = cancellations.begin(username, input.requestId());
         QueryExplanation.Trace trace = new QueryExplanation.Trace();
         try {
+        // Fail closed before model invocation. No city -> no business data query.
+        starrocks.cityPermissionFingerprint(username);
         if (!settings.ai().configured())
             throw new ResponseStatusException(HttpStatus.SERVICE_UNAVAILABLE,
                 "尚未配置 AI 模型，请设置 DATAASK_AI_BASE_URL / API_KEY / MODEL");
@@ -389,7 +409,10 @@ public class ChatController {
             semantic, trace.finish(), sql);
         if (persist) {
         try {
-            String serialized = json.writeValueAsString(answer);
+            com.fasterxml.jackson.databind.node.ObjectNode stored=json.valueToTree(answer);
+            String permission=starrocks.cityPermissionFingerprint(username);
+            if(permission!=null)stored.put("_cityPermissionHash",permission);
+            String serialized=json.writeValueAsString(stored);
             active.checkCancelled();
             if (newSession) {
                 String sessionTitle = question.length() > 70 ? question.substring(0,70) : question;

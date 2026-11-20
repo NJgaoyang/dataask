@@ -183,8 +183,21 @@ class AuthController {
     private final JdbcTemplate jdbc;
     private final PasswordEncoder passwords;
     private final JwtTokens tokens;
+    private final CityPermissionService cities;
+
+    @org.springframework.beans.factory.annotation.Autowired
+    AuthController(JdbcTemplate jdbc, PasswordEncoder passwords, JwtTokens tokens,
+                   CityPermissionService cities) {
+        this.jdbc=jdbc;this.passwords=passwords;this.tokens=tokens;this.cities=cities;
+    }
     AuthController(JdbcTemplate jdbc, PasswordEncoder passwords, JwtTokens tokens) {
-        this.jdbc = jdbc; this.passwords = passwords; this.tokens = tokens;
+        this(jdbc,passwords,tokens,null);
+    }
+
+    @GetMapping("/city-permissions")
+    Map<String,Object> cityPermissions(Authentication auth) {
+        List<String> allowed=cities==null?List.of():cities.cities(auth.getName());
+        return Map.of("cities",allowed,"count",allowed.size(),"source","ads.ads_user_city_permission");
     }
     record LoginRequest(@NotBlank String username, @NotBlank String password) {}
 

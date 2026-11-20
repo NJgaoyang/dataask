@@ -1,6 +1,8 @@
 package com.dataask.semantic;
 
 import com.dataask.data.StarRocksGateway;
+import org.springframework.security.core.context.SecurityContextHolder;
+import org.springframework.security.core.Authentication;
 import org.springframework.stereotype.Service;
 
 import java.time.Instant;
@@ -86,7 +88,9 @@ public class EntityValueResolver {
     }
 
     private List<String> values(ColumnRef ref) {
-        String key = gateway.schema() + ":" + ref.table() + "." + ref.column();
+        Authentication auth = SecurityContextHolder.getContext().getAuthentication();
+        String scope = auth == null ? "none" : gateway.cityPermissionFingerprint(auth.getName());
+        String key = gateway.schema() + ":" + scope + ":" + ref.table() + "." + ref.column();
         CacheEntry cached = cache.get(key);
         if (cached != null && cached.expiresAt().isAfter(Instant.now())) return cached.values();
         List<String> fetched = gateway.distinctDimensionValues(ref.table(), ref.column());

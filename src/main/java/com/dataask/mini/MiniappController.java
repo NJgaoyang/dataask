@@ -6,6 +6,7 @@ import com.dataask.audit.AuditContext;
 import com.dataask.chat.ChatController;
 import com.dataask.data.SqlGuard;
 import com.dataask.data.StarRocksGateway;
+import com.dataask.security.CityPermissionService;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.JsonNode;
 import jakarta.validation.Valid;
@@ -34,14 +35,18 @@ public class MiniappController {
     private final ObjectMapper json;
     private final SqlGuard guard;
     private final StarRocksGateway starrocks;
+    private final CityPermissionService cities;
 
+    @org.springframework.beans.factory.annotation.Autowired
+    public MiniappController(JdbcTemplate jdbc, ChatController chat,
+                             ObjectMapper json, SqlGuard guard, StarRocksGateway starrocks,
+                             CityPermissionService cities) {
+        this.jdbc=jdbc;this.chat=chat;this.json=json;this.guard=guard;
+        this.starrocks=starrocks;this.cities=cities;
+    }
     public MiniappController(JdbcTemplate jdbc, ChatController chat,
                              ObjectMapper json, SqlGuard guard, StarRocksGateway starrocks) {
-        this.jdbc=jdbc;
-        this.chat=chat;
-        this.json=json;
-        this.guard=guard;
-        this.starrocks=starrocks;
+        this(jdbc,chat,json,guard,starrocks,null);
     }
 
     private Map<String,Object> prettyChart(Map<String,Object> chart) {
@@ -65,6 +70,10 @@ public class MiniappController {
     public Map<String,Object> bootstrap(Authentication user) {
         Map<String,Object> account = jdbc.queryForMap(
             "SELECT username,display_name,role FROM da_users WHERE username=?", user.getName());
+        List<String> allowed=cities==null?List.of():cities.cities(user.getName());
+        account=new LinkedHashMap<>(account);
+        account.put("cities",allowed);
+        account.put("cityPermissionCount",allowed.size());
         return Map.of("user", account, "suggestions", List.of(
             "昨日营业额是多少？", "近7天的订单量趋势如何？", "按城市看营业额TOP10",
             "本月新增用户数及环比？", "本周营业额趋势怎么样？", "昨天订单总数是多少？"));
@@ -133,6 +142,10 @@ public class MiniappController {
             if(payload==null || payload.path("unsupported").asBoolean(false) ||
                !payload.path("rows").isArray())
                 throw new ResponseStatusException(HttpStatus.CONFLICT,"收藏的数据已失效");
+            if(cities!=null && !cities.fingerprint(user.getName()).equals(
+                payload.path("_cityPermissionHash").asText("")))
+                throw new ResponseStatusException(HttpStatus.CONFLICT,
+                    "已保存的图表结果没有通过当前城市权限校验，请重新刷新数据");
             return Map.of("chart",info,"answer",SqlVisibility.visible(payload,user),"cached",true);
         } catch(ResponseStatusException e) {
             throw e;

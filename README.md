@@ -359,3 +359,24 @@ PC「系统管理 → 审计日志」提供「操作审计」「SQL 查询记录
 - 审计从本版启用后开始记录，不把旧会话伪装成新增审计历史。日志没有用户/会话级联删除关系，也不做自动清理。退出接口记录退出事件，前端清除本机凭证；仍沿用现有无状态 JWT 机制，并不新增单令牌吊销能力。
 
 验证：`mvn test` 使用独立 H2 MySQL 兼容数据库验证建表、索引、持久化、筛选及权限链；`cd web && npm run test:audit` 验证审计页面搜索、分页、SQL 按需展开、批量删除确认和错误重试。生产 MySQL / StarRocks 仍需部署后联调。
+
+
+### 城市行权限（ads.ads_user_city_permission）
+
+使用当前登录用户的手机号码（`da_users.username`）作为身份，**匹配 ADS 权限表中的 `username_en` 字段**，不通过 `phone` 字段匹配。
+
+```sql
+SELECT DISTINCT city_name
+FROM ads.ads_user_city_permission
+WHERE username_en = ?
+  AND is_del = 0
+  AND city_name IS NOT NULL
+  AND TRIM(city_name) <> ''
+ORDER BY city_name;
+```
+
+PC 登录后调用 `GET /api/auth/city-permissions` 并在「个人资料 / 数据权限」显示；小程序/H5 登录后在 `GET /api/mini/bootstrap` 返回并在「我的 / 数据权限」显示。城市只读，权限关系由 ADS 表维护；用户不能向接口传入其他人的手机号。无城市、不合法手机登录账号、读取权限失败均**拒绝经营数据查询**，管理员也没有城市范围的自动豁免。
+
+每次 StarRocks 业务 SQL 在执行前解析并对查询表的城市列附加当前账号的城市 `IN (...)` 谓词；支持常见的 `city_name`、`city_name_std`、`city` 等列；无法安全验证城市列的表、CTE、子查询、UNION、外连接等复杂 SQL 将被拒绝。需要补充其它城市字段名或复杂查询支持时，先确认业务表结构及关联关系后单独开发，不得无条件放行。
+
+历史会话和保存的图表只有在当前账号的城市授权指纹与保存时完全一致时才返回缓存数据；旧缓存需重新查询。授权变更之后，已缓存的城市维度也会按授权指纹隔离。生产部署前须用真实 StarRocks 和 ADS 表数据验证联表 SQL、城市名称标准化和各角色登录权限。这里不会更改 ADS 权限配置表本身。
