@@ -132,6 +132,9 @@ try {
 
   await clickTile(page,'模型配置');
   await visible(page.locator('.da-model-center'),'Unified model configuration page');
+  assert.equal(await page.locator('.da-model-center-heading').count(),0,
+    'Model page must start directly with accordion rows: no descriptive banner');
+  await visible(page.locator('.tb-admin-heading-actions').getByRole('button',{name:'刷新配置'}),'Refresh is in the existing title bar');
   assert.equal(await page.locator('.tb-admin-overview-grid button').count(),0,'Model configuration opens one page');
   const modelSections=page.locator('.da-model-setting-card');
   await visible(modelSections.nth(1),'Embedding card loaded');
@@ -157,6 +160,12 @@ try {
   await visible(embeddingModel.locator('input[placeholder="qwen3.7-text-embedding-flash"]'),'Embedding model ID');
   await chatModel.getByRole('button',{name:'测试连接'}).click();
   await requireCall('POST /api/admin/settings/ai/test');
+  const centeredToast=page.locator('.van-toast:visible').first();
+  await centeredToast.waitFor({state:'visible'});
+  const toastBox=await centeredToast.boundingBox();
+  const viewport=page.viewportSize();
+  assert(toastBox && Math.abs(toastBox.y+toastBox.height/2-viewport.height/2)<30,
+    'Success and error prompts must be centered vertically');
   // Prevent unauthenticated provider calls when clearing saved keys.
   const modelClear=chatModel.locator('.van-switch').first();
   await modelClear.click();

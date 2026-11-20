@@ -565,8 +565,8 @@
   html[data-dataask-theme] .van-dialog__footer .van-dialog__cancel:hover{color:var(--da-primary,#0064c8);border-color:var(--da-primary,#0064c8)}
   html[data-dataask-theme] .van-dialog__footer .van-dialog__confirm{background:var(--da-primary,#0064c8);border-color:var(--da-primary,#0064c8);color:#fff}
   html[data-dataask-theme] .van-dialog__footer .van-dialog__confirm:hover{background:var(--da-primary-hover,#0052a3);border-color:var(--da-primary-hover,#0052a3)}
-  /* PC 轻提示对齐 Ant Message：顶部居中浅色信息条，替代移动端居中黑底 toast。 */
-  html[data-dataask-theme] .van-toast{top:64px;bottom:auto;left:50%;transform:translateX(-50%);display:flex;flex-direction:row;align-items:center;justify-content:flex-start;box-sizing:border-box;width:fit-content;min-width:0;min-height:0;max-width:min(480px,calc(100vw - 48px));padding:9px 16px;border-radius:6px;border:1px solid var(--da-border,#e2e6ec);background:var(--da-surface,#fff);color:var(--da-text,#1f2733);box-shadow:0 6px 16px rgba(31,39,51,.12);font-size:13px;line-height:1.5;text-align:left}
+  /* All Vant success/error/info tips render in the exact middle of the viewport. */
+  html[data-dataask-theme] .van-toast{top:50%;bottom:auto;left:50%;transform:translate(-50%,-50%);display:flex;flex-direction:row;align-items:center;justify-content:flex-start;box-sizing:border-box;width:fit-content;min-width:0;min-height:0;max-width:min(480px,calc(100vw - 48px));padding:9px 16px;border-radius:6px;border:1px solid var(--da-border,#e2e6ec);background:var(--da-surface,#fff);color:var(--da-text,#1f2733);box-shadow:0 6px 16px rgba(31,39,51,.12);font-size:13px;line-height:1.5;text-align:left}
   html[data-dataask-theme] .van-toast__icon{margin:0 8px 0 0;font-size:16px;color:var(--da-primary,#0064c8)}
   html[data-dataask-theme] .van-toast--success .van-toast__icon{color:var(--da-success,#2fa36b)}
   html[data-dataask-theme] .van-toast--fail .van-toast__icon{color:var(--da-danger,#d9534f)}

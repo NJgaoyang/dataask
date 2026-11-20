@@ -365,6 +365,7 @@ const adminExpanded = ref(false)
 const desktopAdminSections = ['admin-overview','admin-source','admin-model','admin-tables','admin-metrics','admin-users','admin-status','admin-audit']
 const adminSectionBusy = ref(false)
 const modelConfigVisible = ref(false)
+const modelCenterRef = ref(null)
 const adminSectionError = ref('')
 let adminLoadSequence = 0
 const userBusy = ref(false)
@@ -1492,6 +1493,10 @@ onBeforeUnmount(() => {
             <p v-if="desktopSection==='admin-overview'">管理数据连接、分析模型与平台访问权限</p>
           </div>
           <div class="tb-admin-heading-actions">
+            <button v-if="desktopSection==='admin-model'" type="button" class="td-btn"
+              :disabled="adminSectionBusy || !modelCenterRef" @click="modelCenterRef?.load()">
+              <van-icon name="replay"/> 刷新配置
+            </button>
             <button v-if="desktopSection!=='admin-overview'" type="button" class="tb-admin-back td-btn td-btn--back"
               @click="openAdminSection('admin-overview')"><van-icon name="arrow-left"/> 返回系统管理</button>
           </div>
@@ -1572,7 +1577,7 @@ onBeforeUnmount(() => {
         </div>
         <AdminDataSources v-else-if="desktopSection==='admin-source'" :api="api" @changed="refreshAdminStatus"/>
         <div v-else-if="desktopSection==='admin-model'" class="tb-admin-panel-card tb-admin-config-page">
-          <ModelConfigCenter :api="api" @status-changed="refreshAdminStatus"/>
+          <ModelConfigCenter ref="modelCenterRef" :api="api" @status-changed="refreshAdminStatus"/>
         </div>
         <div v-else-if="desktopSection==='admin-tables'" class="tb-admin-panel-card">
           <div class="tb-admin-panel-intro tb-admin-panel-intro-action">
@@ -2279,8 +2284,11 @@ onBeforeUnmount(() => {
       <van-popup v-if="isAdmin && !isDesktop" v-model:show="modelConfigVisible"
         position="bottom" round :style="{width:'100%',height:'88%'}">
         <div class="config-panel da-mobile-model-center">
-          <div class="drawer-header"><b>模型配置</b><van-icon name="cross" @click="modelConfigVisible=false"/></div>
-          <ModelConfigCenter v-if="modelConfigVisible" :api="api" @status-changed="refreshAdminStatus"/>
+          <div class="drawer-header"><b>模型配置</b><div class="da-model-mobile-actions">
+              <button type="button" @click="modelCenterRef?.load()"><van-icon name="replay"/> 刷新</button>
+              <button type="button" aria-label="关闭模型配置" @click="modelConfigVisible=false"><van-icon name="cross"/></button>
+            </div></div>
+          <ModelConfigCenter v-if="modelConfigVisible" ref="modelCenterRef" :api="api" @status-changed="refreshAdminStatus"/>
         </div>
       </van-popup>
     </template>

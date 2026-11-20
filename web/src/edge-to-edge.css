@@ -1,0 +1,132 @@
+/* Consistent full-bleed enterprise workspaces.
+ * Keep internal control padding for legibility, but remove gray page gutters,
+ * centered max-width wrappers and inset floating-card frames across all PC pages.
+ * Login remains a separate dedicated layout; mobile safe areas remain intact.
+ */
+@media (min-width:1024px) {
+  .consumer-pc .tb-page-body{
+    width:100%;
+    min-width:0;
+    padding:0;
+    margin:0;
+    background:var(--da-surface);
+  }
+  .consumer-pc .tb-page-body > *{
+    box-sizing:border-box;
+    min-width:0;
+    width:100%;
+    max-width:none;
+    margin-left:0;
+    margin-right:0;
+  }
+
+  /* System management: all subpages share one full-width surface. */
+  .consumer-pc .tb-admin-page{background:var(--da-surface)}
+  .consumer-pc .tb-admin-page > .tb-admin-panel-card{
+    box-sizing:border-box;
+    margin:0;
+    width:100%;
+    padding:var(--da-panel-padding);
+    border:0;
+    border-radius:0;
+    background:var(--da-surface);
+    min-height:0;
+  }
+  .consumer-pc .tb-admin-page > .tb-admin-config-page{padding:0}
+  .consumer-pc .tb-admin-page > .tb-admin-overview{padding:0}
+  .consumer-pc .tb-admin-page .tb-admin-overview-grid{
+    gap:0;
+    background:var(--da-surface);
+  }
+  .consumer-pc .tb-admin-page .tb-admin-overview-grid > button{
+    border-radius:0;
+    border-top:0;
+    border-left:0;
+    margin:0;
+  }
+  .consumer-pc .tb-admin-page > .audit-panel{
+    box-sizing:border-box;
+    width:100%;
+    margin:0;
+    border:0;
+    border-radius:0;
+    background:var(--da-surface);
+  }
+  .consumer-pc .tb-admin-page > .tb-admin-load-error,
+  .consumer-pc .tb-admin-page > .tb-admin-loading,
+  .consumer-pc .tb-admin-page > .tb-admin-credential-warning{
+    box-sizing:border-box;
+    width:100%;
+    max-width:none;
+    margin:0;
+    border-radius:0;
+  }
+  /* The model page itself starts with the first accordion immediately below its title. */
+  .consumer-pc .tb-admin-page > .tb-admin-config-page,
+  .consumer-pc .tb-admin-page > .tb-admin-config-page .da-model-center{
+    margin:0;
+    padding:0;
+    width:100%;
+    max-width:none;
+    border:0;
+    border-radius:0;
+    background:var(--da-surface);
+  }
+
+  /* History and other list pages should touch the content edges. */
+  .consumer-pc .tb-content-page > .da-record-list{
+    box-sizing:border-box;
+    width:100%;
+    margin:0;
+    padding:var(--da-panel-padding);
+    border:0;
+    border-radius:0;
+    background:var(--da-surface);
+  }
+
+  /* Saved charts: list and detail share the same edge-to-edge treatment. */
+  .consumer-pc .tb-charts-page,
+  .consumer-pc .tb-charts-page > .da-chart-detail{
+    background:var(--da-surface);
+  }
+  .consumer-pc .tb-chart-workspace{
+    box-sizing:border-box;
+    width:100%;
+    max-width:none;
+    min-width:0;
+    margin:0;
+    padding:var(--da-panel-padding);
+    border:0;
+    border-radius:0;
+    background:var(--da-surface);
+  }
+  .consumer-pc .da-chart-detail-body{
+    box-sizing:border-box;
+    width:100%;
+    min-width:0;
+    margin:0;
+    padding:var(--da-panel-padding);
+    border:0;
+    border-radius:0;
+    background:var(--da-surface);
+  }
+  .consumer-pc .da-chart-detail-error{
+    margin:0;
+    border-left:0;
+    border-right:0;
+    border-radius:0;
+  }
+
+  /* Workbench, question results, list headers: no nested centered shells. */
+  .consumer-pc .ds-home,
+  .consumer-pc .da-home-body,
+  .consumer-pc .conversation{max-width:none;width:100%;margin-left:0;margin-right:0}
+}
+/* The mobile model sheet also uses its entire available width.
+   Keep tappable padding in each field instead of in its outer frame. */
+@media (max-width:1023px) {
+  .da-mobile-model-center.config-panel{padding:0;box-sizing:border-box}
+  .da-mobile-model-center > .drawer-header{padding:12px 14px;border-bottom:1px solid #e6e8eb}
+  .da-model-mobile-actions{display:flex;align-items:center;gap:12px}
+  .da-model-mobile-actions button{display:inline-flex;align-items:center;justify-content:center;gap:4px;min-height:36px;padding:0 8px;border:0;background:transparent;color:#4e5969}
+}

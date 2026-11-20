@@ -93,15 +93,12 @@ async function rebuild(){
     showFailToast(feedback.value.semantic)
   }finally{if(alive)progress.value=''}
 }
+defineExpose({load})
 onMounted(load)
 </script>
 
 <template>
   <section class="da-model-center" aria-label="模型统一配置">
-    <div class="da-model-center-heading">
-      <p>点击模型标题展开配置；两种模型分别测试和保存，密钥不会明文回显。</p>
-      <button type="button" class="td-btn" :disabled="locked()" @click="load"><van-icon name="replay"/> 刷新配置</button>
-    </div>
     <p v-if="loading" class="da-model-center-loading"><van-loading size="17px"/> 正在读取模型配置…</p>
     <div v-if="error" class="metric-error" role="alert">{{ error }} <button type="button" class="td-btn" @click="load">重试</button></div>
     <template v-if="!loading && !error">

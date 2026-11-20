@@ -67,6 +67,11 @@ try{
   const homeHeight=(await page.locator('.da-home-ask-row').boundingBox()).height;assert(homeHeight>=80,'Workbench ask box must remain comfortably tappable');await snap(page,'workbench');
   await page.locator('.sidebar-new').click();assert((await page.locator('.composer-row').boundingBox()).height>=80,'Conversation composer must remain comfortably tappable');
   await tile(page,'数据源配置');const sourceList=page.getByRole('region',{name:'数据源',exact:true});
+  await sourceList.waitFor();
+  const sourceOuter=await page.locator('.tb-admin-page').boundingBox();
+  const sourceCard=await page.locator('.tb-admin-source-page').boundingBox();
+  assert(sourceOuter && sourceCard && Math.abs(sourceOuter.x-sourceCard.x)<2 &&
+    Math.abs(sourceOuter.width-sourceCard.width)<18,'Data source page must be full width without outer card gaps');
   await page.locator('.da-list-table tbody tr').filter({hasText:'数据源 1'}).first().waitFor();
   assert.equal(await sourceList.locator('tbody tr').count(),10);
   const controlHeights=await sourceList.locator('.da-list-toolbar button').evaluateAll(items=>items.map(el=>Math.round(el.getBoundingClientRect().height)));
@@ -95,7 +100,11 @@ try{
   await userList.getByRole('button',{name:'新增用户',exact:true}).click();await modal.getByLabel('账号',{exact:true}).fill('new_user');await modal.getByLabel('姓名',{exact:true}).fill('测试用户');await modal.getByLabel('初始密码',{exact:true}).fill('strong-password-123');await snap(page,'user-create');await modal.getByRole('button',{name:'保存',exact:true}).click();await modal.waitFor({state:'hidden'});
   await userList.getByRole('textbox',{name:'搜索用户',exact:true}).fill('new_user');await userList.getByRole('button',{name:'查询',exact:true}).click();const newUser=userList.locator('tbody tr').filter({hasText:'new_user'});await newUser.waitFor();await newUser.getByRole('button',{name:'编辑',exact:true}).click();assert(await modal.getByLabel('账号',{exact:true}).isDisabled());await modal.getByLabel('姓名',{exact:true}).fill('已编辑用户');await modal.getByRole('button',{name:'保存',exact:true}).click();await modal.waitFor({state:'hidden'});await newUser.getByText('已编辑用户',{exact:true}).waitFor();
   await newUser.getByRole('button',{name:'重置密码',exact:true}).click();await modal.getByLabel('新密码',{exact:true}).fill('changed-password-123');await snap(page,'user-reset');await modal.getByRole('button',{name:'保存',exact:true}).click();await page.locator('.van-dialog').getByRole('button',{name:'确认',exact:true}).click();await modal.waitFor({state:'hidden'});
-  await page.locator('.desktop-main-nav button').filter({hasText:'历史会话'}).click();const history=page.getByRole('region',{name:'历史会话',exact:true});await history.getByText('共 65 条',{exact:true}).waitFor();for(let i=0;i<6;i++){await history.getByRole('button',{name:'下一页',exact:true}).click();await history.getByText(`第 ${i+2} / 7 页`,{exact:true}).waitFor()}assert.equal(await history.locator('tbody tr').count(),5);assert.equal(await history.locator('tbody tr').first().locator('td').nth(1).innerText(),'61');await snap(page,'history-last-page');
+  await page.locator('.desktop-main-nav button').filter({hasText:'历史会话'}).click();const history=page.getByRole('region',{name:'历史会话',exact:true});
+  const historyPage=await page.locator('.tb-content-page').boundingBox();
+  const historyList=await history.boundingBox();
+  assert(historyPage && historyList && Math.abs(historyPage.x-historyList.x)<2 &&
+    Math.abs(historyPage.width-historyList.width)<18,'History page must use full content width');await history.getByText('共 65 条',{exact:true}).waitFor();for(let i=0;i<6;i++){await history.getByRole('button',{name:'下一页',exact:true}).click();await history.getByText(`第 ${i+2} / 7 页`,{exact:true}).waitFor()}assert.equal(await history.locator('tbody tr').count(),5);assert.equal(await history.locator('tbody tr').first().locator('td').nth(1).innerText(),'61');await snap(page,'history-last-page');
   assert.equal(await history.locator('.da-history-batch-delete').isDisabled(),true);
   await history.locator('tbody tr').nth(0).getByRole('checkbox').check();await history.locator('tbody tr').nth(1).getByRole('checkbox').check();
   await history.getByRole('button',{name:/批量删除（2）/}).click();await page.locator('.van-dialog').getByRole('button',{name:'取消',exact:true}).click();assert.equal(await history.locator('tbody tr').count(),5);
@@ -104,7 +113,11 @@ try{
   await history.locator('tbody tr').first().getByRole('button',{name:'删除',exact:true}).click();await page.locator('.van-dialog').getByRole('button',{name:'取消',exact:true}).click();assert.equal(await history.locator('tbody tr').count(),3);
   await history.locator('tbody tr').first().getByRole('button',{name:'删除',exact:true}).click();await page.locator('.van-dialog').getByRole('button',{name:'确认',exact:true}).click();
   await history.getByText('共 62 条',{exact:true}).waitFor();assert.equal(await history.locator('tbody tr').count(),2);await snap(page,'history-after-delete');
-  await page.locator('.desktop-main-nav button').filter({hasText:'我的图表'}).click();const mine=page.getByRole('region',{name:'我的图表',exact:true});await mine.getByText('共 24 条',{exact:true}).waitFor();await mine.getByRole('button',{name:'下一页',exact:true}).click();await mine.getByText('第 2 / 3 页',{exact:true}).waitFor();assert.equal(await mine.locator('tbody tr').first().locator('td').first().innerText(),'11');await snap(page,'charts-page-2');
+  await page.locator('.desktop-main-nav button').filter({hasText:'我的图表'}).click();const mine=page.getByRole('region',{name:'我的图表',exact:true});
+  const chartPage=await page.locator('.tb-charts-page').boundingBox();
+  const workspace=await page.locator('.tb-chart-workspace').boundingBox();
+  assert(chartPage && workspace && Math.abs(chartPage.x-workspace.x)<2 &&
+    Math.abs(chartPage.width-workspace.width)<18,'Chart workspace must have no outer gutters');await mine.getByText('共 24 条',{exact:true}).waitFor();await mine.getByRole('button',{name:'下一页',exact:true}).click();await mine.getByText('第 2 / 3 页',{exact:true}).waitFor();assert.equal(await mine.locator('tbody tr').first().locator('td').first().innerText(),'11');await snap(page,'charts-page-2');
   const beforeFilter=calls.filter(c=>c.p==='/api/mini/charts/page').length;
   await page.getByRole('combobox',{name:'图表类型筛选',exact:true}).selectOption('line');
   assert.equal(calls.filter(c=>c.p==='/api/mini/charts/page').length,beforeFilter,'Draft filters should not query until 查询 is clicked');
