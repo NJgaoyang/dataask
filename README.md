@@ -359,3 +359,21 @@ PC「系统管理 → 审计日志」提供「操作审计」「SQL 查询记录
 - 审计从本版启用后开始记录，不把旧会话伪装成新增审计历史。日志没有用户/会话级联删除关系，也不做自动清理。退出接口记录退出事件，前端清除本机凭证；仍沿用现有无状态 JWT 机制，并不新增单令牌吊销能力。
 
 验证：`mvn test` 使用独立 H2 MySQL 兼容数据库验证建表、索引、持久化、筛选及权限链；`cd web && npm run test:audit` 验证审计页面搜索、分页、SQL 按需展开、批量删除确认和错误重试。生产 MySQL / StarRocks 仍需部署后联调。
+
+
+### ADS 字段级权限与旧配置迁移（集成版）
+
+管理员进入“系统管理 → ADS 表授权 → 字段级授权”，勾选允许给 AI 的数据表与字段并保存。
+首次保存前沿用既有 `da_allowed_tables` 表级授权，页面会预选原先允许表的全部字段；首次保存之后启用
+`catalog.policy`（保存在元数据 MySQL 的 `da_app_settings` 中），SQL 执行入口会在只读表级检查之外拒绝
+未授权字段和无法可靠检查的 SQL 结构（包括不可解析的子查询、SELECT * 与 CTE）。
+字段授权同时过滤 NL2SQL 元数据与 Embedding 索引重建所用的列，保存时清理旧向量索引，需由管理员重新构建。
+切换到其他数据源连接或默认数据库时，原字段授权和表级授权会清空，不会把旧服务的权限带入新连接。
+
+首次启动时，`RuntimeSettingsMigration` 只向尚未设置的 MySQL 配置键写入 YAML 默认值，
+并将非空或空白密钥均加密存储；数据库中已存在的值始终优先，不会覆盖。
+迁移标记为 `system.config.migrated`；旧库 `da_app_settings.setting_value` 会扩展为 LONGTEXT。
+保留原有 `dataask.jwt-secret`，**不要在升级时更换 JWT 密钥**，否则已经加密的配置可能无法解密。
+升级前备份元数据 MySQL；如需回滚旧版本，先确认对 LONGTEXT 和新增权限配置的兼容性。
+
+测试（需本地 Maven 与 JDK 21）：`mvn test`；前端：`cd web && npm ci && npm run build`。

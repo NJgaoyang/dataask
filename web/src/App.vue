@@ -7,6 +7,7 @@ import AnalysisPanel from './components/AnalysisPanel.vue'
 import QueryExplanation from './components/QueryExplanation.vue'
 import AdminAuditLog from './components/AdminAuditLog.vue'
 import AdminDataSources from './components/AdminDataSources.vue'
+import CatalogPicker from './components/CatalogPicker.vue'
 import AdminUsers from './components/AdminUsers.vue'
 import RecordList from './components/RecordList.vue'
 import ListPagination from './components/ListPagination.vue'
@@ -472,6 +473,7 @@ const configTestMessage = ref('')
 const settingsData = ref({ starrocks: {}, ai: {} })
 const srForm = ref({ jdbcUrl: '', username: '', password: '', schema: 'ads' })
 const allowedTables = ref([])
+const columnPolicyEnabled = ref(false)
 const expandedTable = ref('')
 const users = ref([])
 const metricFileInput = ref(null)
@@ -1625,6 +1627,8 @@ onBeforeUnmount(() => {
               </button>
             </div>
           </div>
+          <CatalogPicker :api="api" @saved="loadAdminSectionData('admin-tables')"
+            @policy="columnPolicyEnabled = $event"/>
           <div class="da-list-toolbar"><h3>开放给 AI 的 ADS 表</h3><input v-model="tableSearch" aria-label="搜索数据表" placeholder="搜索数据表"></div>
           <div v-for="(table,index) in pagedTables" :key="table.name" class="admin-table">
             <div class="table-head"><span class="da-sequence">{{ (tablePage-1)*tableSize+index+1 }}</span>
@@ -1633,7 +1637,8 @@ onBeforeUnmount(() => {
                 @click="expandedTable = expandedTable === table.name ? '' : table.name">
                 <van-icon :name="expandedTable === table.name ? 'arrow-up' : 'arrow-down'"/> {{ table.name }}
               </button>
-              <van-switch v-model="table.enabled" size="19px" @change="toggleAllowed(table)"/>
+              <van-switch v-if="!columnPolicyEnabled" v-model="table.enabled" size="19px" @change="toggleAllowed(table)"/>
+              <span v-else class="muted">字段授权模式</span>
             </div>
             <div v-if="expandedTable === table.name" class="columns-list">
               <div v-for="col in table.columns" :key="col.name"><b>{{ col.name }}</b> {{ col.type }} <span>{{ col.comment }}</span></div>
