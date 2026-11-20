@@ -6,4 +6,5 @@ import './style.css'
 import './pc-design-system.css'
 import './pc-admin.css'
 import './pc-lists.css'
+import './tdesign-console.css'
 createApp(App).use(Vant).mount('#app')

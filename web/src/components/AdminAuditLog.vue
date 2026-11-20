@@ -2,7 +2,7 @@
 import { computed, onMounted, onBeforeUnmount, ref } from 'vue'
 import { showConfirmDialog, showSuccessToast } from 'vant'
 const props = defineProps({api:{type:Object,required:true}})
-const tab = ref('logs'), rows = ref([]), total = ref(0), page = ref(1), size = ref(20)
+const tab = ref('logs'), rows = ref([]), total = ref(0), page = ref(1), size = ref(10)
 const loading = ref(false), deleting = ref(false), error = ref(''), selected = ref([])
 const today = ref(''), usernames = ref([]), applied = ref({}), details = ref({}), detailBusy = ref({}), detailErrors = ref({})
 const initial = () => ({dateFrom:today.value,dateTo:today.value,allDates:false,username:'',keyword:'',requestId:'',module:'',action:'',status:'',source:''})
@@ -127,8 +127,8 @@ function time(value) {
         <span class="audit-range-sep">至</span>
         <input v-model="filters.dateTo" type="date" aria-label="结束日期" @change="search">
       </template>
-      <button class="primary" type="submit" :disabled="loading || deleting">查询</button>
-      <button type="button" :disabled="loading || deleting" @click="reset">重置</button>
+      <button class="primary td-btn td-btn--primary" type="submit" :disabled="loading || deleting"><van-icon name="search"/> 查询</button>
+      <button type="button" class="td-btn" :disabled="loading || deleting" @click="reset">重置</button>
     </form>
     <div class="audit-conditions">
       <input v-model.trim="filters.username" list="audit-usernames" placeholder="操作账号" maxlength="64" aria-label="操作账号">
@@ -139,7 +139,7 @@ function time(value) {
       <input v-if="tab==='logs'" v-model.trim="filters.action" placeholder="操作名称" maxlength="80" aria-label="操作名称">
       <input v-model.trim="filters.requestId" placeholder="请求编号" maxlength="36" aria-label="请求编号">
     </div>
-    <div class="audit-toolbar"><span>共 {{ total }} 条<span v-if="selected.length"> · 已选 {{ selected.length }} 条</span></span><button class="danger" :disabled="!selected.length || loading || deleting" @click="removeSelected">{{ deleting ? '正在删除…' : '批量删除' }}</button></div>
+    <div class="audit-toolbar"><span>共 {{ total }} 条<span v-if="selected.length"> · 已选 {{ selected.length }} 条</span></span><button type="button" class="danger td-btn td-btn--danger" :disabled="!selected.length || loading || deleting" @click="removeSelected">{{ deleting ? '正在删除…' : '批量删除' }}</button></div>
     <p v-if="error" role="alert" class="audit-error">{{ error }} <button @click="today ? load() : initialize()">重试</button></p>
     <div :aria-busy="loading" class="audit-table-wrap">
       <table>
@@ -161,7 +161,7 @@ function time(value) {
       <p v-if="loading" role="status" class="audit-empty">正在读取审计记录…</p>
       <p v-else-if="!rows.length&&!error" class="audit-empty">当前条件下暂无记录，可调整日期或搜索条件。</p>
     </div>
-    <div class="audit-pagination"><label>每页 <select v-model.number="size" :disabled="loading||deleting" @change="move(1)"><option v-for="n in [20,50,100]" :key="n" :value="n">{{ n }} 条</option></select></label><span>第 {{ page }} / {{ pages }} 页</span><button :disabled="loading||deleting||page<=1" @click="move(page-1)">上一页</button><button :disabled="loading||deleting||page>=pages" @click="move(page+1)">下一页</button></div>
+    <div class="audit-pagination"><label>每页 <select v-model.number="size" :disabled="loading||deleting" @change="move(1)"><option v-for="n in [10,20,50,100]" :key="n" :value="n">{{ n }} 条</option></select></label><span>第 {{ page }} / {{ pages }} 页</span><button type="button" class="td-btn" :disabled="loading||deleting||page<=1" @click="move(page-1)">上一页</button><button type="button" class="td-btn" :disabled="loading||deleting||page>=pages" @click="move(page+1)">下一页</button></div>
   </section>
 </template>
 

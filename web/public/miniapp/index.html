@@ -358,6 +358,52 @@ button,input,textarea{font:inherit}button{border:0;cursor:pointer;color:inherit}
 .profile-city-list{display:flex;flex-wrap:wrap;gap:8px;margin:12px 0}
 .profile-city-list>span{padding:7px 10px;background:#eef4fd;border:1px solid #e0eaf8;border-radius:7px;color:#234c82;font-size:12px}
 .profile-permission-note{display:block;margin-top:10px;color:#8492a5;font-size:11px;line-height:1.6}
+
+/* Enterprise control alignment, inspired by TDesign mobile conventions.
+   Preserve all existing screens and behavior; only harmonize visible controls. */
+:root{--mini-console-blue:#0052d9;--mini-console-border:#e6e8eb}
+.screen{background:#f5f7fa}
+.screen .home .hero{background:#f2f6fd;box-shadow:none}
+.screen .home .hero-features{background:rgba(255,255,255,.88);border-color:#e8edf7;box-shadow:none}
+.screen .home .ask-outer{padding:3px;border:1px solid #c8d9f6;background:#fff;box-shadow:none;border-radius:12px}
+.screen .home .ask-box{border-radius:9px}
+.screen .send,.screen .sheet-actions button.primary{background:var(--mini-console-blue);box-shadow:none}
+.screen .send:hover,.screen .sheet-actions button.primary:hover{background:#003cab}
+.screen .home .example,.screen .home .quick,
+.screen .history-item,.screen .chart-list-item,
+.screen .profile-group,.screen .profile-city-permissions{
+  border:1px solid var(--mini-console-border);border-radius:10px;
+  background:#fff;box-shadow:none;
+}
+.screen .home .example .example-icon{background:#eef4ff;border-radius:8px}
+.screen .quick .icon,.screen .example .icon,.screen .profile-row .icon:first-child{color:var(--mini-console-blue)}
+.screen .back{
+  width:36px;height:36px;display:grid;place-items:center;
+  border:1px solid var(--mini-console-border);border-radius:6px;background:#fff;
+}
+.screen .search-mini{height:40px;border-radius:6px;box-shadow:none;border-color:#c9cdd4}
+.screen .tiny-action,.screen .lite-btn,.screen .chart-detail-refresh,
+.screen .history-new-chat,.screen .chart-detail-actions>button{
+  min-height:36px;display:inline-flex;align-items:center;justify-content:center;
+  gap:5px;padding:0 11px;border:1px solid #c9cdd4;border-radius:6px;
+  background:#fff;color:#4e5969;font-size:12px;box-shadow:none;
+}
+.screen .chart-list-actions{display:flex;flex-wrap:wrap;justify-content:flex-start;gap:8px;padding-top:12px}
+.screen .chart-list-actions .tiny-action:first-child{color:var(--mini-console-blue);border-color:#a3baf0}
+.screen .chart-mode{border-radius:6px;background:#f2f3f5}
+.screen .chart-mode button{min-height:30px;border-radius:4px}
+.screen .chart-mode button.active{box-shadow:none;color:var(--mini-console-blue)}
+.screen .pill{border-radius:4px;background:#eaf1ff;color:var(--mini-console-blue)}
+.screen .sheet{border-radius:12px 12px 0 0}
+.screen .sheet-option{border-radius:6px;background:#fff;border-color:var(--mini-console-border)}
+.screen .sheet-option.selected{background:#eef4ff;border-color:var(--mini-console-blue);color:var(--mini-console-blue)}
+.screen .sheet-input{height:42px;border:1px solid #c9cdd4;border-radius:6px}
+.screen .sheet-actions button{min-height:44px;border:1px solid #c9cdd4;border-radius:6px;background:#fff;color:#4e5969}
+.screen .sheet-actions button.primary{border-color:var(--mini-console-blue);color:#fff}
+.screen button:focus-visible,.screen input:focus-visible{
+  outline:2px solid var(--mini-console-blue);outline-offset:2px;
+}
+
 </style>
 </head>
 <body>

@@ -39,13 +39,25 @@ async function load() {
 watch(()=>[props.endpoint,JSON.stringify(props.params),search.value],(next,prev)=>{if(prev&&next[0]===prev[0]&&next[1]===prev[1]&&next[2]===prev[2])return;if(page.value===1)load();else page.value=1})
 watch(()=>[page.value,size.value,props.refresh],load,{immediate:true})
 function submit(){const value=keyword.value.trim();if(search.value!==value)search.value=value;else if(page.value===1)load();else page.value=1}
+function resetSearch(){
+  keyword.value=''
+  if(search.value)search.value=''
+  else if(page.value!==1)page.value=1
+  else load()
+}
 defineExpose({reload:load})
 </script>
 <template>
   <section class="da-record-list" :aria-label="label">
-    <div class="da-list-toolbar">
-      <form v-if="searchable" class="da-list-search" @submit.prevent="submit"><input v-model="keyword" maxlength="180" :aria-label="'搜索'+label" placeholder="搜索名称或关键词"><button type="submit">搜索</button></form>
-      <slot name="toolbar"/><button type="button" :disabled="loading" @click="load">刷新</button>
+    <div class="da-list-toolbar td-filter-bar">
+      <form v-if="searchable" class="da-list-search" role="search" @submit.prevent="submit">
+        <label class="td-filter-caption" :for="'record-filter-'+endpoint.replaceAll('/','-')">关键词</label>
+        <input :id="'record-filter-'+endpoint.replaceAll('/','-')" v-model="keyword" maxlength="180" :aria-label="'搜索'+label" placeholder="输入名称或关键词">
+        <button type="submit" class="td-btn td-btn--primary" :disabled="loading"><van-icon name="search"/> 查询</button>
+        <button type="button" class="td-btn" :disabled="loading || (!keyword && !search)" @click="resetSearch">重置</button>
+      </form>
+      <div v-if="$slots.filters" class="td-filter-extra"><slot name="filters"/></div>
+      <div class="td-list-actions"><slot name="toolbar"/><button type="button" class="td-btn" :disabled="loading" @click="load"><van-icon name="replay"/> 刷新</button></div>
     </div>
     <p v-if="error" class="metric-error" role="alert">{{ error }}</p>
     <div class="da-list-table-wrap" :aria-busy="loading">

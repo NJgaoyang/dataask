@@ -1,0 +1,247 @@
+/*
+ * DataAsk console primitives, aligned with Tencent TDesign's restrained B-end conventions.
+ * This is a local style layer over Vue + Vant, NOT a new TDesign dependency.
+ * Desktop only; login, navigation, conversation composer and mobile flows retain their UX.
+ */
+@media(min-width:1024px){
+  .app-shell.consumer-pc,html[data-dataask-theme="light"]{
+    --da-primary:#0052d9;
+    --da-primary-hover:#003cab;
+    --da-primary-active:#002d85;
+    --da-primary-soft:#ecf2fe;
+    --da-primary-border:#c7d9fc;
+    --da-border:#e6e8eb;
+    --da-border-strong:#c9cdd4;
+    --da-canvas:#f5f7fa;
+    --da-surface-2:#f8f9fb;
+    --da-text:#1f2329;
+    --da-text-2:#4e5969;
+    --da-text-3:#86909c;
+    --da-control-h:32px;
+    --da-radius-sm:4px;
+    --da-radius-md:6px;
+    --da-radius-lg:8px;
+    --td-console-focus:0 0 0 3px rgba(0,82,217,.14);
+  }
+  .consumer-pc[data-theme="dark"],html[data-dataask-theme="dark"]{
+    --da-primary:#77afff;
+    --da-primary-hover:#9cc4ff;
+    --da-primary-active:#bedaff;
+    --da-primary-soft:#182c4b;
+    --da-primary-border:#355988;
+    --da-border:#333a44;
+    --da-border-strong:#4b5565;
+    --da-surface-2:#252b33;
+    --da-text:#e8eaed;
+    --da-text-2:#c3c9d1;
+    --da-text-3:#99a2ad;
+    --td-console-focus:0 0 0 3px rgba(119,175,255,.22);
+  }
+  /* Single control contract: 32px height, 4px radius, 13px text, clear states. */
+  .consumer-pc .td-btn,
+  .consumer-pc .da-list-toolbar button,
+  .consumer-pc .da-pagination button,
+  .consumer-pc .tb-admin-back,
+  .consumer-pc .da-chart-back,
+  .consumer-pc .da-chart-detail-actions > button,
+  .consumer-pc .tb-admin-plain-action,
+  .consumer-pc .tb-chart-toolbar button,
+  .consumer-pc .tb-admin-table-actions > button{
+    box-sizing:border-box;
+    display:inline-flex;
+    align-items:center;
+    justify-content:center;
+    gap:6px;
+    height:var(--da-control-h);
+    min-height:var(--da-control-h);
+    padding:0 12px;
+    border:1px solid var(--da-border-strong);
+    border-radius:var(--da-radius-sm);
+    color:var(--da-text-2);
+    background:var(--da-surface);
+    font-size:13px;
+    font-weight:400;
+    line-height:1;
+    text-decoration:none;
+    white-space:nowrap;
+    box-shadow:none;
+    cursor:pointer;
+    transition:background .15s ease,border-color .15s ease,color .15s ease;
+  }
+  .consumer-pc .td-btn .van-icon,
+  .consumer-pc .da-list-toolbar button .van-icon{font-size:14px;vertical-align:middle}
+  .consumer-pc .td-btn:hover:not(:disabled),
+  .consumer-pc .da-list-toolbar button:hover:not(:disabled),
+  .consumer-pc .da-pagination button:hover:not(:disabled),
+  .consumer-pc .tb-admin-back:hover:not(:disabled),
+  .consumer-pc .da-chart-back:hover:not(:disabled),
+  .consumer-pc .da-chart-detail-actions>button:hover:not(:disabled),
+  .consumer-pc .tb-admin-plain-action:hover:not(:disabled){
+    color:var(--da-primary);
+    border-color:var(--da-primary);
+    background:var(--da-primary-soft);
+  }
+  .consumer-pc .td-btn:disabled,
+  .consumer-pc .da-list-toolbar button:disabled,
+  .consumer-pc .da-pagination button:disabled,
+  .consumer-pc .da-chart-detail-actions>button:disabled{
+    opacity:.48;cursor:not-allowed;
+  }
+  .consumer-pc button.td-btn--primary,
+  .consumer-pc .da-list-toolbar button.td-btn--primary,
+  .consumer-pc .da-record-list button.da-primary-button{
+    background:#0052d9;
+    border-color:#0052d9;
+    color:#fff;
+    font-weight:500;
+  }
+  .consumer-pc button.td-btn--primary:hover:not(:disabled),
+  .consumer-pc .da-list-toolbar button.td-btn--primary:hover:not(:disabled),
+  .consumer-pc .da-record-list button.da-primary-button:hover:not(:disabled){
+    background:#003cab;border-color:#003cab;color:#fff;
+  }
+  .consumer-pc button.td-btn--danger,
+  .consumer-pc .da-list-toolbar button.td-btn--danger{
+    color:var(--da-danger);
+    background:var(--da-surface);
+    border-color:var(--da-border-strong);
+  }
+  .consumer-pc button.td-btn--danger:hover:not(:disabled),
+  .consumer-pc .da-list-toolbar button.td-btn--danger:hover:not(:disabled){
+    color:var(--da-danger);background:var(--da-danger-soft);border-color:var(--da-danger);
+  }
+  /* Back is always the same secondary, icon-left control in detail and admin screens. */
+  .consumer-pc button.td-btn--back,
+  .consumer-pc .tb-admin-back,
+  .consumer-pc .da-chart-back{flex:none;font-size:13px;gap:6px}
+  .consumer-pc .tb-admin-heading-actions{display:flex;align-items:center;gap:8px}
+
+  /* Shared filter, table and pagination patterns. */
+  .consumer-pc .td-filter-bar,
+  .consumer-pc .da-list-toolbar,
+  .consumer-pc .tb-chart-toolbar{
+    display:flex;align-items:center;gap:10px;flex-wrap:wrap;
+    padding:0 0 16px;margin:0 0 16px;
+    background:transparent;
+    border-bottom:1px solid var(--da-border);
+    min-height:48px;
+  }
+  .consumer-pc .da-list-search{
+    display:flex;align-items:center;gap:8px;flex:1 1 320px;
+    min-width:260px;max-width:none;flex-wrap:wrap;
+  }
+  .consumer-pc .td-filter-caption{color:var(--da-text-2);font-size:13px;white-space:nowrap}
+  .consumer-pc .td-filter-extra,.consumer-pc .td-filter-actions{
+    display:flex;align-items:center;gap:8px;flex-wrap:wrap;
+  }
+  .consumer-pc .td-list-actions{
+    display:flex;align-items:center;justify-content:flex-end;
+    gap:8px;margin-left:auto;flex:0 0 auto;flex-wrap:wrap;
+  }
+  .consumer-pc .td-filter-bar input:not([type="checkbox"]),
+  .consumer-pc .td-filter-bar select,
+  .consumer-pc .da-list-toolbar input:not([type="checkbox"]),
+  .consumer-pc .da-pagination select,
+  .consumer-pc .audit-panel .audit-querybar input,
+  .consumer-pc .audit-panel .audit-querybar select,
+  .consumer-pc .audit-panel .audit-conditions input,
+  .consumer-pc .audit-panel .audit-conditions select,
+  .consumer-pc .audit-panel .audit-pagination select{
+    box-sizing:border-box;
+    height:var(--da-control-h);
+    min-height:var(--da-control-h);
+    border:1px solid var(--da-border-strong);
+    border-radius:var(--da-radius-sm);
+    padding:0 10px;
+    background:var(--da-surface);
+    color:var(--da-text);
+    font-size:13px;
+    line-height:normal;
+  }
+  .consumer-pc .da-list-search input{width:240px;min-width:180px;max-width:100%;flex:1 1 180px}
+  .consumer-pc .tb-chart-search{display:flex;align-items:center;gap:8px;max-width:360px;flex:1 1 220px}
+  .consumer-pc .tb-chart-search input{width:100%;min-width:200px;max-width:100%}
+  .consumer-pc .tb-chart-select-label{color:var(--da-text-2)}
+  .consumer-pc .tb-chart-select-label select{min-width:130px}
+  .consumer-pc .td-filter-actions{margin-left:0}
+  .consumer-pc .da-history-date-filter{padding:0;margin:0}
+  .consumer-pc .da-history-date-filter input{width:160px;min-width:0}
+  .consumer-pc .da-list-toolbar h3{margin:0 6px 0 0}
+  .consumer-pc .da-list-table-wrap,.consumer-pc .audit-table-wrap{
+    border:1px solid var(--da-border);border-radius:var(--da-radius-md);overflow:auto;
+  }
+  .consumer-pc .da-list-table th{height:40px;background:var(--da-surface-2);font-size:12px;font-weight:600}
+  .consumer-pc .da-list-table td{height:44px}
+  .consumer-pc .da-list-table td:not(.da-row-actions)>button,
+  .consumer-pc .da-list-table .tb-chart-name-link{
+    display:inline;min-height:0;height:auto;padding:0;border:0;
+    background:transparent;color:var(--da-primary);
+    font-weight:500;text-align:left;
+  }
+  .consumer-pc .da-list-table td:not(.da-row-actions)>button:hover,
+  .consumer-pc .da-list-table .tb-chart-name-link:hover{
+    color:var(--da-primary-hover);background:transparent;text-decoration:underline;
+  }
+  .consumer-pc .da-row-actions button{height:auto;min-height:0;border:0;background:transparent;padding:0 8px}
+  .consumer-pc .da-pagination{
+    display:flex;align-items:center;justify-content:flex-end;gap:12px;
+    padding-top:16px;font-size:13px;
+  }
+  .consumer-pc .da-pagination>span:first-child{margin-right:auto}
+  .consumer-pc .da-pagination label{display:inline-flex;gap:8px;align-items:center}
+  .consumer-pc .da-pagination button{min-width:68px}
+  .consumer-pc .da-pagination button:disabled{background:var(--da-surface-2)}
+  /* Audit filters and pagination now use the same control rhythm as RecordList. */
+  .consumer-pc .audit-panel .audit-querybar,
+  .consumer-pc .audit-panel .audit-conditions{
+    display:flex;gap:10px;align-items:center;flex-wrap:wrap;padding:12px 0;
+    border-color:var(--da-border);
+  }
+  .consumer-pc .audit-panel .audit-toolbar{margin:16px 0 12px}
+  .consumer-pc .audit-panel button:not([role="tab"]){
+    min-height:32px;height:32px;padding:0 12px;border-radius:4px;font-size:13px;
+  }
+  .consumer-pc .audit-panel button.td-btn--primary{background:#0052d9;border-color:#0052d9;color:#fff}
+  .consumer-pc .audit-panel button.td-btn--primary:hover:not(:disabled){background:#003cab;border-color:#003cab}
+  .consumer-pc .audit-panel button.td-btn--danger{color:var(--da-danger);border-color:var(--da-border-strong)}
+  .consumer-pc .audit-panel button.td-btn--danger:hover:not(:disabled){background:var(--da-danger-soft);border-color:var(--da-danger)}
+  .consumer-pc .audit-panel .audit-pagination{
+    display:flex;align-items:center;justify-content:flex-end;gap:12px;margin-top:16px;font-size:13px;
+  }
+  .consumer-pc .audit-panel .audit-pagination label{margin-right:auto}
+  .consumer-pc .audit-panel .audit-pagination button{min-width:68px}
+  /* Source & user CRUD dialogs: identical footer, inputs, primary action and close hit area. */
+  html[data-dataask-theme] .da-crud-modal .td-btn{height:32px;min-height:32px;border-radius:4px}
+  html[data-dataask-theme] .da-crud-modal .td-btn--primary{background:#0052d9;border-color:#0052d9;color:#fff}
+  html[data-dataask-theme] .da-crud-modal .td-btn--primary:hover:not(:disabled){background:#003cab;border-color:#003cab;color:#fff}
+  html[data-dataask-theme] .da-crud-modal .da-crud-fields input,
+  html[data-dataask-theme] .da-crud-modal .da-crud-fields select{height:32px}
+  html[data-dataask-theme] .da-crud-modal footer{justify-content:flex-end}
+  .consumer-pc button:focus-visible,
+  .consumer-pc input:focus-visible,
+  .consumer-pc select:focus-visible,
+  html[data-dataask-theme] .da-crud-modal button:focus-visible{
+    outline:2px solid var(--da-primary);outline-offset:2px;
+  }
+  .consumer-pc .da-list-search input:focus,
+  .consumer-pc .tb-chart-search input:focus,
+  .consumer-pc .td-filter-bar select:focus,
+  .consumer-pc .td-filter-bar input:focus{
+    border-color:var(--da-primary);box-shadow:var(--td-console-focus);
+  }
+  @media(max-width:1200px){
+    .consumer-pc .td-list-actions{margin-left:0}
+    .consumer-pc .da-list-search{flex-basis:100%}
+    .consumer-pc .tb-chart-search{max-width:none}
+  }
+}
+/* H5 uses the same flat control language, with touch-appropriate dimensions. */
+@media(max-width:1023px){
+  .app-shell:not(.consumer-pc) .quick-grid button,
+  .app-shell:not(.consumer-pc) .followups button{
+    border-radius:8px;box-shadow:none;
+  }
+  .app-shell:not(.consumer-pc) .quick-grid button{min-height:72px}
+  .app-shell:not(.consumer-pc) .composer-row{border-radius:8px}
+  .app-shell:not(.consumer-pc) .send-btn{border-radius:8px}
+}

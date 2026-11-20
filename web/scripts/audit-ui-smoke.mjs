@@ -22,7 +22,7 @@ async function backend(route) {
   if(path==='/api/admin/audit/logs'||path==='/api/admin/audit/queries') {
     if(failNext) {failNext=false;return route.fulfill({status:503,json:{message:'审计数据暂时不可用'}})}
     let items=records.filter(r=>(!params.username||r.username===params.username)&&(!params.keyword||r.question.includes(params.keyword)));
-    const page=Number(params.page||1),size=Number(params.pageSize||20),total=items.length;
+    const page=Number(params.page||1),size=Number(params.pageSize||10),total=items.length;
     items=items.slice((page-1)*size,page*size);
     return ok({items,total,page,pageSize:size});
   }
@@ -49,16 +49,16 @@ try {
   const rangeSelect=panel.getByLabel('时间范围');
   assert.equal(await rangeSelect.inputValue(),'today','默认时间范围为今天');
   assert.equal(calls.find(c=>c.path==='/api/admin/audit/logs').params.dateFrom,'2026-11-10');
-  assert.equal(await panel.locator('tbody tr').count(),20);
+  assert.equal(await panel.locator('tbody tr').count(),10);
   assert.match(await panel.locator('tbody tr').first().innerText(),/09:30:00/);
   await panel.getByRole('button',{name:'下一页',exact:true}).click();
-  await page.waitForFunction(()=>document.querySelector('.audit-pagination')?.textContent.includes('第 2 / 2 页'));
-  assert.equal(await panel.locator('tbody tr').count(),6);
+  await page.waitForFunction(()=>document.querySelector('.audit-pagination')?.textContent.includes('第 2 / 3 页'));
+  assert.equal(await panel.locator('tbody tr').count(),10);
   await panel.getByLabel('操作账号',{exact:true}).fill('alice');
   await panel.getByLabel('关键词',{exact:true}).fill('订单');
   await panel.getByRole('button',{name:'查询',exact:true}).click();
   await page.waitForFunction(()=>document.querySelector('.audit-toolbar')?.textContent.includes('共 13 条'));
-  assert.match(await panel.locator('.audit-pagination').innerText(),/第 1 \/ 1 页/);
+  assert.match(await panel.locator('.audit-pagination').innerText(),/第 1 \/ 2 页/);
   assert.equal(calls.filter(c=>c.path==='/api/admin/audit/logs').at(-1).params.username,'alice');
   // 时间范围一键切换立即查询（阿里云日志页行为），日期参数由前端按今天推算
   await rangeSelect.selectOption('7d');
@@ -90,8 +90,8 @@ try {
   await page.locator('.van-dialog__cancel').click();assert.equal(deletions.length,0,'Cancel must not delete');
   await panel.getByRole('button',{name:'批量删除',exact:true}).click();
   await page.locator('.van-dialog__confirm').click();
-  await page.waitForFunction(()=>document.querySelector('.audit-toolbar')?.textContent.includes('共 6 条'));
-  assert.equal(deletions[0].length,20);assert.deepEqual(deletions[0],Array.from({length:20},(_,i)=>`00000000-0000-0000-0000-${String(i+1).padStart(12,'0')}`));
+  await page.waitForFunction(()=>document.querySelector('.audit-toolbar')?.textContent.includes('共 16 条'));
+  assert.equal(deletions[0].length,10);assert.deepEqual(deletions[0],Array.from({length:10},(_,i)=>`00000000-0000-0000-0000-${String(i+1).padStart(12,'0')}`));
   assert.equal(await panel.getByRole('button',{name:'批量删除',exact:true}).isDisabled(),true);
   await rangeSelect.selectOption('all');
   await page.waitForFunction(()=>!document.querySelector('.audit-table-wrap')?.matches('[aria-busy="true"]'));
@@ -125,5 +125,5 @@ try {
   await userPage.route('**/api/**',route=>new URL(route.request().url()).pathname==='/api/auth/me'?route.fulfill({json:{username:'alice',role:'USER'}}):backend(route));
   await userPage.goto(base,{waitUntil:'networkidle'});await userPage.locator('.da-account-trigger').click();assert.equal(await userPage.getByRole('menuitem',{name:'系统管理'}).count(),0);
   await userContext.close();
-  console.log('Audit UI: Aliyun-style time range presets + custom range, today default, Shanghai time, combined search, pagination, admin role, on-demand SQL, batch-delete confirmation/cancel, all dates, retry and screenshots passed.');
+  console.log('Audit UI: consistent console filters with time presets + custom range, today default, Shanghai time, combined search, pagination, admin role, on-demand SQL, batch-delete confirmation/cancel, all dates, retry and screenshots passed.');
 } finally {await browser.close()}

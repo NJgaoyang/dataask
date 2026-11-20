@@ -18,7 +18,7 @@ async function remove(row){if(busy.value)return;try{await showConfirmDialog({tit
 <template>
   <div class="tb-admin-panel-card tb-admin-source-page"><p v-if="error && !open" class="metric-error" role="alert">{{ error }}</p>
     <RecordList :api="api" endpoint="/admin/datasources" :columns="columns" label="数据源" :refresh="refresh">
-      <template #toolbar><button type="button" class="da-primary-button" :disabled="busy" @click="edit()">新增数据源</button></template>
+      <template #toolbar><button type="button" class="da-primary-button td-btn td-btn--primary" :disabled="busy" @click="edit()"><van-icon name="plus"/> 新增数据源</button></template>
       <template #active="{row}"><span :class="row.active?'da-active-source':'da-idle-source'">{{ row.active?'当前启用':'未启用' }}</span></template>
       <template #actions="{row}"><button :disabled="busy" @click="test(row)">测试</button><button :disabled="busy" @click="edit(row)">编辑</button><button v-if="!row.active" :disabled="busy" @click="activate(row)">启用</button><button :disabled="busy || row.active" class="da-danger-button" @click="remove(row)">删除</button></template>
     </RecordList>
@@ -26,7 +26,7 @@ async function remove(row){if(busy.value)return;try{await showConfirmDialog({tit
       <form @submit.prevent="save"><header><h2>{{ editing?'编辑数据源':'新增数据源' }}</h2><button type="button" aria-label="关闭数据源弹窗" :disabled="busy" @click="close">×</button></header>
         <div class="da-crud-fields"><label>名称<input v-model.trim="form.name" required maxlength="100" autocomplete="off"></label><label>类型<select aria-label="数据源类型"><option>StarRocks</option></select></label><label>JDBC 地址<input v-model.trim="form.jdbcUrl" required maxlength="500" placeholder="jdbc:mysql://192.168.1.10:9030/ads"></label><label>数据库<input v-model.trim="form.schema" required maxlength="64" placeholder="ads"></label><label>用户名<input v-model.trim="form.username" required maxlength="120" autocomplete="off"></label><label>密码<input v-model="form.password" maxlength="500" type="password" autocomplete="new-password" :placeholder="editing?'留空保留原密码':'数据库密码'"></label><label>描述<textarea v-model="form.description" maxlength="500" rows="2"/></label></div>
         <p v-if="error" role="alert" class="metric-error">{{ error }}</p><p v-if="feedback" role="status">{{ feedback }}</p>
-        <footer><button type="button" :disabled="busy" @click="test()">测试连接</button><span/><button type="button" :disabled="busy" @click="close">取消</button><button type="submit" class="da-primary-button" :disabled="busy">{{ busy?'处理中…':'保存' }}</button></footer>
+        <footer><button type="button" :disabled="busy" @click="test()">测试连接</button><span/><button type="button" class="td-btn" :disabled="busy" @click="close">取消</button><button type="submit" class="da-primary-button td-btn td-btn--primary" :disabled="busy">{{ busy?'处理中…':'保存' }}</button></footer>
       </form>
     </van-popup>
   </div>

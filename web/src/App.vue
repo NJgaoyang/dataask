@@ -322,8 +322,29 @@ async function deleteSavedChart(chart) {
   } catch(e) { showFailToast(errorText(e)) }
 }
 const chartSearch = ref('')
+const chartSearchDraft = ref('')
 const chartTypeFilter = ref('ALL')
+const chartTypeDraft = ref('ALL')
 const chartSortOrder = ref('recent')
+const chartSortDraft = ref('recent')
+function applyChartFilters() {
+  const next=chartSearchDraft.value.trim()
+  const changed=chartSearch.value!==next || chartTypeFilter.value!==chartTypeDraft.value || chartSortOrder.value!==chartSortDraft.value
+  chartSearch.value=next
+  chartTypeFilter.value=chartTypeDraft.value
+  chartSortOrder.value=chartSortDraft.value
+  if (!changed) chartListRefresh.value++ // refresh current filters explicitly
+}
+function resetChartFilters() {
+  const changed=chartSearch.value!=='' || chartTypeFilter.value!=='ALL' || chartSortOrder.value!=='recent'
+  chartSearchDraft.value=''
+  chartTypeDraft.value='ALL'
+  chartSortDraft.value='recent'
+  chartSearch.value=''
+  chartTypeFilter.value='ALL'
+  chartSortOrder.value='recent'
+  if (!changed) chartListRefresh.value++
+}
 const chartTypeOptions = ['bar','line','pie','metric','table']
 function chartTypeLabel(type) {
   return ({line:'折线图', bar:'柱状图', pie:'饼图', metric:'指标卡', table:'数据表'})[type] || type || '图表'
@@ -1468,7 +1489,7 @@ onBeforeUnmount(() => {
             <p v-if="desktopSection==='admin-overview'">管理数据连接、分析模型与平台访问权限</p>
           </div>
           <div class="tb-admin-heading-actions">
-            <button v-if="desktopSection!=='admin-overview'" type="button" class="tb-admin-back"
+            <button v-if="desktopSection!=='admin-overview'" type="button" class="tb-admin-back td-btn td-btn--back"
               @click="openAdminSection('admin-overview')"><van-icon name="arrow-left"/> 返回系统管理</button>
           </div>
         </div>
@@ -1652,7 +1673,11 @@ onBeforeUnmount(() => {
               </button>
             </div>
           </div>
-          <div class="da-list-toolbar"><h3>开放给 AI 的 ADS 表</h3><input v-model="tableSearch" aria-label="搜索数据表" placeholder="搜索数据表"></div>
+          <div class="da-list-toolbar td-filter-bar"><h3>开放给 AI 的 ADS 表</h3>
+            <label class="td-filter-caption" for="ads-table-search">表名</label>
+            <input id="ads-table-search" v-model="tableSearch" aria-label="搜索数据表" placeholder="输入表名筛选">
+            <button type="button" class="td-btn" :disabled="!tableSearch" @click="tableSearch=''">重置</button>
+          </div>
           <div v-for="(table,index) in pagedTables" :key="table.name" class="admin-table">
             <div class="table-head"><span class="da-sequence">{{ (tablePage-1)*tableSize+index+1 }}</span>
               <button type="button" class="tb-table-expand"
@@ -1756,7 +1781,7 @@ onBeforeUnmount(() => {
           <div class="da-chart-detail">
             <div class="da-chart-detail-heading">
               <div class="da-chart-title-row">
-                <button type="button" class="da-chart-back" @click="closeChartDetail">
+                <button type="button" class="da-chart-back td-btn td-btn--back" @click="closeChartDetail">
                   <van-icon name="arrow-left"/> 返回我的图表
                 </button>
                 <h1 :title="activeChart.question || activeChart.title">{{ activeChart.title }}</h1>
@@ -1822,26 +1847,30 @@ onBeforeUnmount(() => {
           <div><h1>我的图表</h1><p>查看收藏与共享的分析结果</p></div>
         </div>
         <div class="tb-chart-workspace">
-          <div class="tb-chart-toolbar">
+          <form class="tb-chart-toolbar td-filter-bar" role="search" @submit.prevent="applyChartFilters">
             <label class="tb-chart-search">
               <van-icon name="search" size="17"/>
-              <input v-model="chartSearch" placeholder="搜索图表名称或问数问题" aria-label="搜索图表"/>
+              <input v-model="chartSearchDraft" placeholder="搜索图表名称或问数问题" aria-label="搜索图表"/>
             </label>
             <label class="tb-chart-select-label">
               <span>类型</span>
-              <select v-model="chartTypeFilter" aria-label="图表类型筛选">
+              <select v-model="chartTypeDraft" aria-label="图表类型筛选">
                 <option value="ALL">全部类型</option>
                 <option v-for="type in chartTypeOptions" :key="type" :value="type">{{ chartTypeLabel(type) }}</option>
               </select>
             </label>
             <label class="tb-chart-select-label">
               <span>排序</span>
-              <select v-model="chartSortOrder" aria-label="更新时间排序">
+              <select v-model="chartSortDraft" aria-label="更新时间排序">
                 <option value="recent">最近更新</option>
                 <option value="oldest">最早更新</option>
               </select>
             </label>
-          </div>
+            <div class="td-filter-actions">
+              <button type="submit" class="td-btn td-btn--primary"><van-icon name="search"/> 查询</button>
+              <button type="button" class="td-btn" @click="resetChartFilters">重置</button>
+            </div>
+          </form>
           <section class="tb-chart-section" v-for="view in ['mine','shared']" :key="view">
             <div class="tb-chart-section-title"><h2>{{ view==='mine'?'我收藏的图表':'共享给我的图表' }}</h2></div>
             <RecordList :api="api" endpoint="/mini/charts/page" :params="{view,keyword:chartSearch,type:chartTypeFilter,sort:chartSortOrder}" :searchable="false" :refresh="chartListRefresh" :label="view==='mine'?'我的图表':'共享图表'" :columns="[{key:'title',label:'图表名称'},{key:'question',label:'自然语言问题'},{key:'chartType',label:'图表类型'},...(view==='shared'?[{key:'ownerUsername',label:'共享来源'}]:[]),{key:'updatedAt',label:'更新时间'}]">
@@ -1859,10 +1888,12 @@ onBeforeUnmount(() => {
           <div><h1>历史会话</h1><p>按日期查找并继续过往问数</p></div>
         </div>
         <RecordList :api="api" endpoint="/chat/sessions/page" label="历史会话" :params="{date:historyDate}" :refresh="historyListRefresh" selectable v-model:selected="historySelection" :columns="[{key:'title',label:'问数内容'},{key:'updatedAt',label:'提问时间'}]">
-          <template #toolbar>
+          <template #filters>
             <label class="da-history-date-filter"><span>日期</span><input v-model="historyDate" type="date" :max="currentDateInput()" aria-label="按日期筛选历史会话"></label>
-            <button type="button" @click="historyDate=''" :disabled="!historyDate">全部日期</button>
-            <button type="button" class="da-history-batch-delete" :disabled="!historySelection.length" @click="batchDeleteSessions"><van-icon name="delete-o"/> 批量删除{{ historySelection.length ? '（'+historySelection.length+'）' : '' }}</button>
+            <button type="button" class="td-btn" @click="historyDate=''" :disabled="!historyDate">全部日期</button>
+          </template>
+          <template #toolbar>
+            <button type="button" class="da-history-batch-delete td-btn td-btn--danger" :disabled="!historySelection.length" @click="batchDeleteSessions"><van-icon name="delete-o"/> 批量删除{{ historySelection.length ? '（'+historySelection.length+'）' : '' }}</button>
           </template>
           <template #title="{row}"><button type="button" @click="openSession(row)">{{ row.title }}</button></template>
           <template #updatedAt="{row}">{{ fullSessionTime(row.updatedAt) }}</template>
