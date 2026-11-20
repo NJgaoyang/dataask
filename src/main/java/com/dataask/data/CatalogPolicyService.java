@@ -84,6 +84,7 @@ public class CatalogPolicyService {
             "ON DUPLICATE KEY UPDATE enabled=1", table);
         // A revoked field must disappear from the next semantic index/search, not just the UI.
         jdbc.update("DELETE FROM da_semantic_vectors");
+        jdbc.update("DELETE FROM da_app_settings WHERE setting_key='semantic.revision'");
         return policy;
     }
     public List<StarRocksGateway.TableMeta> filter(List<StarRocksGateway.TableMeta> metadata, Policy policy) {

@@ -30,6 +30,11 @@ public class StarRocksGateway {
 
     public boolean configured() { return settings.starRocks().configured(); }
     public String schema() { return settings.starRocks().schema(); }
+    public String selectionRevision() {
+        if (policies == null) return "test";
+        CatalogPolicyService.Policy policy=policies.current();
+        return policy.sourceKey()+":"+policy.revision();
+    }
 
     private Connection connect(RuntimeConfigService.StarRocksConfig config) throws SQLException {
         if (!config.configured()) throw new ResponseStatusException(HttpStatus.SERVICE_UNAVAILABLE,

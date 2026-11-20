@@ -255,7 +255,7 @@ public class ChatController {
 
         List<EntityValueResolver.Match> cityMatches = entities.resolve(question, allowed, discovered);
         String cityHints = entities.hints(cityMatches);
-        String metricHints = metricDictionary.promptForQuestion(question, allowed);
+        String metricHints = metricDictionary.promptForQuestion(question, allowed, discovered);
         String semanticHints = embeddings.hints(question, allowed);
         trace.mark("semantic", "语义检索", "completed",
             "已检索业务口径并检查实体映射；" + (semanticHints == null || semanticHints.isBlank()
