@@ -100,6 +100,28 @@ public class RuntimeConfigService {
             m.containsKey("sr.password") ? decrypt(m.get("sr.password")) : yamlStarRocks.password(),
             schema);
     }
+    /** Identity deliberately excludes passwords, but includes the active database. */
+    public static String sourceKey(StarRocksConfig config) {
+        try {
+            String source = config.jdbcUrl() + "\n" + config.username() + "\n" + config.schema();
+            byte[] digest = MessageDigest.getInstance("SHA-256").digest(source.getBytes(StandardCharsets.UTF_8));
+            return HexFormat.of().formatHex(digest);
+        } catch (Exception e) { throw new IllegalStateException("无法标识数据源",e); }
+    }
+
+    private void invalidateCatalogIfSourceChanged(StarRocksConfig next) {
+        Map<String,String> m = stored();
+        String schema = effective(m,"sr.schema",yamlStarRocks.schema());
+        StarRocksConfig old = new StarRocksConfig(
+            normalizeStarRocksUrl(effective(m,"sr.jdbcUrl",yamlStarRocks.jdbcUrl()),schema),
+            effective(m,"sr.username",yamlStarRocks.username()),"",schema);
+        if (!sourceKey(old).equals(sourceKey(next))) {
+            jdbc.update("DELETE FROM da_app_settings WHERE setting_key='catalog.policy'");
+            jdbc.update("UPDATE da_allowed_tables SET enabled=0");
+            jdbc.update("DELETE FROM da_semantic_vectors");
+        }
+    }
+
     public static String normalizeStarRocksUrl(String raw, String schema) {
         String url=safe(raw);
         if (!schema.matches("[A-Za-z_][A-Za-z0-9_]{0,63}"))
@@ -234,6 +256,7 @@ public class RuntimeConfigService {
     @Transactional
     public void saveStarRocks(StarRocksInput data) {
         StarRocksConfig c=validateStarRocks(data);
+        invalidateCatalogIfSourceChanged(c);
         upsert("sr.jdbcUrl",c.jdbcUrl());
         upsert("sr.username",c.username());
         upsert("sr.schema",c.schema());
@@ -248,6 +271,7 @@ public class RuntimeConfigService {
 
     @Transactional
     public void activateSource(String id, StarRocksConfig config) {
+        invalidateCatalogIfSourceChanged(config);
         upsert("sr.activeSource",id);
         upsert("sr.jdbcUrl",config.jdbcUrl());
         upsert("sr.username",config.username());

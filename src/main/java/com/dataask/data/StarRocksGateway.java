@@ -11,9 +11,21 @@ import java.util.*;
 @Service
 public class StarRocksGateway {
     private final RuntimeConfigService settings;
+    private final CatalogPolicyService policies;
+    private final ColumnAccessGuard columns;
+    private final SqlGuard sqlGuard;
 
-    public StarRocksGateway(RuntimeConfigService settings) {
+    @org.springframework.beans.factory.annotation.Autowired
+    public StarRocksGateway(RuntimeConfigService settings, CatalogPolicyService policies,
+                            ColumnAccessGuard columns, SqlGuard sqlGuard) {
         this.settings=settings;
+        this.policies=policies;
+        this.columns=columns;
+        this.sqlGuard=sqlGuard;
+    }
+    /** Existing lightweight tests may construct the gateway directly. */
+    public StarRocksGateway(RuntimeConfigService settings) {
+        this.settings=settings; this.policies=null; this.columns=null; this.sqlGuard=null;
     }
 
     public boolean configured() { return settings.starRocks().configured(); }
@@ -55,7 +67,8 @@ public class StarRocksGateway {
         }
     }
 
-    public List<TableMeta> discover() {
+    /** Administrator view: full physical metadata, never used directly in NL2SQL. */
+    public List<TableMeta> catalog() {
         RuntimeConfigService.StarRocksConfig config=settings.starRocks();
         String sql="SELECT TABLE_NAME,COLUMN_NAME,DATA_TYPE,COLUMN_COMMENT FROM information_schema.COLUMNS " +
                    "WHERE TABLE_SCHEMA=? ORDER BY TABLE_NAME,ORDINAL_POSITION";
@@ -80,6 +93,12 @@ public class StarRocksGateway {
         return result;
     }
 
+    /** NL2SQL and embedding receive only authorized tables and selected fields. */
+    public List<TableMeta> discover() {
+        List<TableMeta> full = catalog();
+        return policies == null ? full : policies.filter(full, policies.current());
+    }
+
     /**
      * Read bounded canonical geographic dimension values from a vetted ADS table.
      * Caller must verify table and column against approved metadata before calling.
@@ -92,6 +111,8 @@ public class StarRocksGateway {
             !column.matches("[A-Za-z_][A-Za-z0-9_]*")) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "维度字段不在当前 ADS 数据库内");
         }
+        if (policies != null && !policies.permitted(qualifiedTable, column))
+            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "维度字段未授权");
         String table = qualifiedTable.substring(prefix.length());
         String quote = Character.toString(96);
         String field = quote + column + quote;
@@ -132,6 +153,12 @@ public class StarRocksGateway {
 
     public QueryResult query(String sql, QueryCancellation cancellation) {
         RuntimeConfigService.StarRocksConfig config=settings.starRocks();
+        if (policies != null) {
+            CatalogPolicyService.Policy policy = policies.current();
+            Set<String> granted = policy.configured() ? policy.tables().keySet() : policies.enabledTables();
+            sqlGuard.validate(sql, granted, config.schema());
+            if (policy.configured()) columns.validate(sql, policy.tables(), config.schema());
+        }
         if (cancellation != null) cancellation.checkCancelled();
         try (Connection c=connect(config);Statement statement=c.createStatement()) {
             if (cancellation != null) {

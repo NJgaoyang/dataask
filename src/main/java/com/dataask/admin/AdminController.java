@@ -138,7 +138,7 @@ public class AdminController {
         Set<String> enabled=new HashSet<>(jdbc.query(
             "SELECT table_name FROM da_allowed_tables WHERE enabled=1",(rs,n)->rs.getString(1)));
         List<Map<String,Object>> result=new ArrayList<>();
-        for(StarRocksGateway.TableMeta table:starrocks.discover()){
+        for(StarRocksGateway.TableMeta table:starrocks.catalog()){
             Map<String,Object> item=new LinkedHashMap<>();
             item.put("name",table.name());
             item.put("enabled",enabled.contains(table.name()));
@@ -154,7 +154,10 @@ public class AdminController {
     Map<String,Object> allow(@Valid @RequestBody AllowTableRequest request) {
         AuditContext.set("target",request.tableName());
         AuditContext.set("detail",request.enabled() ? "开放数据表查询权限" : "停用数据表查询权限");
-        boolean exists=starrocks.discover().stream().anyMatch(x->x.name().equals(request.tableName()));
+        if (jdbc.queryForObject("SELECT COUNT(*) FROM da_app_settings WHERE setting_key='catalog.policy'",
+                Integer.class) > 0)
+            throw new ResponseStatusException(HttpStatus.CONFLICT,"已启用字段级权限，请通过字段选择器调整授权");
+        boolean exists=starrocks.catalog().stream().anyMatch(x->x.name().equals(request.tableName()));
         if(!exists) throw new ResponseStatusException(HttpStatus.BAD_REQUEST,"指定 ADS 表不存在");
         jdbc.update("INSERT INTO da_allowed_tables(table_name,enabled) VALUES(?,?) "+
             "ON DUPLICATE KEY UPDATE enabled=VALUES(enabled)",
