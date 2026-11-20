@@ -130,3 +130,50 @@
   .da-model-mobile-actions{display:flex;align-items:center;gap:12px}
   .da-model-mobile-actions button{display:inline-flex;align-items:center;justify-content:center;gap:4px;min-height:36px;padding:0 8px;border:0;background:transparent;color:#4e5969}
 }
+
+/* One source of navigation: breadcrumb in the existing 48px topbar.
+   No second title/description banner on any logged-in PC workspace. */
+@media (min-width:1024px) {
+  .consumer-pc .topbar .tb-header-breadcrumb{
+    flex:0 1 auto;min-width:100px;max-width:42%;
+  }
+  .consumer-pc .tb-header-breadcrumb .da-breadcrumb-detail{
+    display:inline-block;min-width:0;max-width:clamp(88px,14vw,260px);
+    white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
+  }
+  .consumer-pc .da-topbar-utilities{
+    display:flex;align-items:center;justify-content:flex-end;
+    gap:12px;min-width:0;flex:1 1 auto;height:100%;
+  }
+  .consumer-pc .da-topbar-operations{
+    display:flex;flex:0 1 auto;min-width:0;align-items:center;gap:8px;
+    white-space:nowrap;overflow-x:auto;overflow-y:hidden;scrollbar-width:none;
+    height:100%;
+  }
+  .consumer-pc .da-topbar-operations::-webkit-scrollbar{display:none}
+  .consumer-pc .da-topbar-operations > button{
+    display:inline-flex;align-items:center;justify-content:center;
+    gap:6px;min-height:32px;flex-shrink:0;
+  }
+  .consumer-pc .da-topbar-operations > span{flex-shrink:0}
+  .consumer-pc .da-topbar-utilities .da-header-date{flex:0 0 auto;white-space:nowrap}
+  /* The title strip formerly consumed 56px above every management and list page. */
+  .consumer-pc .tb-admin-page,
+  .consumer-pc .tb-content-page,
+  .consumer-pc .tb-charts-page,
+  .consumer-pc .ds-home{padding-top:0}
+  .consumer-pc .tb-admin-page > .tb-admin-panel-card,
+  .consumer-pc .tb-admin-page > .tb-admin-overview,
+  .consumer-pc .tb-content-page > .da-record-list,
+  .consumer-pc .tb-charts-page > .tb-chart-workspace{min-height:0}
+  .consumer-pc .tb-admin-page > .tb-admin-config-page .da-model-center > .da-model-setting-card:first-of-type{
+    border-top:0;
+  }
+  /* Do not leave empty lines where old admin intro banners existed. */
+  .consumer-pc .tb-admin-page .tb-config-status-list{margin-top:0}
+  .consumer-pc .tb-admin-page .td-filter-bar:first-child{margin-top:0}
+}
+@media (min-width:1024px) and (max-width:1440px) {
+  .consumer-pc .da-topbar-utilities .da-header-date{display:none}
+  .consumer-pc .topbar .tb-header-breadcrumb{max-width:35%}
+}

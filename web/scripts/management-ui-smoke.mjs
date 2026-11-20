@@ -64,6 +64,8 @@ try{
   await ctx.addInitScript(()=>{sessionStorage.setItem('dataask_token','management-test');sessionStorage.setItem('dataask_user',JSON.stringify({username:'admin',displayName:'系统管理员',role:'ADMIN'}))});
   const page=await ctx.newPage();page.on('pageerror',e=>errors.push(e.message));await page.route('**/api/**',backend);await page.goto(base,{waitUntil:'networkidle'});
   assert.equal(await page.locator('.ds-home-history-row').count(),0);assert.equal(await page.locator('.da-home-saved-item').count(),0);
+  assert.equal(await page.locator('.ds-home-intro,.tb-page-heading,.tb-admin-heading,.da-chart-detail-heading').count(),0,
+    'Global PC workspaces must not render extra title/description banners');
   const homeHeight=(await page.locator('.da-home-ask-row').boundingBox()).height;assert(homeHeight>=80,'Workbench ask box must remain comfortably tappable');await snap(page,'workbench');
   await page.locator('.sidebar-new').click();assert((await page.locator('.composer-row').boundingBox()).height>=80,'Conversation composer must remain comfortably tappable');
   await tile(page,'数据源配置');const sourceList=page.getByRole('region',{name:'数据源',exact:true});

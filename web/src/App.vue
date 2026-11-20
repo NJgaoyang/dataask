@@ -1472,6 +1472,10 @@ onBeforeUnmount(() => {
             <van-icon name="arrow" size="11"/>
           </template>
           <strong>{{ desktopSectionTitle }}</strong>
+          <template v-if="desktopSection==='charts' && activeChart">
+            <van-icon name="arrow" size="11"/>
+            <strong class="da-breadcrumb-detail" :title="activeChart.title">{{ activeChart.title }}</strong>
+          </template>
         </div>
         <div v-else class="brand">
           <div class="brand-icon" aria-hidden="true"><svg class="brand-glyph" viewBox="0 0 36 36"><rect x="1.5" y="1.5" width="33" height="33" rx="10" fill="#2f6bff"/><path d="M10 8.5h8.2c4.8 0 8 3.5 8 8s-3.2 8-8 8H10z" fill="#fff"/><path d="M13 12h5c2.4 0 4 1.6 4 4.5s-1.6 4.5-4 4.5h-5z" fill="#2f6bff"/><path d="M7 27l5-5 4 3 7-8" fill="none" stroke="#b9d6ff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></div>
@@ -1479,7 +1483,38 @@ onBeforeUnmount(() => {
             <strong class="desktop-current-session">{{ activeSessionTitle }}</strong>
             <small>经营数据助手</small></div>
         </div>
-        <span v-if="isDesktop" class="da-header-date">{{ todayLabel }}</span>
+        <div v-if="isDesktop" class="da-topbar-utilities">
+          <div class="da-topbar-operations">
+            <template v-if="isAdmin && desktopIsAdminSection">
+              <button v-if="desktopSection==='admin-model'" type="button" class="td-btn"
+                :disabled="adminSectionBusy || !modelCenterRef" @click="modelCenterRef?.load()">
+                <van-icon name="replay"/> 刷新配置</button>
+              <button v-if="desktopSection==='admin-status'" type="button" class="td-btn"
+                :disabled="adminSectionBusy" @click="refreshAdminOverview"><van-icon name="replay"/> 刷新状态</button>
+              <template v-if="desktopSection==='admin-tables'">
+                <button type="button" class="td-btn" :disabled="adminSectionBusy"
+                  @click="loadAdminSectionData('admin-tables')"><van-icon name="replay"/> 刷新表列表</button>
+                <button type="button" class="td-btn" @click="openAdminSection('admin-source')"><van-icon name="cluster-o"/> 数据源配置</button>
+              </template>
+              <button v-if="desktopSection!=='admin-overview'" type="button" class="tb-admin-back td-btn td-btn--back"
+                @click="openAdminSection('admin-overview')"><van-icon name="arrow-left"/> 返回系统管理</button>
+            </template>
+            <template v-if="desktopSection==='charts' && activeChart">
+              <button type="button" class="da-chart-back td-btn td-btn--back"
+                @click="closeChartDetail"><van-icon name="arrow-left"/> 返回我的图表</button>
+              <span v-if="activeChartRefreshing" class="da-chart-refreshing"><van-loading size="14px"/> 正在更新数据…</span>
+              <span v-else-if="activeChartCached" class="da-chart-cached">上次保存结果</span>
+              <span v-else class="da-chart-current">实时更新成功</span>
+              <button type="button" class="td-btn" :disabled="activeChartBusy || activeChartRefreshing"
+                @click="refreshChartDetail"><van-icon name="replay"/> 刷新数据</button>
+              <button v-if="activeChart.ownerUsername===me.username || isAdmin" class="td-btn"
+                type="button" @click="openChartShare(activeChart)"><van-icon name="share-o"/> 共享</button>
+              <button v-if="activeChart.ownerUsername===me.username || isAdmin" class="td-btn"
+                type="button" @click="deleteSavedChart(activeChart)"><van-icon name="delete-o"/> 取消收藏</button>
+            </template>
+          </div>
+          <span class="da-header-date">{{ todayLabel }}</span>
+        </div>
         <div v-if="!isDesktop" class="top-actions">
           <button title="历史对话" @click="historyVisible = true"><van-icon name="clock-o" size="21"/></button>
           <button title="新对话" @click="newConversation"><van-icon name="add-o" size="21"/></button>
@@ -1487,20 +1522,6 @@ onBeforeUnmount(() => {
       </header>
       <main v-if="isDesktop && isAdmin && desktopIsAdminSection" class="tb-page-body tb-admin-page"
         :class="{'tb-admin-model-full':desktopSection==='admin-model'}">
-        <div class="tb-admin-heading">
-          <div class="tb-admin-heading-copy">
-            <h1>{{ desktopSectionTitle }}</h1>
-            <p v-if="desktopSection==='admin-overview'">管理数据连接、分析模型与平台访问权限</p>
-          </div>
-          <div class="tb-admin-heading-actions">
-            <button v-if="desktopSection==='admin-model'" type="button" class="td-btn"
-              :disabled="adminSectionBusy || !modelCenterRef" @click="modelCenterRef?.load()">
-              <van-icon name="replay"/> 刷新配置
-            </button>
-            <button v-if="desktopSection!=='admin-overview'" type="button" class="tb-admin-back td-btn td-btn--back"
-              @click="openAdminSection('admin-overview')"><van-icon name="arrow-left"/> 返回系统管理</button>
-          </div>
-        </div>
         <div v-if="unreadableConfigParts.length && !adminSectionBusy" class="tb-admin-credential-warning" role="alert">
           <van-icon name="warning-o" size="18"/>
           <span>以下已保存凭证无法解密：{{ unreadableConfigParts.join('、') }}。
@@ -1557,12 +1578,6 @@ onBeforeUnmount(() => {
         </div>
         <AdminAuditLog v-else-if="desktopSection==='admin-audit'" :api="api"/>
         <div v-else-if="desktopSection==='admin-status'" class="tb-admin-panel-card tb-admin-status-page">
-          <div class="tb-admin-panel-intro tb-admin-panel-intro-action">
-            <div><strong>平台连接与配置状态</strong>
-              </div>
-            <button type="button" class="tb-admin-plain-action" @click="refreshAdminOverview"
-              :disabled="adminSectionBusy"><van-icon name="replay"/> 刷新状态</button>
-          </div>
           <div class="tb-config-status-list">
             <button v-for="item in configuredStatusRows" :key="item.key" type="button"
               @click="openAdminSection(item.section)">
@@ -1580,17 +1595,7 @@ onBeforeUnmount(() => {
           <ModelConfigCenter ref="modelCenterRef" :api="api" @status-changed="refreshAdminStatus"/>
         </div>
         <div v-else-if="desktopSection==='admin-tables'" class="tb-admin-panel-card">
-          <div class="tb-admin-panel-intro tb-admin-panel-intro-action">
-            <div><strong>ADS 表授权</strong></div>
-            <div class="tb-admin-table-actions">
-              <button type="button" class="tb-admin-plain-action" :disabled="adminSectionBusy"
-                @click="loadAdminSectionData('admin-tables')"><van-icon name="replay"/> 刷新表列表</button>
-              <button type="button" class="tb-admin-plain-action" @click="openAdminSection('admin-source')">
-                <van-icon name="cluster-o"/> 数据源配置
-              </button>
-            </div>
-          </div>
-          <div class="da-list-toolbar td-filter-bar"><h3>开放给 AI 的 ADS 表</h3>
+          <div class="da-list-toolbar td-filter-bar">
             <label class="td-filter-caption" for="ads-table-search">表名</label>
             <input id="ads-table-search" v-model="tableSearch" aria-label="搜索数据表" placeholder="输入表名筛选">
             <button type="button" class="td-btn" :disabled="!tableSearch" @click="tableSearch=''">重置</button>
@@ -1613,9 +1618,6 @@ onBeforeUnmount(() => {
         </div>
         <div v-else-if="desktopSection==='admin-metrics'" class="tb-admin-panel-card tb-admin-metrics-page">
           <section class="metric-admin">
-            <div class="metric-section-title">
-              <h3>指标口径 · Excel</h3>
-            </div>
             <input ref="metricFileInput" class="file-input-hidden" type="file"
               accept=".xlsx,.xls" @change="selectMetricFile" aria-label="选择指标口径Excel文件"/>
             <div class="metric-action-row">
@@ -1652,12 +1654,6 @@ onBeforeUnmount(() => {
         <AdminUsers v-else-if="desktopSection==='admin-users'" :api="api"/>
       </main>
       <main v-if="isDesktop && desktopSection==='overview'" class="tb-page-body tb-overview ds-home" aria-label="DataAsk 工作台">
-        <header class="ds-home-intro">
-          <div class="ds-home-heading-copy">
-            <h1>工作台</h1>
-            <p class="da-home-greeting">{{ me.displayName || me.username }}，{{ todayLabel }}</p>
-          </div>
-        </header>
         <div class="da-home-body">
           <section class="da-home-ask" aria-label="快速提问">
             <p class="da-home-ask-label"><van-icon name="chat-o"/> 快速提问</p>
@@ -1696,25 +1692,6 @@ onBeforeUnmount(() => {
       <main v-if="isDesktop && desktopSection==='charts'" class="tb-page-body tb-content-page tb-charts-page">
         <template v-if="activeChart">
           <div class="da-chart-detail">
-            <div class="da-chart-detail-heading">
-              <div class="da-chart-title-row">
-                <button type="button" class="da-chart-back td-btn td-btn--back" @click="closeChartDetail">
-                  <van-icon name="arrow-left"/> 返回我的图表
-                </button>
-                <h1 :title="activeChart.question || activeChart.title">{{ activeChart.title }}</h1>
-              </div>
-              <div class="da-chart-detail-actions">
-                <span v-if="activeChartRefreshing" class="da-chart-refreshing"><van-loading size="14px"/> 正在更新数据…</span>
-                <span v-else-if="activeChartCached" class="da-chart-cached">上次保存结果</span>
-                <span v-else class="da-chart-current">实时更新成功</span>
-                <button type="button" :disabled="activeChartBusy || activeChartRefreshing"
-                  @click="refreshChartDetail"><van-icon name="replay"/> 刷新数据</button>
-                <button v-if="activeChart.ownerUsername===me.username || isAdmin"
-                  type="button" @click="openChartShare(activeChart)"><van-icon name="share-o"/> 共享</button>
-                <button v-if="activeChart.ownerUsername===me.username || isAdmin"
-                  type="button" @click="deleteSavedChart(activeChart)"><van-icon name="delete-o"/> 取消收藏</button>
-              </div>
-            </div>
             <div v-if="activeChartError" class="da-chart-detail-error" role="alert">
               <van-icon name="warning-o"/> {{ activeChartError }}
             </div>
@@ -1760,9 +1737,6 @@ onBeforeUnmount(() => {
           </div>
         </template>
         <template v-else>
-        <div class="tb-page-heading">
-          <div><h1>我的图表</h1><p>查看收藏与共享的分析结果</p></div>
-        </div>
         <div class="tb-chart-workspace">
           <form class="tb-chart-toolbar td-filter-bar" role="search" @submit.prevent="applyChartFilters">
             <label class="tb-chart-search">
@@ -1801,9 +1775,6 @@ onBeforeUnmount(() => {
         </template>
       </main>
       <main v-if="isDesktop && desktopSection==='history'" class="tb-page-body tb-content-page">
-        <div class="tb-page-heading">
-          <div><h1>历史会话</h1><p>按日期查找并继续过往问数</p></div>
-        </div>
         <RecordList :api="api" endpoint="/chat/sessions/page" label="历史会话" :params="{date:historyDate}" :refresh="historyListRefresh" selectable v-model:selected="historySelection" :columns="[{key:'title',label:'问数内容'},{key:'updatedAt',label:'提问时间'}]">
           <template #filters>
             <label class="da-history-date-filter"><span>日期</span><input v-model="historyDate" type="date" :max="currentDateInput()" aria-label="按日期筛选历史会话"></label>
@@ -1818,12 +1789,7 @@ onBeforeUnmount(() => {
         </RecordList>
       </main>
       <main v-if="!isDesktop || desktopSection==='ask'" class="conversation">
-        <section v-if="!messages.length && (!isDesktop || (!busy && !desktopFeedback))" class="welcome">
-          <template v-if="isDesktop">
-            <h2>智能问数</h2>
-            <p>输入经营数据问题，或从下方示例开始分析。</p>
-          </template>
-          <template v-else>
+        <section v-if="!isDesktop && !messages.length && !busy" class="welcome">
             <div class="welcome-icon"><van-icon name="chart-trending-o" size="27"/></div>
             <h2>今天想了解哪些经营数据？</h2>
             <p>直接提问，系统会根据已授权的 ADS 数据计算真实结果。</p>
@@ -1832,7 +1798,6 @@ onBeforeUnmount(() => {
                 {{ item }} <van-icon name="arrow" />
               </button>
             </div>
-          </template>
         </section>
         <section v-for="msg in messages" :key="msg.id" class="turn">
           <div class="user-bubble">{{ msg.question }}</div>

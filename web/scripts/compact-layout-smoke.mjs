@@ -46,24 +46,26 @@ function trackErrors(page) {
     if(message.type()==='error'&&!/Failed to load resource:.*status of 422/.test(message.text())) errors.push(message.text());
   });
 }
-async function capture(page,width,name,headingSelector) {
-  await page.locator(headingSelector).waitFor();
+async function capture(page,width,name,contentSelector) {
+  await page.locator(contentSelector).waitFor();
   await page.mouse.move(width-8,8);
-  const frame=await page.locator(headingSelector).boundingBox();
-  assert(frame.y>=48 && frame.y<400,`${name}: heading stays inside the content frame`);
+  const frame=await page.locator(contentSelector).boundingBox();
+  assert(frame.y>=48 && frame.y<400,`${name}: content starts directly under the topbar`);
+  assert.equal(await page.locator('.ds-home-intro,.tb-page-heading,.tb-admin-heading,.da-chart-detail-heading').count(),0,
+    `${name}: no duplicate title/description banner is rendered`);
   const metrics=await page.evaluate(()=>{
     const rail=document.querySelector('.desktop-sidebar').getBoundingClientRect();
     const main=document.querySelector('main');
     return {rail:rail.width,railRight:rail.right,mainX:main.getBoundingClientRect().x,padding:getComputedStyle(main).padding,
       main:main.clientWidth,overflow:document.documentElement.scrollWidth>innerWidth,
       mainOverflow:main.scrollWidth>main.clientWidth+1,text:document.querySelector('.app-shell').innerText,
-      headingFont:getComputedStyle(document.querySelector('main h1,main h2')).fontSize};
+      headingFont:getComputedStyle(document.querySelector('.tb-header-breadcrumb strong')).fontSize};
   });
   assert(Math.abs(metrics.rail-216)<2,`${width}: sidebar keeps the fixed enterprise rail width`);
   assert(Math.abs(metrics.main-(width-metrics.rail))<2,`${width}: content fills remaining width`);
   assert(Math.abs(metrics.railRight-metrics.mainX)<1,`${name}: main must touch the navigation divider`);
   assert(!metrics.overflow&&!metrics.mainOverflow,`${name}: horizontal overflow is confined to internal tables`);
-  assert(parseFloat(metrics.headingFont)>=18 && parseFloat(metrics.headingFont)<=44,`${name}: readable title size`);
+  assert(parseFloat(metrics.headingFont)>=12 && parseFloat(metrics.headingFont)<=20,`${name}: readable breadcrumb size`);
   assert.doesNotMatch(metrics.text,/仅查询管理员|用自然语言提问，系统会|通用问法示例|查看已收藏或他人共享|记录所有用户的服务端|接入说明|敏感凭证不会显示明文|管理员可创建用户/);
   await page.screenshot({path:`${out}/${width}-${name}.png`,animations:'disabled'});
 }
@@ -73,39 +75,39 @@ try {
     await ctx.addInitScript(()=>{sessionStorage.setItem('dataask_token','layout-test');sessionStorage.setItem('dataask_user',JSON.stringify({username:'admin',role:'ADMIN',displayName:'系统管理员'}))});
     const page=await ctx.newPage();trackErrors(page);await page.route('**/api/**',backend);
     await page.goto(base,{waitUntil:'networkidle'});
-    await capture(page,width,'workbench','.ds-home-intro');
+    await capture(page,width,'workbench','.da-home-ask');
     await page.locator('.sidebar-new').click();
-    await capture(page,width,'ask','.welcome');
+    await capture(page,width,'ask','.conversation');
     const box=await page.locator('.composer-row').boundingBox();
     assert(box.y<=180&&box.width<=width-216+2,'Question input fills the workspace width');
     await page.locator('.desktop-main-nav button').filter({hasText:'我的图表'}).click();
-    await capture(page,width,'charts','.tb-page-heading');
+    await capture(page,width,'charts','.tb-chart-workspace');
     const workspace=await page.locator('.tb-chart-workspace').boundingBox();
-    assert(workspace.width<=width-216-32+2,'Chart workspace fits the shared content frame');
-    assert.equal(await page.locator('.tb-page-heading p').count(),1);
+    assert(workspace.width<=width-216+2,'Chart workspace fills the content frame');
+    assert.equal(await page.locator('.tb-page-heading').count(),0);
     await page.locator('.tb-chart-name-link').filter({hasText:'近7天趋势'}).click();
     await page.locator('.da-chart-detail-error').waitFor();
     await page.locator('.da-chart-detail canvas').waitFor();
-    await capture(page,width,'chart-detail','.da-chart-detail-heading');
+    await capture(page,width,'chart-detail','.da-chart-detail-body');
     const backStyle=await page.locator('.da-chart-back').evaluate(el=>({color:getComputedStyle(el).color,border:getComputedStyle(el).borderTopStyle,height:el.getBoundingClientRect().height}));
     assert.equal(backStyle.border,'solid');assert.equal(backStyle.height,32);
     await page.locator('.da-chart-back').focus();await page.keyboard.press('Enter');
     assert.equal(await page.locator('.da-chart-detail').count(),0,'Back button must work with the keyboard');
     await page.locator('.desktop-main-nav button').filter({hasText:'历史会话'}).click();
-    await capture(page,width,'history','.tb-page-heading');
+    await capture(page,width,'history','.da-record-list');
     await page.locator('.da-account-trigger').click();await page.getByRole('menuitem',{name:'系统管理'}).click();
-    await capture(page,width,'admin','.tb-admin-heading');
+    await capture(page,width,'admin','.tb-admin-overview-grid');
     for(const label of ['用户管理','审计日志','数据源配置']) {
       if(label!=='用户管理')await page.locator('.tb-breadcrumb-admin').click();
       await page.locator('.tb-admin-overview-grid button').filter({hasText:label}).click();
       await page.locator('.tb-admin-loading').waitFor({state:'hidden'});
-      await capture(page,width,label==="用户管理"?'users':label==='审计日志'?'audit':'source','.tb-admin-heading');
+      await capture(page,width,label==="用户管理"?'users':label==='审计日志'?'audit':'source',label==='审计日志'?'.audit-panel':label==='用户管理'?'.tb-admin-users-page':'.tb-admin-source-page');
     }
     if(width===1440) {
       await page.locator('.da-account-trigger').click();await page.getByRole('menuitem',{name:'个性化',exact:true}).click();
       await page.getByRole('button',{name:/深色.*黑色界面/}).click();
       await page.locator('.da-preferences-popup .van-popup__close-icon').click();await page.locator('.da-preferences-popup').waitFor({state:'hidden'});
-      await capture(page,width,'source-dark','.tb-admin-heading');
+      await capture(page,width,'source-dark','.tb-admin-source-page');
     }
     await ctx.close();
   }

@@ -67,10 +67,11 @@ try {
     assert.equal(await page.locator('.da-home-columns').count(),0,'Workbench home should stay focused on the primary ask action');
     const rail = await page.locator('.desktop-sidebar').boundingBox();
     assert(Math.abs(rail.width - 216)<2,'Sidebar keeps the fixed enterprise rail width');
-    const frame = await page.locator('.ds-home-intro').boundingBox();
-    assert(frame.y>=48 && frame.height>=56,'Workbench home must open with the compact page header');
+    assert.equal(await page.locator('.ds-home-intro').count(),0,'Workbench has no title banner');
+    const workspace = await page.locator('.ds-home').boundingBox();
     const askBox = await page.locator('.da-home-ask-row').boundingBox();
-    assert(askBox.y>=frame.y+frame.height+12,'Workbench question entry must sit below the page header');
+    assert(workspace.y>=48 && askBox.y>=workspace.y+12 && askBox.y<workspace.y+140,
+      'Workbench question entry starts directly beneath the existing topbar');
     const account = await page.locator('.da-account-trigger').boundingBox();
     assert(account.x < 232 && account.y > height - 150,'Account must remain at bottom-left');
     await snap(page,`${width}-home`);
@@ -191,9 +192,10 @@ try {
       await page.locator('.da-analysis-panel').waitFor();
       assert.equal(await page.locator('.da-analysis-steps').count(),0);
       await page.locator('.sidebar-new').click();
-      const welcome = await page.locator('.welcome').boundingBox();
+      assert.equal(await page.locator('.conversation .welcome').count(),0,
+        'PC question page must not render the redundant welcome banner');
       const composer = await page.locator('.composer-row').boundingBox();
-      assert(welcome.y===48 && composer.y<=180,'Empty ask page must not reserve a blank hero area');
+      assert(composer.y<=180,'Empty ask page should expose the composer immediately');
       assert(composer.width<=width-rail.width+2,'Composer must fill the workspace content frame');
       assert.doesNotMatch(await page.locator('.app-shell').innerText(),/仅查询管理员|通用问法示例|用自然语言提问，系统会/);
       await snap(page,`${width}-ask-compact`);

@@ -96,7 +96,8 @@ async function clickTile(page,label) {
   }
   await visible(page.locator('.tb-admin-overview-grid button').filter({hasText:label}),label+' tile');
   await page.locator('.tb-admin-overview-grid button').filter({hasText:label}).click();
-  await visible(page.locator('.tb-admin-page h1'),label+' heading');
+  await visible(page.locator('.tb-header-breadcrumb strong').first(),label+' breadcrumb');
+  assert.equal(await page.locator('.tb-admin-heading').count(),0,'Every admin page must omit the title banner');
 }
 async function requireCall(methodPath){
   for(let i=0;i<90;i++){
@@ -134,7 +135,7 @@ try {
   await visible(page.locator('.da-model-center'),'Unified model configuration page');
   assert.equal(await page.locator('.da-model-center-heading').count(),0,
     'Model page must start directly with accordion rows: no descriptive banner');
-  await visible(page.locator('.tb-admin-heading-actions').getByRole('button',{name:'刷新配置'}),'Refresh is in the existing title bar');
+  await visible(page.locator('.da-topbar-operations').getByRole('button',{name:'刷新配置'}),'Refresh is in the breadcrumb toolbar');
   assert.equal(await page.locator('.tb-admin-overview-grid button').count(),0,'Model configuration opens one page');
   const modelSections=page.locator('.da-model-setting-card');
   await visible(modelSections.nth(1),'Embedding card loaded');
@@ -189,7 +190,8 @@ try {
   assert.equal(await chatModel.locator('#da-model-ai-body').isVisible(),false);
   assert.equal(await embeddingToggle.getAttribute('aria-expanded'),'true',
     'Collapsing one model must not collapse the other');
-  assert.equal(await page.locator('.tb-admin-page h1').innerText(),'模型配置');
+  assert.equal(await page.locator('.tb-header-breadcrumb strong').first().innerText(),'模型配置');
+  assert.equal(await page.locator('.tb-admin-heading').count(),0);
 
   await clickTile(page,'ADS 表授权');
   await visible(page.locator('.admin-table'),'ADS tables');
