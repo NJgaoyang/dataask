@@ -38,6 +38,10 @@ class AuditSecurityTest {
         @Bean JdbcTemplate jdbcTemplate(DataSource ds) { return new JdbcTemplate(ds); }
         @Bean ObjectMapper objectMapper() { return new ObjectMapper().findAndRegisterModules(); }
         @Bean com.dataask.data.StarRocksGateway gateway() { return org.mockito.Mockito.mock(com.dataask.data.StarRocksGateway.class); }
+        @Bean CityPermissionService cityPermissionService() {
+            // This focused audit/security slice has no StarRocks; auth still requires the dependency.
+            return org.mockito.Mockito.mock(CityPermissionService.class);
+        }
         @Bean DataSourceTransactionManager transactionManager(DataSource ds) { return new DataSourceTransactionManager(ds); }
     }
 
