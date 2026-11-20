@@ -8,6 +8,7 @@ import QueryExplanation from './components/QueryExplanation.vue'
 import AdminAuditLog from './components/AdminAuditLog.vue'
 import AdminDataSources from './components/AdminDataSources.vue'
 import AdminUsers from './components/AdminUsers.vue'
+import ModelConfigCenter from './components/ModelConfigCenter.vue'
 import RecordList from './components/RecordList.vue'
 import ListPagination from './components/ListPagination.vue'
 import ResultTable from './components/ResultTable.vue'
@@ -361,8 +362,9 @@ function isRedundantSummary(msg) {
 
 const desktopSection = ref('overview')
 const adminExpanded = ref(false)
-const desktopAdminSections = ['admin-overview','admin-source','admin-model','admin-embedding','admin-tables','admin-metrics','admin-users','admin-status','admin-audit']
+const desktopAdminSections = ['admin-overview','admin-source','admin-model','admin-tables','admin-metrics','admin-users','admin-status','admin-audit']
 const adminSectionBusy = ref(false)
+const modelConfigVisible = ref(false)
 const adminSectionError = ref('')
 let adminLoadSequence = 0
 const userBusy = ref(false)
@@ -377,16 +379,15 @@ const unreadableConfigParts = computed(() => [
 const configuredStatusRows = computed(() => [
   { key:'数据源', configured:!!status.value.starrocksConfigured,
     detail:status.value.starrocksCredentialUnreadable ? '已保存密码无法解密，请重新填写' : (status.value.schema || '未选择 ADS 数据库'), section:'admin-source' },
-  { key:'对话模型', configured:!!status.value.aiConfigured,
-    detail:status.value.aiCredentialUnreadable ? '已保存 API Key 无法解密，请重新填写' : (status.value.model || '尚未配置模型'), section:'admin-model' },
-  { key:'Embedding', configured:!!status.value.embeddingConfigured,
-    detail:status.value.embeddingCredentialUnreadable ? '已保存 API Key 无法解密，请重新填写' : (status.value.embeddingModel || '尚未启用'), section:'admin-embedding' },
+  { key:'模型配置', configured:!!status.value.aiConfigured,
+    detail:'对话：'+(status.value.model || '未配置')+' · Embedding：'+(status.value.embeddingModel || '未启用'),
+    section:'admin-model' },
 ])
 
 const desktopSectionTitle = computed(() => ({
   overview:'工作台',ask:'智能问数',charts:'我的图表',history:'历史会话',
-  'admin-overview':'系统管理','admin-source':'数据源配置','admin-model':'对话模型',
-  'admin-embedding':'Embedding 模型','admin-tables':'ADS 表授权',
+  'admin-overview':'系统管理','admin-source':'数据源配置','admin-model':'模型配置',
+  'admin-tables':'ADS 表授权',
   'admin-metrics':'指标口径','admin-users':'用户管理',
   'admin-status':'配置状态','admin-audit':'审计日志'
 })[desktopSection.value] || '工作台')
@@ -700,7 +701,7 @@ function logout(record = true) {
   cityPermissionLoading.value = false
   changePasswordOpen.value = false
   passwordForm.value = { oldPassword:'', newPassword:'', confirmPassword:'' }
-  messages.value = []; sessions.value = []; sessionId.value = ''; historyVisible.value = false; adminVisible.value = false
+  messages.value = []; sessions.value = []; sessionId.value = ''; historyVisible.value = false; adminVisible.value = false; modelConfigVisible.value = false
   desktopFeedback.value = null
   analysisPanelOpen.value = false
   analysisMessage.value = null
@@ -998,12 +999,11 @@ async function loadAdminSectionData(section) {
   try {
     if (['admin-overview','admin-status'].includes(section)) {
       await refreshAdminStatus()
-    } else if (['admin-source','admin-model','admin-embedding'].includes(section)) {
+    } else if (section === 'admin-source') {
       await refreshAdminStatus()
       hydrateConfigForms()
-      if (section === 'admin-embedding') {
-        semanticStatus.value = (await api.get('/admin/semantic/status')).data
-      }
+    } else if (section === 'admin-model') {
+      await refreshAdminStatus()
     } else if (section === 'admin-tables') {
       await refreshAdminStatus()
       if (status.value.starrocksConfigured) {
@@ -1052,10 +1052,9 @@ async function refreshAdminOverview() {
   if (!adminSectionError.value) showSuccessToast('配置状态已更新')
 }
 async function openAdminSection(section) {
+  if (section === 'admin-embedding') section = 'admin-model' // old navigation alias
   if (!requireAdmin() || !desktopAdminSections.includes(section)) return
   if (section === 'admin-source') configKind.value = 'starrocks'
-  if (section === 'admin-model') configKind.value = 'ai'
-  if (section === 'admin-embedding') configKind.value = 'embedding'
   configTestMessage.value = ''
   configVisible.value = false
   // Navigate first. A failed API must not make the entire module appear unclickable.
@@ -1170,8 +1169,11 @@ function columnLabel(message, column, index) {
 async function showConfig(kind) {
   if (!requireAdmin()) return
   if (isDesktop.value) {
-    const section = kind === 'starrocks' ? 'admin-source' : kind === 'ai' ? 'admin-model' : 'admin-embedding'
-    await openAdminSection(section)
+    await openAdminSection(kind === 'starrocks' ? 'admin-source' : 'admin-model')
+    return
+  }
+  if (kind !== 'starrocks') {
+    modelConfigVisible.value = true
     return
   }
   configKind.value = kind
@@ -1516,12 +1518,8 @@ onBeforeUnmount(() => {
             </button>
             <button type="button" @click="openAdminSection('admin-model')">
               <span class="tb-admin-overview-icon icon-model"><van-icon name="chat-o" size="21"/></span>
-              <strong>对话模型</strong><small>{{ status.aiConfigured ? (status.model || '已配置') : '未配置' }}</small>
-              <van-icon name="arrow" class="tb-admin-overview-arrow"/>
-            </button>
-            <button type="button" @click="openAdminSection('admin-embedding')">
-              <span class="tb-admin-overview-icon icon-embedding"><van-icon name="setting-o" size="21"/></span>
-              <strong>Embedding 模型</strong><small>{{ status.embeddingConfigured ? '已配置' : '未配置' }}</small>
+              <strong>模型配置</strong>
+              <small>对话 {{ status.aiConfigured ? '已配置' : '待配置' }} · Embedding {{ status.embeddingConfigured ? '已配置' : '未启用' }}</small>
               <van-icon name="arrow" class="tb-admin-overview-arrow"/>
             </button>
             <button type="button" @click="openAdminSection('admin-tables')">
@@ -1572,95 +1570,8 @@ onBeforeUnmount(() => {
           </div>
         </div>
         <AdminDataSources v-else-if="desktopSection==='admin-source'" :api="api" @changed="refreshAdminStatus"/>
-        <div v-else-if="['admin-model','admin-embedding'].includes(desktopSection)"
-          class="tb-admin-panel-card tb-admin-config-page">
-          <div class="da-admin-config-intro">
-            <div class="da-admin-config-icon">
-              <van-icon :name="configKind==='starrocks' ? 'cluster-o' : configKind==='ai' ? 'chat-o' : 'setting-o'" size="23"/>
-            </div>
-            <div class="da-admin-config-heading">
-              <strong>{{ configKind==='starrocks' ? 'StarRocks 数据连接' : configKind==='ai' ? 'AI 对话模型' : 'Embedding 语义服务' }}</strong>
-            </div>
-            <span class="da-admin-status-badge" :class="{ok:configKind==='starrocks' ? status.starrocksConfigured : configKind==='ai' ? status.aiConfigured : status.embeddingConfigured}">
-              <van-icon :name="configKind==='starrocks' ? (status.starrocksConfigured ? 'passed' : 'info-o') :
-                configKind==='ai' ? (status.aiConfigured ? 'passed' : 'info-o') :
-                (status.embeddingConfigured ? 'passed' : 'info-o')"/>
-              {{ (configKind==='starrocks' ? status.starrocksConfigured : configKind==='ai' ? status.aiConfigured : status.embeddingConfigured) ? '已配置' : '待配置' }}
-            </span>
-          </div>
-          <div class="da-list-table-wrap"><table class="da-list-table"><thead><tr><th>序号</th><th>模型名称</th><th>服务地址</th><th>操作</th></tr></thead><tbody><tr><td class="da-sequence">1</td><td>{{ configKind==='ai'?settingsData.ai?.model:settingsData.embedding?.model || '—' }}</td><td>{{ configKind==='ai'?settingsData.ai?.baseUrl:settingsData.embedding?.baseUrl || '—' }}</td><td class="da-row-actions"><button type="button" class="tb-admin-plain-action" @click="hydrateConfigForms();configTestMessage='';configVisible=true">{{ (configKind==='ai'?status.aiConfigured:status.embeddingConfigured)?'编辑配置':'新增配置' }}</button><button v-if="configKind==='embedding' && status.embeddingConfigured" type="button" class="tb-admin-plain-action" :disabled="semanticBusy" @click="rebuildSemanticIndex">重建语义索引</button></td></tr></tbody></table></div>
-          <ListPagination :page="1" :size="10" :total="1" disabled/>
-          <van-popup v-model:show="configVisible" round :close-on-click-overlay="false" class="da-crud-modal da-model-modal">
-            <header><h2>{{ configKind==='ai'?'对话模型配置':'Embedding 模型配置' }}</h2><button type="button" aria-label="关闭模型配置" :disabled="configBusy || configTestBusy || semanticBusy" @click="configVisible=false">×</button></header>
-          <div class="da-admin-config-grid">
-            <section class="da-admin-config-main" aria-label="连接配置表单">
-              <div class="da-admin-config-form-title">
-                <strong>{{ configKind==='starrocks' ? '数据库连接参数' : '模型接入参数' }}</strong>
-              </div>
-              <div class="tb-admin-config-fields">
-            <template v-if="configKind === 'starrocks'">
-            <van-field v-model="srForm.jdbcUrl" label="JDBC 地址" label-width="85px" placeholder="jdbc:mysql://192.168.1.10:9030/ads"/>
-            <van-field v-model="srForm.schema" label="ADS 数据库" label-width="85px" placeholder="ads"/>
-            <van-field v-model="srForm.username" label="用户名" label-width="85px" placeholder="只读用户名"/>
-            <van-field v-model="srForm.password" label="密码" label-width="85px" type="password"
-              :placeholder="settingsData.starrocks?.passwordSet ? '已配置，留空不修改' : '请输入密码'"/>
-            <p v-if="settingsData.starrocks?.passwordUnreadable" class="tb-admin-credential-warning">
-              <van-icon name="warning-o"/> 已保存的数据库密码无法解密，请在上方填写新的数据库密码后保存。
-            </p>
-          </template>
-          <template v-else-if="configKind === 'ai'">
-            <van-field v-model="aiForm.baseUrl" label="Base URL" label-width="95px" placeholder="https://api.example.com/v1"/>
-            <van-field v-model="aiForm.model" label="模型名称" label-width="95px" placeholder="输入服务商模型 ID"/>
-            <van-field v-model="aiForm.apiKey" label="API Key" label-width="95px" type="password"
-              autocomplete="new-password" :placeholder="settingsData.ai?.apiKeySet ? '已设置 · 留空不修改' : '填写 API Key'"/>
-            <van-cell title="清除原有 API Key">
-              <template #right-icon><van-switch v-model="aiForm.clearKey" size="20px"/></template>
-            </van-cell>
-            <p v-if="aiForm.clearKey" class="tb-admin-credential-warning">
-              <van-icon name="warning-o"/> 当前已勾选清除 API Key。关闭开关即可测试已保存的 Key；保存清除操作前将再次确认。
-            </p>
-            <p v-if="settingsData.ai?.apiKeyUnreadable" class="tb-admin-credential-warning">
-              <van-icon name="warning-o"/> 已保存的 API Key 无法解密，请重新填写有效 API Key 后保存；不要留空。
-            </p>
-          </template>
-          <template v-else>
-            <van-cell title="启用 Embedding"><template #right-icon>
-              <van-switch v-model="embeddingForm.enabled" size="20px"/>
-            </template></van-cell>
-            <van-field v-model="embeddingForm.baseUrl" label="Base URL" label-width="95px"
-              placeholder="https://dashscope.aliyuncs.com/api/v1"/>
-            <van-field v-model="embeddingForm.model" label="模型名称" label-width="95px"
-              placeholder="qwen3.7-text-embedding-flash"/>
-            <van-field v-model.number="embeddingForm.dimensions" label="向量维度" label-width="95px"
-              type="number" placeholder="1024"/>
-            <van-field v-model="embeddingForm.apiKey" label="API Key" label-width="95px" type="password"
-              autocomplete="new-password" :placeholder="settingsData.embedding?.apiKeySet ? '已设置 · 留空不修改' : '本地无密钥服务可留空'"/>
-            <van-cell title="清除原有 API Key"><template #right-icon>
-              <van-switch v-model="embeddingForm.clearKey" size="20px"/>
-            </template></van-cell>
-            <p v-if="settingsData.embedding?.apiKeyUnreadable" class="tb-admin-credential-warning">
-              <van-icon name="warning-o"/> 已保存的 Embedding API Key 无法解密，请重新填写后保存。
-            </p>
-            <div class="semantic-status">
-              <strong>语义索引</strong>
-              <span>{{ semanticStatus.count || 0 }} 条 · {{ semanticStatus.indexedModel || '尚未构建' }}</span>
-            </div>
-          </template>
-          <p v-if="configTestMessage" class="config-feedback">{{ configTestMessage }}</p>
-          <div class="config-actions">
-            <van-button block plain type="primary" :loading="configTestBusy"
-              :disabled="configBusy || semanticBusy" @click="testConfig">测试连接</van-button>
-            <van-button block type="primary" :loading="configBusy"
-              :disabled="configTestBusy || semanticBusy" @click="saveConfig">保存配置</van-button>
-            <van-button v-if="configKind==='embedding' && status.embeddingConfigured" block
-              plain type="primary" :loading="semanticBusy"
-              :disabled="configBusy || configTestBusy" @click="rebuildSemanticIndex">重建语义索引</van-button>
-          </div>
-              </div>
-            </section>
-          </div>
-          <footer><span/><button type="button" :disabled="configBusy || configTestBusy || semanticBusy" @click="configVisible=false">取消</button></footer>
-          </van-popup>
+        <div v-else-if="desktopSection==='admin-model'" class="tb-admin-panel-card tb-admin-config-page">
+          <ModelConfigCenter :api="api" @status-changed="refreshAdminStatus"/>
         </div>
         <div v-else-if="desktopSection==='admin-tables'" class="tb-admin-panel-card">
           <div class="tb-admin-panel-intro tb-admin-panel-intro-action">
@@ -2257,14 +2168,10 @@ onBeforeUnmount(() => {
             <span>StarRocks ADS</span>
             <span class="status-value"><strong>{{ status.starrocksConfigured ? '已配置' : '未配置' }}</strong><van-icon name="arrow"/></span>
           </button>
-          <button type="button" class="status-row status-action" @click="showConfig('ai')">
-            <span>对话模型</span>
-            <span class="status-value"><strong>{{ status.aiConfigured ? status.model : (status.aiKeyConfigured && status.aiUrlConfigured ? '检查模型名称' : '检查配置') }}</strong><van-icon name="arrow"/></span>
-          </button>
-          <button type="button" class="status-row status-action" @click="showConfig('embedding')">
-            <span>Embedding 模型</span>
+          <button type="button" class="status-row status-action" @click="showConfig('models')">
+            <span>模型配置</span>
             <span class="status-value">
-              <strong>{{ status.embeddingConfigured ? status.embeddingModel : '未启用 / 未配置' }}</strong>
+              <strong>对话 {{ status.aiConfigured ? '已配置' : '待配置' }} · Embedding {{ status.embeddingConfigured ? '已配置' : '未启用' }}</strong>
               <van-icon name="arrow"/>
             </span>
           </button>
@@ -2348,69 +2255,31 @@ onBeforeUnmount(() => {
           <p class="muted">AI 配置直接使用服务器 application.yml，不会在浏览器回显密钥；StarRocks 配置可通过上方入口测试和保存。</p>
         </div>
       </van-popup>
-      <van-popup v-if="isAdmin && !isDesktop" v-model:show="configVisible" :position="isDesktop ? 'center' : 'bottom'" round
-        :style="{ width: isDesktop ? 'min(620px, 92vw)' : '100%', height: isDesktop ? 'min(740px, 85vh)' : '80%' }">
+      <van-popup v-if="isAdmin && !isDesktop" v-model:show="configVisible"
+        position="bottom" round :style="{width:'100%',height:'80%'}">
         <div class="config-panel">
-          <div class="drawer-header">
-            <b>{{ configKind === 'starrocks' ? 'StarRocks ADS 数据源'
-              : configKind === 'ai' ? '对话模型管理' : 'Embedding 模型管理' }}</b>
-            <van-icon name="cross" @click="configVisible = false"/>
-          </div>
-          <template v-if="configKind === 'starrocks'">
-            <p class="muted">配置 StarRocks FE 只读账号，测试连接成功后保存并立即读取 ADS 字段注释。</p>
-            <van-field v-model="srForm.jdbcUrl" label="JDBC 地址" label-width="85px" placeholder="jdbc:mysql://192.168.1.10:9030/ads"/>
-            <van-field v-model="srForm.schema" label="ADS 数据库" label-width="85px" placeholder="ads"/>
-            <van-field v-model="srForm.username" label="用户名" label-width="85px" placeholder="只读用户名"/>
-            <van-field v-model="srForm.password" label="密码" label-width="85px" type="password"
-              :placeholder="settingsData.starrocks?.passwordSet ? '已配置，留空不修改' : '请输入密码'"/>
-            <p class="config-note">数据库密码由后端保存，留空会保留现有密码。</p>
-          </template>
-          <template v-else-if="configKind === 'ai'">
-            <p class="muted">在这里直接配置用于自然语言分析和 SQL 生成的大模型。保存后无需重启服务。</p>
-            <van-field v-model="aiForm.baseUrl" label="Base URL" label-width="95px" placeholder="https://api.example.com/v1"/>
-            <van-field v-model="aiForm.model" label="模型名称" label-width="95px" placeholder="输入服务商模型 ID"/>
-            <van-field v-model="aiForm.apiKey" label="API Key" label-width="95px" type="password"
-              autocomplete="new-password" :placeholder="settingsData.ai?.apiKeySet ? '已设置 · 留空不修改' : '填写 API Key'"/>
-            <van-cell title="清除原有 API Key" label="仅无密钥本地模型才需要开启；开启后测试不会携带原密钥">
-              <template #right-icon><van-switch v-model="aiForm.clearKey" size="20px"/></template>
-            </van-cell>
-            <p v-if="aiForm.clearKey" class="tb-admin-credential-warning">
-              <van-icon name="warning-o"/> 当前已勾选清除 API Key。关闭开关即可测试已保存的 Key；保存清除操作前将再次确认。
-            </p>
-            <p class="config-note">API Key 从此页面提交给后端保存，编辑时不会明文回显。</p>
-          </template>
-          <template v-else>
-            <p class="muted">用于 ADS 表、字段注释和 Excel 指标口径语义匹配。默认阿里云百炼 DashScope 原生 API；也支持 OpenAI 兼容 /embeddings 接口。</p>
-            <van-cell title="启用 Embedding"><template #right-icon>
-              <van-switch v-model="embeddingForm.enabled" size="20px"/>
-            </template></van-cell>
-            <van-field v-model="embeddingForm.baseUrl" label="Base URL" label-width="95px"
-              placeholder="https://dashscope.aliyuncs.com/api/v1"/>
-            <van-field v-model="embeddingForm.model" label="模型名称" label-width="95px"
-              placeholder="qwen3.7-text-embedding-flash"/>
-            <van-field v-model.number="embeddingForm.dimensions" label="向量维度" label-width="95px"
-              type="number" placeholder="1024"/>
-            <van-field v-model="embeddingForm.apiKey" label="API Key" label-width="95px" type="password"
-              autocomplete="new-password" :placeholder="settingsData.embedding?.apiKeySet ? '已设置 · 留空不修改' : '本地无密钥服务可留空'"/>
-            <van-cell title="清除原有 API Key"><template #right-icon>
-              <van-switch v-model="embeddingForm.clearKey" size="20px"/>
-            </template></van-cell>
-            <div class="semantic-status">
-              <strong>语义索引</strong>
-              <span>{{ semanticStatus.count || 0 }} 条 · {{ semanticStatus.indexedModel || '尚未构建' }}</span>
-            </div>
-            <p class="config-note">保存并测试模型后，点击“重建语义索引”。仅向模型发送授权 ADS 的字段描述及指标口径，不上传业务明细数据。</p>
-          </template>
-          <p v-if="configTestMessage" class="config-feedback">{{ configTestMessage }}</p>
+          <div class="drawer-header"><b>StarRocks ADS 数据源</b><van-icon name="cross" @click="configVisible=false"/></div>
+          <p class="muted">配置 StarRocks FE 只读账号，测试连接后保存。</p>
+          <van-field v-model="srForm.jdbcUrl" label="JDBC 地址" label-width="85px" placeholder="jdbc:mysql://192.168.1.10:9030/ads"/>
+          <van-field v-model="srForm.schema" label="ADS 数据库" label-width="85px" placeholder="ads"/>
+          <van-field v-model="srForm.username" label="用户名" label-width="85px" placeholder="只读用户名"/>
+          <van-field v-model="srForm.password" label="密码" label-width="85px" type="password"
+            :placeholder="settingsData.starrocks?.passwordSet ? '已配置，留空不修改' : '请输入密码'"/>
+          <p class="config-note">数据库密码由后端保存，留空保留现有密码。</p>
+          <p v-if="configTestMessage" class="config-feedback" role="status">{{ configTestMessage }}</p>
           <div class="config-actions">
             <van-button block plain type="primary" :loading="configTestBusy"
-              :disabled="configBusy || semanticBusy" @click="testConfig">测试连接</van-button>
+              :disabled="configBusy" @click="testConfig">测试连接</van-button>
             <van-button block type="primary" :loading="configBusy"
-              :disabled="configTestBusy || semanticBusy" @click="saveConfig">保存配置</van-button>
-            <van-button v-if="configKind==='embedding' && status.embeddingConfigured" block
-              plain type="primary" :loading="semanticBusy"
-              :disabled="configBusy || configTestBusy" @click="rebuildSemanticIndex">重建语义索引</van-button>
+              :disabled="configTestBusy" @click="saveConfig">保存配置</van-button>
           </div>
+        </div>
+      </van-popup>
+      <van-popup v-if="isAdmin && !isDesktop" v-model:show="modelConfigVisible"
+        position="bottom" round :style="{width:'100%',height:'88%'}">
+        <div class="config-panel da-mobile-model-center">
+          <div class="drawer-header"><b>模型配置</b><van-icon name="cross" @click="modelConfigVisible=false"/></div>
+          <ModelConfigCenter v-if="modelConfigVisible" :api="api" @status-changed="refreshAdminStatus"/>
         </div>
       </van-popup>
     </template>

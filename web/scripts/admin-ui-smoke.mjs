@@ -130,29 +130,36 @@ try {
   await page.locator('.da-crud-modal:visible').getByRole('button',{name:'保存',exact:true}).click();
   await page.locator('.da-crud-modal:visible').waitFor({state:'hidden'});
 
-  await clickTile(page,'对话模型');
-  await page.getByRole('button',{name:'编辑配置',exact:true}).click();
-  await visible(page.locator('input[placeholder="https://api.example.com/v1"]'),'AI URL');
-  await page.getByRole('button',{name:'测试连接'}).click();
-  // Prevent accidental 401 when the operator toggles "clear stored API Key".
-  const modelClear=page.locator('.tb-admin-config-fields .van-switch').first();
+  await clickTile(page,'模型配置');
+  await visible(page.locator('.da-model-center'),'Unified model configuration page');
+  assert.equal(await page.locator('.tb-admin-overview-grid button').count(),0,'Model configuration opens one page');
+  const modelSections=page.locator('.da-model-setting-card');
+  await visible(modelSections.nth(1),'Embedding card loaded');
+  assert.equal(await modelSections.count(),2,'Both chat and Embedding models must appear in the same section');
+  const chatModel=modelSections.nth(0), embeddingModel=modelSections.nth(1);
+  await visible(chatModel.locator('input[placeholder*="compatible-mode"]'),'Chat model URL');
+  await visible(embeddingModel.locator('input[placeholder="qwen3.7-text-embedding-flash"]'),'Embedding model ID');
+  await chatModel.getByRole('button',{name:'测试连接'}).click();
+  await requireCall('POST /api/admin/settings/ai/test');
+  // Prevent unauthenticated provider calls when clearing saved keys.
+  const modelClear=chatModel.locator('.van-switch').first();
   await modelClear.click();
   const beforeTestCalls=calls.filter(x=>x==='POST /api/admin/settings/ai/test').length;
-  await page.getByRole('button',{name:'测试连接'}).click();
-  await visible(page.locator('.tb-admin-config-fields .config-feedback'),'Clear API key guidance');
-  assert((await page.locator('.tb-admin-config-fields .config-feedback').innerText()).includes('已开启'),
-    'The UI must explain why key-clearing makes model tests unauthenticated');
+  await chatModel.getByRole('button',{name:'测试连接'}).click();
+  await visible(chatModel.locator('.da-model-feedback'),'Clear API key guidance');
+  assert((await chatModel.locator('.da-model-feedback').innerText()).includes('已开启'));
   assert.equal(calls.filter(x=>x==='POST /api/admin/settings/ai/test').length,beforeTestCalls,
-    'Clear-key model test must not call provider without saved authentication');
+    'A clear-key test must not call the provider');
   await modelClear.click();
-  await page.getByRole('button',{name:'保存配置'}).click();
-
-  await clickTile(page,'Embedding 模型');
-  await page.getByRole('button',{name:'编辑配置',exact:true}).click();
-  await visible(page.locator('input[placeholder="qwen3.7-text-embedding-flash"]'),'Embedding model');
-  await page.getByRole('button',{name:'测试连接'}).click();
-  await page.getByRole('button',{name:'保存配置'}).click();
-  await page.locator('.tb-admin-config-page').getByRole('button',{name:'重建语义索引',exact:true}).first().click();
+  await chatModel.getByRole('button',{name:'保存对话模型'}).click();
+  await requireCall('POST /api/admin/settings/ai');
+  await embeddingModel.getByRole('button',{name:'测试连接'}).click();
+  await requireCall('POST /api/admin/settings/embedding/test');
+  await embeddingModel.getByRole('button',{name:'保存 Embedding'}).click();
+  await requireCall('POST /api/admin/settings/embedding');
+  await embeddingModel.getByRole('button',{name:'重建语义索引'}).click();
+  await requireCall('POST /api/admin/semantic/rebuild');
+  assert.equal(await page.locator('.tb-admin-page h1').innerText(),'模型配置');
 
   await clickTile(page,'ADS 表授权');
   await visible(page.locator('.admin-table'),'ADS tables');
@@ -226,7 +233,7 @@ try {
   await userPage.locator('.da-account-trigger').click();
   assert.equal(await userPage.getByRole('menuitem',{name:'系统管理'}).count(),0,'Regular users must not see admin modules');
   await ctxUser.close();
-  console.log('PASS: seven admin tiles, real HTTP requests, role restrictions, editor and password reset, desktop browser');
+  console.log('PASS: unified model configuration and admin tiles, real HTTP requests, role restrictions, editor and password reset, desktop browser');
 } catch(e) {
   if(debugPage && !debugPage.isClosed()) {
     await mkdir('artifacts',{recursive:true});

@@ -44,3 +44,17 @@ DATAASK_UI_URL=http://127.0.0.1:4175 npm run test:pc
 ```
 
 注意：默认端口分别由各自脚本定义，避免把 `npm run test:management` 运行在 4173 上导致连接失败。
+
+## 模型配置统一管理
+
+系统管理现在只保留一个「模型配置」入口，同时显示对话模型（Base URL、模型 ID、API Key）
+与 Embedding（启用、Base URL、模型 ID、向量维度、API Key）。两组模型分别测试与保存，
+Embedding 的语义索引在本页查看与重建。
+
+配置继续写入原有的 `/api/admin/settings/ai` 与 `/api/admin/settings/embedding`，
+**不迁移数据库配置、不重置已保存密钥**。每次修改 API Key 时留空可保留原密钥，明确
+选择“清除原有 API Key”后必须确认。Embedding 不启用时不会阻止对话模型正常配置。
+手机端采用同一设置组件的窄屏布局。
+
+回归验证：`npm run test:admin`，覆盖模型页面合并、密钥清除保护、两类模型各自测试和
+保存，以及语义索引重建。

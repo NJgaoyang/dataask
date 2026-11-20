@@ -8,6 +8,7 @@
     "build": "vite build",
     "preview": "vite preview",
     "test:pc": "node scripts/pc-design-smoke.mjs",
+    "test:admin": "node scripts/admin-ui-smoke.mjs",
     "test:audit": "node scripts/audit-ui-smoke.mjs",
     "test:layout": "node scripts/compact-layout-smoke.mjs",
     "test:management": "node scripts/management-ui-smoke.mjs"
