@@ -51,7 +51,8 @@ assert(card.includes('chart-plot'),'Result card must display graphical plot, not
 assert(card.includes('mobile-result-row'),'Chart results must use the mobile full-width grid layout');
 assert(card.includes('<div class="chart-viewport"'),'Chart result missing fixed-size scrolling viewport');
 const fixedViewportCss = html.match(/\.mobile-result-row \.chart-viewport\s*\{([^}]*)\}/)?.[1] || '';
-assert(/height:\s*clamp\(/.test(fixedViewportCss),'Chart viewport must use a fixed responsive height');
+assert(/height:\s*auto/.test(fixedViewportCss),'Chart viewport should fit short results');
+assert(/max-height:\s*min\(360px,\s*45dvh\)/.test(fixedViewportCss),'Long results must cap the viewport near ten rows');
 assert(/overflow-y:\s*auto/.test(fixedViewportCss),'Long chart rows must scroll inside the chart viewport');
 assert(/overscroll-behavior:\s*contain/.test(fixedViewportCss),'Scroll should not chain to the whole page');
 fn.setMode(a.id,'table');
@@ -72,6 +73,15 @@ assert(fn.pieAllowed(a),'Positive-value pie chart expected');
 assert(fn.resultChart(a).includes('<circle'),'Pie chart missing');
 const table=fn.resultTable(a);
 assert(table.includes('城市21')&&table.includes('订单数'),'Full table missing rows/Chinese labels');
+const singleMetric={
+  id:'metric-answer-001',title:'订单量',chartType:'metric',metricLabel:'订单量',
+  columns:['order_count'],columnLabels:{order_count:'订单量'},rows:[{order_count:1565}],
+  summary:'本次查询的订单量为 1565。',followUps:[],unsupported:false
+};
+const singleMetricCard=fn.answerCard({type:'answer',answer:singleMetric});
+assert(singleMetricCard.includes('1565'),'Single metric value missing');
+assert(!singleMetricCard.includes('class="chart-card"')&&!singleMetricCard.includes('class="result-table-scroll"'),
+  'Single metric should not render a chart or result table');
 const clarificationAnswer={
   id:'clarify-1',question:'查看近7天趋势',title:'请确认查询指标',
   summary:'你想查看哪项业务数据？请选择一个指标继续查询。',

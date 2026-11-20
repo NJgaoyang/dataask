@@ -28,6 +28,7 @@ async function mock(route){
   if(path==='/api/mini/bootstrap')return reply({user:{username:'admin',display_name:'系统管理员',role:'ADMIN'},suggestions:[]});
   if(path==='/api/chat/sessions')return reply([]);
   if(path==='/api/chat/datasets')return reply(['ads.orders']);
+  if(path==='/api/mini/charts/page')return reply({items:u.searchParams.get('view')==='shared'?[]:[chart],total:u.searchParams.get('view')==='shared'?0:1});
   if(path==='/api/mini/charts')return reply(u.searchParams.get('view')==='shared'?[]:[chart]);
   if(path==='/api/mini/charts/chart-001/view')return reply({chart,answer:saved,cached:true});
   if(path==='/api/mini/charts/chart-001/refresh'&&method==='POST')return reply({chart,answer:refreshed,cached:false});

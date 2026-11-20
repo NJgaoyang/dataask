@@ -3,6 +3,7 @@
 // against a mocked backend. Usage: npm run preview, then `node scripts/pc-screens.mjs`.
 import { chromium } from 'playwright';
 import { mkdir } from 'node:fs/promises';
+import { analysisAnswer as answer } from './analysis-fixture.mjs';
 
 const base = process.env.DATAASK_UI_URL || 'http://127.0.0.1:4173';
 const out = process.env.DATAASK_SHOTS || '/tmp/dataask-shots';
@@ -17,13 +18,6 @@ const chart = {
   id:'chart-001', ownerUsername:'admin', sourceMessageId:'msg-001',
   question:'昨天各城市的订单量排行', title:'昨日各城市订单量排行', chartType:'bar',
   shareScope:'PRIVATE', dataset:'ads.city_orders', updatedAt:'2026-11-10 10:30'
-};
-const answer = {
-  id:'msg-001', question:'昨天各城市的订单量排行', sessionId:'s2',
-  title:'昨日各城市订单量排行', summary:'昨日订单量最高的城市为西安市（188 单），前三城市合计 449 单，占全部订单的 62%。',
-  chartType:'bar', columns:['city','order_cnt'], columnLabels:{ city:'城市', order_cnt:'订单量' },
-  rows:[{city:'西安市',order_cnt:188},{city:'苏州市',order_cnt:156},{city:'武汉市',order_cnt:105},{city:'成都市',order_cnt:98},{city:'杭州市',order_cnt:76}],
-  unsupported:false, followUps:['对比前一天的订单量', '西安市近 7 天订单趋势'], metricLabel:'订单量', timeLabel:'昨日', dataset:'ads.city_orders'
 };
 const status = {
   starrocksConfigured:true, schema:'ads', aiConfigured:true, model:'qwen-plus', aiKeyConfigured:true, aiUrlConfigured:true,
@@ -43,6 +37,7 @@ async function mock(route) {
   if (path === '/api/chat/sessions') return ok(sessions);
   if (path === '/api/chat/datasets') return ok(['ads.city_orders', 'ads.sales']);
   if (path === '/api/chat/ask' && method === 'POST') return ok(answer);
+  if (path === '/api/mini/charts/page') return ok({items:url.searchParams.get('view')==='shared'?[]:[chart],total:url.searchParams.get('view')==='shared'?0:1});
   if (path === '/api/mini/charts') return ok(url.searchParams.get('view') === 'shared' ? [] : [chart]);
   if (path === '/api/mini/charts/chart-001/view') return ok({ chart, answer, cached:true });
   if (path === '/api/mini/charts/chart-001/refresh' && method === 'POST') return ok({ chart, answer:{ ...answer, id:'transient-chart-answer' }, cached:false });
@@ -74,13 +69,12 @@ try {
     await ctx.addInitScript(() => {
       sessionStorage.setItem('dataask_token', 'ui-test-token');
       sessionStorage.setItem('dataask_user', JSON.stringify({ username:'admin', displayName:'系统管理员', role:'ADMIN' }));
-      localStorage.setItem('da_sidebar', '0');
     });
     const page = await ctx.newPage();
     page.on('pageerror', e => errors.push(tag + ': ' + e.message));
     await page.route('**/api/**', mock);
     await page.goto(base, { waitUntil:'networkidle' });
-    await page.locator('.da-home-stats').waitFor();
+    await page.locator('.da-home-columns').waitFor();
     await shoot(page, `${tag}-2-workbench`);
 
     await page.locator('.desktop-main-nav button').filter({ hasText:'智能问数' }).click();
@@ -118,10 +112,10 @@ try {
     await page.locator('.tb-admin-users-page, .tb-admin-page').first().waitFor();
     await shoot(page, `${tag}-6c-admin-users`);
 
-    // Collapsed sidebar state
+    // Bottom-left account menu
     await page.locator('.desktop-main-nav button').filter({ hasText:'工作台' }).click();
-    await page.locator('.da-sidebar-collapse').click();
-    await shoot(page, `${tag}-7-collapsed`);
+    await page.locator('.da-account-trigger').click();
+    await shoot(page, `${tag}-7-account-menu`);
     await ctx.close();
   }
 

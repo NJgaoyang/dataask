@@ -25,12 +25,11 @@ jobs:
       - name: Build H5
         run: |
           cd web
-          npm install --no-audit --no-fund
+          npm ci --no-audit --no-fund
           npm run build
       - name: Browser smoke test for seven admin modules
         run: |
           cd web
-          npm install --no-save --no-package-lock --no-audit --no-fund playwright
           npx playwright install --with-deps chromium
           npm run preview -- --host 127.0.0.1 --port 4173 > /tmp/dataask-vite.log 2>&1 &
           for i in $(seq 1 40); do
@@ -42,6 +41,54 @@ jobs:
         run: |
           cd web
           node scripts/chart-ui-smoke.mjs
+      - name: Verify PC query explanation and bottom account menu
+        run: |
+          cd web
+          DATAASK_UI_URL=http://127.0.0.1:4173 DATAASK_SHOTS=artifacts/pc-redesign npm run test:pc
+      - name: Verify administrator audit search, SQL and batch deletion
+        run: |
+          cd web
+          npm run test:audit
+      - name: Verify compact full-width desktop layout
+        run: |
+          cd web
+          DATAASK_UI_URL=http://127.0.0.1:4173 npm run test:layout
+      - name: Verify paginated management lists and CRUD dialogs
+        run: |
+          cd web
+          DATAASK_UI_URL=http://127.0.0.1:4173 npm run test:management
+      - name: Upload management screenshots
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: dataask-management-lists
+          path: web/artifacts/management/
+          if-no-files-found: ignore
+          retention-days: 7
+      - name: Upload compact layout screenshots
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: dataask-compact-desktop-layout
+          path: web/artifacts/compact-layout/
+          if-no-files-found: ignore
+          retention-days: 7
+      - name: Upload administrator audit screenshots
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: dataask-administrator-audit
+          path: web/artifacts/admin-audit-*.png
+          if-no-files-found: ignore
+          retention-days: 7
+      - name: Upload PC redesign screenshots
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: dataask-pc-query-explanation
+          path: web/artifacts/pc-redesign/
+          if-no-files-found: ignore
+          retention-days: 7
       - name: Upload chart detail screenshots
         if: always()
         uses: actions/upload-artifact@v4
@@ -67,7 +114,7 @@ jobs:
       - name: Package distribution and verify embedded frontend version
         run: |
           bash scripts/package.sh
-          unzip -p target/dataask-0.1.0-SNAPSHOT.jar BOOT-INF/classes/static/build-info.json | grep -F 'desktop-chart-studio-v9'
+          unzip -p target/dataask-0.1.0-SNAPSHOT.jar BOOT-INF/classes/static/build-info.json | grep -F '"uiLayout":"pc-platform-v2"'
           unzip -p target/dataask-0.1.0-SNAPSHOT.jar BOOT-INF/classes/static/miniapp/index.html | grep -F '/api/mini/bootstrap'
           tar -tzf release/dataask-0.1.0.tar.gz | grep -F 'dataask-0.1.0/bin/upgrade.sh'
 

@@ -1,6 +1,7 @@
 target/
 web/node_modules/
 web/dist/
+web/artifacts/
 src/main/resources/static/
 .idea/
 *.iml

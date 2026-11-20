@@ -1,8 +1,17 @@
 <script setup>
-import { computed, onMounted, onBeforeUnmount, ref, nextTick } from 'vue'
+import { computed, onMounted, onBeforeUnmount, ref, nextTick, watch } from 'vue'
 import axios from 'axios'
 import { showToast, showFailToast, showSuccessToast, showConfirmDialog } from 'vant'
 import AnswerChart from './components/AnswerChart.vue'
+import AnalysisPanel from './components/AnalysisPanel.vue'
+import QueryExplanation from './components/QueryExplanation.vue'
+import AdminAuditLog from './components/AdminAuditLog.vue'
+import AdminDataSources from './components/AdminDataSources.vue'
+import AdminUsers from './components/AdminUsers.vue'
+import RecordList from './components/RecordList.vue'
+import ListPagination from './components/ListPagination.vue'
+import ResultTable from './components/ResultTable.vue'
+import { recordClientEvent, recordLogout } from './audit'
 
 let authEpoch = 0
 const api = axios.create({ baseURL: '/api', timeout: 65000 })
@@ -32,9 +41,18 @@ const me = ref(JSON.parse(sessionStorage.getItem('dataask_user') || '{}'))
 const verifiedRole = ref('')
 const loginForm = ref({ username: 'admin', password: '' })
 const loggingIn = ref(false)
-// Desktop account actions live in the top-right global header, not the sidebar.
+const showPassword = ref(false)
+// Desktop account actions live at the foot of the navigation rail.
 const accountMenuOpen = ref(false)
 const accountMenuRef = ref(null)
+const personalizationOpen = ref(false)
+const theme = ref('light')
+const profileOpen = ref(false)
+const profileLoading = ref(false)
+const profileSaving = ref(false)
+const profileError = ref('')
+const profileForm = ref({displayName:'',createdAt:''})
+let profileSequence = 0
 const changePasswordOpen = ref(false)
 const changePasswordBusy = ref(false)
 const passwordForm = ref({ oldPassword:'', newPassword:'', confirmPassword:'' })
@@ -42,6 +60,70 @@ function handleAccountOutsideClick(event) {
   if (accountMenuOpen.value && !accountMenuRef.value?.contains(event.target)) {
     accountMenuOpen.value = false
   }
+}
+function closeAccountMenu(returnFocus = false) {
+  accountMenuOpen.value = false
+  if (returnFocus) nextTick(() => accountMenuRef.value?.querySelector('.da-account-trigger')?.focus())
+}
+function toggleAccountMenu() {
+  accountMenuOpen.value = !accountMenuOpen.value
+  if (accountMenuOpen.value) nextTick(() => accountMenuRef.value?.querySelector('[role="menuitem"]')?.focus())
+}
+function accountMenuKeydown(event) {
+  if (event.key === 'Escape') { event.preventDefault(); closeAccountMenu(true); return }
+  if (!accountMenuOpen.value || !['ArrowDown','ArrowUp','Home','End'].includes(event.key)) return
+  event.preventDefault()
+  const items = [...accountMenuRef.value.querySelectorAll('[role="menuitem"]')]
+  const index = items.indexOf(document.activeElement)
+  const next = event.key === 'Home' ? 0 : event.key === 'End' ? items.length-1 :
+    (index + (event.key === 'ArrowDown' ? 1 : -1) + items.length) % items.length
+  items[next]?.focus()
+}
+function openPersonalization() { closeAccountMenu(); personalizationOpen.value = true }
+function chooseTheme(value) {
+  theme.value = value === 'dark' ? 'dark' : 'light'
+  recordClientEvent('THEME_CHANGE',theme.value)
+  try { localStorage.setItem('dataask_theme_' + me.value.username, theme.value) }
+  catch { showToast('主题已切换，当前浏览器无法保存偏好') }
+}
+async function openProfile() {
+  closeAccountMenu()
+  profileOpen.value = true
+  profileForm.value = {displayName:me.value.displayName || '',createdAt:''}
+  profileError.value = ''
+  profileLoading.value = true
+  const epoch = authEpoch, username = me.value.username, sequence = ++profileSequence
+  try {
+    const {data} = await api.get('/auth/profile')
+    if (epoch !== authEpoch || sequence !== profileSequence || username !== me.value.username || !profileOpen.value) return
+    profileForm.value = {displayName:data.displayName || '',createdAt:data.createdAt || ''}
+  } catch(e) {
+    if (epoch === authEpoch && sequence === profileSequence) profileError.value = errorText(e)
+  } finally {
+    if (epoch === authEpoch && sequence === profileSequence) profileLoading.value = false
+  }
+}
+function closeProfile() {
+  if (profileSaving.value) return
+  profileOpen.value = false
+  profileSequence++
+  profileLoading.value = false
+}
+async function saveProfile() {
+  if (profileSaving.value || profileLoading.value || profileError.value) return
+  const displayName = profileForm.value.displayName.trim()
+  if (!displayName || displayName.length > 100) return showFailToast('显示名称需为1到100个字符')
+  const epoch = authEpoch, username = me.value.username
+  profileSaving.value = true
+  try {
+    const {data} = await api.put('/auth/profile', {displayName})
+    if (epoch !== authEpoch || username !== me.value.username || !loggedIn.value) return
+    me.value = {...me.value,displayName:data.displayName}
+    sessionStorage.setItem('dataask_user', JSON.stringify(me.value))
+    profileOpen.value = false
+    showSuccessToast('个人资料已保存')
+  } catch(e) { if (epoch === authEpoch) showFailToast(errorText(e)) }
+  finally { if (epoch === authEpoch) profileSaving.value = false }
 }
 function openPasswordChange() {
   accountMenuOpen.value = false
@@ -66,7 +148,7 @@ async function submitPasswordChange() {
     await api.post('/auth/change-password', { oldPassword, newPassword })
     changePasswordOpen.value = false
     passwordForm.value = { oldPassword:'', newPassword:'', confirmPassword:'' }
-    logout()
+    logout(false)
     showSuccessToast('密码已更新，请使用新密码重新登录')
   } catch(e) {
     showFailToast(errorText(e))
@@ -83,12 +165,62 @@ const busy = ref(false)
 const pendingQuestion = ref('')
 // Desktop-only UI state. The miniapp HTML and narrow-screen template stay untouched.
 const desktopFeedback = ref(null)
+const analysisPanelOpen = ref(false)
+const analysisMessage = ref(null)
+const analysisQuestion = ref('')
 const answerViews = ref({})
+const followUpSource = ref(null)
+const fullScreenMessage = ref(null)
+const fullScreenView = ref('chart')
+const answerFeedback = ref({})
+const resultFullscreenOpen = computed({
+  get: () => !!fullScreenMessage.value,
+  set: value => { if (!value) fullScreenMessage.value = null }
+})
 const desktopQuestionRef = ref(null)
+
+function openAnalysis(message) {
+  if (!isDesktop.value) return
+  analysisMessage.value = message || null
+  analysisQuestion.value = message?.question || pendingQuestion.value || ''
+  analysisPanelOpen.value = true
+  if (message?.id) recordClientEvent('VIEW_PROCESS', message.id)
+}
+function closeAnalysis() {
+  analysisPanelOpen.value = false
+}
+function startFollowUp(message) {
+  if (!message || busy.value) return
+  followUpSource.value = message
+  question.value = ''
+  focusDesktopQuestion()
+  recordClientEvent('FOLLOW_UP_START', message.id)
+}
+function cancelFollowUp() { followUpSource.value = null }
+function openFullScreen(message) {
+  fullScreenMessage.value = message
+  fullScreenView.value = ['bar','line','pie'].includes(message.chartType) && message.rows?.length > 1
+    ? 'chart' : isSingleValue(message) ? 'summary' : 'table'
+  recordClientEvent('FULLSCREEN_RESULT', message.id)
+}
+function closeFullScreen() { fullScreenMessage.value = null }
+function voteAnswer(message, value) {
+  const next = answerFeedback.value[message.id] === value ? '' : value
+  answerFeedback.value = { ...answerFeedback.value, [message.id]: next }
+  recordClientEvent(next === 'up' ? 'RESULT_LIKE' : next === 'down' ? 'RESULT_DISLIKE' : 'RESULT_FEEDBACK_CLEAR', message.id)
+  showToast(next === 'up' ? '感谢你的认可' : next === 'down' ? '反馈已记录' : '已取消反馈')
+}
 const chartsVisible = ref(false)
 const savedCharts = ref([])
 const sharedCharts = ref([])
 const chartsBusy = ref(false)
+const chartsError = ref('')
+const chartListRefresh = ref(0), historyListRefresh = ref(0), metricListRefresh = ref(0)
+const historySelection = ref([])
+const tablePage=ref(1), tableSize=ref(10), tableSearch=ref('')
+const filteredTables=computed(()=>allowedTables.value.filter(t=>t.name.toLowerCase().includes(tableSearch.value.toLowerCase())))
+const pagedTables=computed(()=>filteredTables.value.slice((tablePage.value-1)*tableSize.value,tablePage.value*tableSize.value))
+watch(tableSearch,()=>{tablePage.value=1})
 // Saving a chart creates a visualization asset, not another chat.
 const activeChart = ref(null)
 const activeChartAnswer = ref(null)
@@ -171,44 +303,23 @@ async function deleteSavedChart(chart) {
 const chartSearch = ref('')
 const chartTypeFilter = ref('ALL')
 const chartSortOrder = ref('recent')
-const chartTypeOptions = computed(() => {
-  const types = [...new Set([...savedCharts.value, ...sharedCharts.value]
-    .map(item => String(item.chartType || '').trim())
-    .filter(Boolean))]
-  return types.sort((a,b) => a.localeCompare(b))
-})
-function filterChartItems(items) {
-  const keyword = chartSearch.value.trim().toLowerCase()
-  return [...items].filter(item => {
-    const matchesText = !keyword ||
-      [item.title, item.question, item.ownerUsername].some(
-        value => String(value || '').toLowerCase().includes(keyword))
-    const matchesType = chartTypeFilter.value === 'ALL' ||
-      String(item.chartType || '') === chartTypeFilter.value
-    return matchesText && matchesType
-  }).sort((a,b) => {
-    const at = new Date(a.updatedAt || a.createdAt || 0).getTime() || 0
-    const bt = new Date(b.updatedAt || b.createdAt || 0).getTime() || 0
-    return chartSortOrder.value === 'oldest' ? at-bt : bt-at
-  })
-}
-const filteredSavedCharts = computed(() => filterChartItems(savedCharts.value))
-const filteredSharedCharts = computed(() => filterChartItems(sharedCharts.value))
+const chartTypeOptions = ['bar','line','pie','metric','table']
 function chartTypeLabel(type) {
   return ({line:'折线图', bar:'柱状图', pie:'饼图', metric:'指标卡', table:'数据表'})[type] || type || '图表'
 }
 function isRedundantSummary(msg) {
   if (!msg?.rows?.length || msg.unsupported) return false
+  // Structured results carry an actual data summary, even when it starts with a row count.
+  if (msg.semantic) return false
   const summary = String(msg.summary || '').replace(/\s+/g,' ').trim()
   if (!summary) return true
   // Suppress generic system narration, never hide actual calculated business insights.
-  return /^(已从\s*StarRocks|已查询到|查询到|已返回|已获取|数据查询成功|本次查询返回)/i.test(summary) &&
-    /(\d+\s*行|条数据|真实数据|查询结果|点击下方|继续分析|来自)/.test(summary)
+  return /^(?:已从\s*StarRocks\s*查询到\s*\d+\s*行真实数据[。.]?\s*(?:可点击下方快捷追问继续分析[。.]?)?|(?:已查询到|查询到|已返回|已获取|本次查询返回)\s*\d+\s*(?:行|条)数据[。.]?)$/i.test(summary)
 }
 
 const desktopSection = ref('overview')
 const adminExpanded = ref(false)
-const desktopAdminSections = ['admin-overview','admin-source','admin-model','admin-embedding','admin-tables','admin-metrics','admin-users','admin-status']
+const desktopAdminSections = ['admin-overview','admin-source','admin-model','admin-embedding','admin-tables','admin-metrics','admin-users','admin-status','admin-audit']
 const adminSectionBusy = ref(false)
 const adminSectionError = ref('')
 let adminLoadSequence = 0
@@ -235,7 +346,7 @@ const desktopSectionTitle = computed(() => ({
   'admin-overview':'系统管理','admin-source':'数据源配置','admin-model':'对话模型',
   'admin-embedding':'Embedding 模型','admin-tables':'ADS 表授权',
   'admin-metrics':'指标口径','admin-users':'用户管理',
-  'admin-status':'配置状态'
+  'admin-status':'配置状态','admin-audit':'审计日志'
 })[desktopSection.value] || '工作台')
 const desktopIsAdminSection = computed(() => desktopSection.value.startsWith('admin-'))
 const sharingVisible = ref(false)
@@ -278,15 +389,12 @@ function beginComposerDrag(e) {
 const historyVisible = ref(false)
 const sessions = ref([])
 const sessionSearch = ref('')
-const sidebarCollapsed = ref(localStorage.getItem('da_sidebar') === '1')
-function toggleSidebar() {
-  sidebarCollapsed.value = !sidebarCollapsed.value
-  localStorage.setItem('da_sidebar', sidebarCollapsed.value ? '1' : '0')
+function currentDateInput() {
+  const now = new Date()
+  return [now.getFullYear(), String(now.getMonth() + 1).padStart(2, '0'), String(now.getDate()).padStart(2, '0')].join('-')
 }
-const greeting = computed(() => {
-  const hour = new Date().getHours()
-  return hour < 6 ? '夜深了' : hour < 12 ? '早上好' : hour < 18 ? '下午好' : '晚上好'
-})
+// PC history opens on today's conversations; an empty value switches back to all dates.
+const historyDate = ref(currentDateInput())
 const todayLabel = computed(() => {
   const now = new Date()
   const weekday = ['日','一','二','三','四','五','六'][now.getDay()]
@@ -305,7 +413,7 @@ function answerScope(msg) {
   return [
     msg.metricLabel ? { key:'metric', label:'指标', value:msg.metricLabel } : null,
     period ? { key:'period', label:'周期', value:period } : null,
-    msg.dataset ? { key:'dataset', label:'数据', value:msg.dataset } : null,
+    msg.dataset ? { key:'dataset', label:'数据来源', value:msg.dataset } : null,
   ].filter(Boolean)
 }
 function fullSessionTime(value) {
@@ -340,6 +448,15 @@ const status = ref({})
 const configVisible = ref(false)
 const configKind = ref('starrocks')
 const isDesktop = ref(false)
+watch(() => [loggedIn.value, me.value.username], () => {
+  try { theme.value = loggedIn.value && localStorage.getItem('dataask_theme_' + me.value.username) === 'dark' ? 'dark' : 'light' }
+  catch { theme.value = 'light' }
+}, {immediate:true})
+watch([theme, isDesktop, loggedIn], () => {
+  if (isDesktop.value && loggedIn.value) document.documentElement.dataset.dataaskTheme = theme.value
+  else delete document.documentElement.dataset.dataaskTheme
+  nextTick(() => window.dispatchEvent(new Event('dataask-themechange')))
+}, {immediate:true})
 const buildSha = __DATAASK_BUILD_SHA__
 let desktopMedia
 const aiForm = ref({ baseUrl:'', model:'', apiKey:'', clearKey:false })
@@ -369,7 +486,6 @@ const footerRef = ref(null)
 const quickQuestions = ['昨天的营业额是多少？', '昨天各城市的订单量排行', '最近7天的营收趋势', '本月各城市销售额对比']
 // Quick BI-inspired desktop querying. A dataset selection is enforced by the server.
 const approvedDatasets = ref([])
-const selectedDataset = ref('')
 const chartStyles = ref({})
 const supportedChartTypes = ['bar','line','pie']
 function pieSupported(msg) {
@@ -396,7 +512,6 @@ async function loadApprovedDatasets() {
   try {
     const { data } = await api.get('/chat/datasets')
     approvedDatasets.value = Array.isArray(data) ? data : []
-    if (selectedDataset.value && !approvedDatasets.value.includes(selectedDataset.value)) selectedDataset.value = ''
   } catch(e) {
     approvedDatasets.value = []
     if (isDesktop.value) showFailToast('读取可用数据失败：'+errorText(e))
@@ -416,16 +531,19 @@ async function refreshAuthenticatedRole() {
   verifiedRole.value = ''
   adminVisible.value = false
   configVisible.value = false
+  const epoch = authEpoch, token = sessionStorage.getItem('dataask_token')
   try {
     const { data } = await api.get('/auth/me')
+    if (epoch !== authEpoch || token !== sessionStorage.getItem('dataask_token')) return
     const username = String(data.username || '')
     const role = data.role === 'ADMIN' ? 'ADMIN' : 'USER'
     // Do not trust a cached role, even when somebody alters sessionStorage manually.
-    const displayName = me.value.username === username ? (me.value.displayName || username) : username
+    const displayName = data.displayName || (me.value.username === username ? (me.value.displayName || username) : username)
     me.value = { username, displayName, role }
     sessionStorage.setItem('dataask_user', JSON.stringify(me.value))
     verifiedRole.value = role
   } catch (e) {
+    if (epoch !== authEpoch || token !== sessionStorage.getItem('dataask_token')) return
     verifiedRole.value = ''
     if (e.response?.status === 401) {
       sessionStorage.removeItem('dataask_token')
@@ -436,10 +554,15 @@ async function refreshAuthenticatedRole() {
   }
 }
 function resultView(msg) {
+  if (isSingleValue(msg)) return 'summary'
   const explicit = answerViews.value[msg.id]
   if (explicit) return explicit
-  if (msg.chartType === 'metric' && msg.rows?.length === 1) return 'summary'
   return ['line', 'bar', 'pie'].includes(msg.chartType) && msg.rows?.length > 1 ? 'chart' : 'table'
+}
+function isSingleValue(msg) { return msg?.rows?.length === 1 && msg?.columns?.length === 1 }
+function answerSummary(msg) {
+  if (!msg?.unsupported || msg.followUps?.length) return msg?.summary || ''
+  return `${msg?.summary || '当前问题暂时无法查询。'} 请补充具体指标、时间范围或分析维度，例如“昨天各城市的订单量”。`
 }
 function setResultView(msg, view) { answerViews.value = { ...answerViews.value, [msg.id]: view } }
 function focusDesktopQuestion() { nextTick(() => { if (isDesktop.value) desktopQuestionRef.value?.focus() }) }
@@ -457,7 +580,40 @@ async function copyAnswer(msg) {
       el.remove()
     }
     showSuccessToast('结果已复制')
+    recordClientEvent('COPY_RESULT',msg.id)
   } catch { showFailToast('复制失败，请检查浏览器剪贴板权限') }
+}
+
+async function copyTraceId(msg) {
+  try {
+    if (!msg?.id) throw new Error('没有可复制的标识')
+    await navigator.clipboard.writeText(msg.id)
+    showSuccessToast('Trace ID 已复制')
+    recordClientEvent('COPY_TRACE_ID', msg.id)
+  } catch { showFailToast('复制失败，请检查浏览器剪贴板权限') }
+}
+function exportAnswer(msg) {
+  if (!msg?.rows?.length || !msg.columns?.length) return showToast('当前没有可导出的数据')
+  const safeCell = value => {
+    let text = value === null || value === undefined ? '' : String(value)
+    if (/^[=+\-@]/.test(text)) text = "'" + text
+    return '"' + text.replaceAll('"','""') + '"'
+  }
+  const lines = [
+    msg.columns.map(column => safeCell(msg.columnLabels?.[column] || column)).join(','),
+    ...msg.rows.map(row => msg.columns.map(column => safeCell(row[column])).join(','))
+  ]
+  const blob = new Blob(['\ufeff' + lines.join('\r\n')], { type:'text/csv;charset=utf-8' })
+  const url = URL.createObjectURL(blob)
+  const link = document.createElement('a')
+  link.href = url
+  link.download = (msg.title || msg.question || '问数结果').replace(/[\\/:*?"<>|]/g,'_').slice(0,80) + '.csv'
+  document.body.appendChild(link)
+  link.click()
+  link.remove()
+  setTimeout(() => URL.revokeObjectURL(url), 2000)
+  showSuccessToast('数据已导出')
+  recordClientEvent('EXPORT_RESULT', msg.id)
 }
 
 function errorText(e) { return e?.response?.data?.message || e?.message || '请求失败' }
@@ -478,7 +634,8 @@ async function login() {
   } catch (e) { showFailToast(errorText(e)) }
   finally { loggingIn.value = false }
 }
-function logout() {
+function logout(record = true) {
+  if (record !== false) recordLogout()
   if (busy.value) stopAsk()
   authEpoch++
   conversationVersion++
@@ -488,18 +645,59 @@ function logout() {
   verifiedRole.value = ''
   configVisible.value = false
   accountMenuOpen.value = false
+  personalizationOpen.value = false
+  profileOpen.value = false
+  profileSequence++
+  profileSaving.value = false
+  profileLoading.value = false
+  profileError.value = ''
+  profileForm.value = {displayName:'',createdAt:''}
   changePasswordOpen.value = false
   passwordForm.value = { oldPassword:'', newPassword:'', confirmPassword:'' }
   messages.value = []; sessions.value = []; sessionId.value = ''; historyVisible.value = false; adminVisible.value = false
   desktopFeedback.value = null
+  analysisPanelOpen.value = false
+  analysisMessage.value = null
+  analysisQuestion.value = ''
+  followUpSource.value = null
+  fullScreenMessage.value = null
+  answerFeedback.value = {}
   desktopSection.value = 'overview'
   adminSectionError.value = ''
   adminSectionBusy.value = false
   adminExpanded.value = false
   savedCharts.value = []
   sharedCharts.value = []
-  selectedDataset.value = ''
   approvedDatasets.value = []
+}
+async function deleteSession(row) {
+  try {
+    await showConfirmDialog({ title:'删除会话', message:'确定删除“'+row.title+'”？会话内的问数记录将一并删除，不可恢复。' })
+  } catch { return }
+  try {
+    await api.delete('/chat/sessions/'+encodeURIComponent(row.id))
+    historySelection.value = historySelection.value.filter(id => id !== row.id)
+    afterSessionDelete([row.id])
+    showSuccessToast('会话已删除')
+  } catch(e) { showFailToast(errorText(e)) }
+}
+async function batchDeleteSessions() {
+  const ids = [...historySelection.value]
+  if (!ids.length) return
+  try {
+    await showConfirmDialog({ title:'批量删除会话', message:'确定删除选中的 '+ids.length+' 个会话？会话内的问数记录将一并删除，不可恢复。' })
+  } catch { return }
+  try {
+    await api.post('/chat/sessions/batch-delete', { ids })
+    historySelection.value = []
+    afterSessionDelete(ids)
+    showSuccessToast('已删除 '+ids.length+' 个会话')
+  } catch(e) { showFailToast(errorText(e)) }
+}
+function afterSessionDelete(ids) {
+  historyListRefresh.value++
+  loadSessions()
+  if (ids.includes(sessionId.value)) newConversation()
 }
 async function loadSessions() {
   const epoch = authEpoch
@@ -543,10 +741,13 @@ async function refreshSharedHistory() {
 function switchDesktopSection(section) {
   const normal = ['overview','ask','charts','history'].includes(section)
   if (!normal && !(desktopAdminSections.includes(section) && isAdmin.value)) return
+  if (desktopSection.value !== section) recordClientEvent('PAGE_VIEW',section)
   if (isDesktop.value && busy.value && section !== 'ask') stopAsk()
+  configVisible.value=false
+  if (section !== 'ask') { closeAnalysis(); closeFullScreen(); followUpSource.value = null }
   desktopSection.value = section
   if (desktopAdminSections.includes(section)) adminExpanded.value = true
-  if (section === 'charts') { closeChartDetail(); loadSavedCharts() }
+  if (section === 'charts') closeChartDetail()
   if (section === 'history') loadSessions()
   if (section === 'overview') { loadSessions(); loadSavedCharts(); loadApprovedDatasets() }
   if (section === 'ask') { focusDesktopQuestion(); if (sessionId.value) refreshSharedHistory() }
@@ -557,6 +758,7 @@ async function loadSavedCharts() {
   const token = sessionStorage.getItem('dataask_token')
   const username = me.value.username
   chartsBusy.value = true
+  chartsError.value = ''
   try {
     const [mine, shared] = await Promise.all([
       api.get('/mini/charts?view=mine'),
@@ -566,7 +768,7 @@ async function loadSavedCharts() {
         username !== me.value.username || !loggedIn.value) return
     savedCharts.value = Array.isArray(mine.data) ? mine.data : []
     sharedCharts.value = Array.isArray(shared.data) ? shared.data : []
-  } catch (e) { if (epoch === authEpoch) showFailToast(errorText(e)) }
+  } catch (e) { if (epoch === authEpoch) { chartsError.value = errorText(e); showFailToast(errorText(e)) } }
   finally { if (epoch === authEpoch) chartsBusy.value = false }
 }
 async function openSession(item) {
@@ -578,7 +780,9 @@ async function openSession(item) {
     messages.value = history
     sessionId.value = item.id
     if (isDesktop.value) desktopSection.value = 'ask'
-    selectedDataset.value = messages.value.at(-1)?.dataset || ''
+    closeAnalysis()
+    followUpSource.value = null
+    closeFullScreen()
     historyVisible.value = false
     desktopFeedback.value = null
     scrollEnd()
@@ -588,13 +792,15 @@ function newConversation() {
   if (busy.value) stopAsk()
   conversationVersion++
   sessionId.value = ''; messages.value = []; question.value = ''; historyVisible.value = false
-  selectedDataset.value = ''
   if (isDesktop.value) {
     desktopSection.value = 'ask'
-    // The desktop dataset chooser is intentionally hidden; a new conversation uses all approved tables.
-    selectedDataset.value = ''
   }
   desktopFeedback.value = null
+  closeAnalysis()
+  analysisMessage.value = null
+  analysisQuestion.value = ''
+  followUpSource.value = null
+  closeFullScreen()
   focusDesktopQuestion()
 }
 async function openSavedCharts() {
@@ -647,6 +853,7 @@ function stopAsk() {
   pendingQuestion.value = ''
   activeRequestId = ''
   activeController = null
+  closeAnalysis()
   if (id) {
     const token = sessionStorage.getItem('dataask_token')
     api.post('/chat/cancel', { requestId: id }, token
@@ -655,7 +862,7 @@ function stopAsk() {
   }
   showToast('已停止本次查询')
 }
-async function ask(text = question.value, sourceMessageId = null) {
+async function ask(text = question.value, sourceMessageId = undefined) {
   text = (text || '').trim()
   if (!text || busy.value) return
   if (isDesktop.value) desktopSection.value = 'ask'
@@ -664,27 +871,40 @@ async function ask(text = question.value, sourceMessageId = null) {
   const version = conversationVersion
   const controller = new AbortController()
   const requestId = globalThis.crypto?.randomUUID?.() || ('pc-' + Date.now() + '-' + Math.random().toString(36).slice(2))
+  const resolvedSourceMessageId = sourceMessageId === undefined ? followUpSource.value?.id || null : sourceMessageId
   activeController = controller
   activeRequestId = requestId
   busy.value = true
   pendingQuestion.value = text
   if (isDesktop.value) desktopFeedback.value = null
+  if (isDesktop.value) {
+    analysisMessage.value = null
+    analysisQuestion.value = text
+    analysisPanelOpen.value = true
+  }
   question.value = ''
   scrollEnd()
   try {
     const { data } = await api.post('/chat/ask', {
-      question: text, sessionId: sessionId.value || null, sourceMessageId: sessionId.value ? sourceMessageId : null, requestId,
-      dataset: isDesktop.value ? selectedDataset.value : null
+      question: text, sessionId: sessionId.value || null, sourceMessageId: sessionId.value ? resolvedSourceMessageId : null, requestId,
+      dataset: null
     }, { signal: controller.signal })
     if (sequence !== askSequence || version !== conversationVersion || controller.signal.aborted) return
     sessionId.value = data.sessionId
     messages.value.push(data)
+    followUpSource.value = null
+    if (isDesktop.value) {
+      analysisMessage.value = data
+      analysisQuestion.value = data.question || text
+      analysisPanelOpen.value = true
+    }
     await loadSessions()
     scrollEnd()
   } catch (e) {
     if (sequence !== askSequence || version !== conversationVersion || controller.signal.aborted || axios.isCancel(e)) return
     if (isDesktop.value) {
       desktopFeedback.value = { type: 'error', question: text, message: errorText(e) }
+      closeAnalysis()
     } else {
       question.value = text
       showFailToast(errorText(e))
@@ -746,11 +966,7 @@ async function loadAdminSectionData(section) {
         allowedTables.value = []
         adminSectionError.value = '尚未配置 StarRocks 数据源，请先在数据源配置中连接 ADS 数据库。'
       }
-    } else if (section === 'admin-metrics') {
-      metricInfo.value = (await api.get('/admin/metrics')).data
-    } else if (section === 'admin-users') {
-      users.value = (await api.get('/admin/users')).data
-    }
+    } // User and metric list components request their own server-side pages.
   } catch (e) {
     if (request === adminLoadSequence) {
       adminSectionError.value = '读取“' + desktopSectionTitle.value + '”失败：' + errorText(e)
@@ -762,6 +978,7 @@ async function loadAdminSectionData(section) {
 }
 async function openAdmin() {
   // Model/data-source management is a desktop-only experience.
+  closeAccountMenu()
   if (!isDesktop.value) return
   if (!requireAdmin()) return
   if (isDesktop.value) {
@@ -820,7 +1037,8 @@ async function rebuildSemanticIndex() {
   } finally { semanticBusy.value = false }
 }
 async function reloadMetrics() {
-  try { metricInfo.value = (await api.get('/admin/metrics')).data }
+  if (isDesktop.value) { metricListRefresh.value++; return }
+  try { metricInfo.value = (await api.get('/admin/metrics')).data; metricListRefresh.value++ }
   catch (e) { showFailToast('读取指标口径失败：' + errorText(e)) }
 }
 function chooseMetricFile() { metricFileInput.value?.click() }
@@ -981,6 +1199,7 @@ async function saveConfig() {
     }
     await refreshAdminStatus()
     if (kind === 'embedding') await reloadSemanticStatus()
+    if (isDesktop.value) configVisible.value=false
     configTestMessage.value = data.message || '配置已保存'
     showSuccessToast(configTestMessage.value)
   } catch (e) { showFailToast(errorText(e)) }
@@ -1090,6 +1309,7 @@ onMounted(() => {
   }
 })
 onBeforeUnmount(() => {
+  delete document.documentElement.dataset.dataaskTheme
   desktopMedia?.removeEventListener('change', window.__dataAskDesktopListener)
   document.removeEventListener('click', handleAccountOutsideClick)
   window.removeEventListener('focus', refreshSharedHistory)
@@ -1099,46 +1319,99 @@ onBeforeUnmount(() => {
 </script>
 
 <template>
-  <div class="app-shell" :class="{ 'consumer-pc': isDesktop, 'sidebar-collapsed': isDesktop && sidebarCollapsed, 'consumer-home': isDesktop && desktopSection==='ask' && !messages.length && !busy && !desktopFeedback }">
+  <div class="app-shell" :data-theme="isDesktop ? theme : undefined" :class="{ 'consumer-pc': isDesktop, 'consumer-home': isDesktop && desktopSection==='ask' && !messages.length && !busy && !desktopFeedback, 'analysis-panel-open': isDesktop && desktopSection==='ask' && analysisPanelOpen }">
     <div v-if="!loggedIn" class="login-screen">
-      <div class="login-logo">问</div>
-      <h1>{{ isDesktop ? 'DataAsk' : 'DataAsk 数问' }}</h1>
-      <p>{{ isDesktop ? '和数据聊聊天，让每个问题都有答案。' : '面向企业管理者的智能经营数据助手' }}</p>
-      <div class="login-card">
-        <h2>{{ isDesktop ? '欢迎回来' : '登录到数问' }}</h2>
-        <van-field v-model="loginForm.username" label="账号" placeholder="请输入账号" autocomplete="username"/>
-        <van-field v-model="loginForm.password" label="密码" placeholder="请输入密码" type="password" autocomplete="current-password" @keyup.enter="login"/>
-        <van-button type="primary" block :loading="loggingIn" @click="login">登录</van-button>
-        <p class="login-hint">首次启动由管理员配置初始密码，系统不会使用公开默认密码。</p>
-      </div>
+      <aside v-if="isDesktop" class="login-brand">
+        <div class="login-brand-top">
+          <div class="login-brand-lockup">
+            <div class="login-brand-mark" aria-hidden="true"><svg class="brand-glyph" viewBox="0 0 36 36"><rect x="1.5" y="1.5" width="33" height="33" rx="10" fill="#2f6bff"/><path d="M10 8.5h8.2c4.8 0 8 3.5 8 8s-3.2 8-8 8H10z" fill="#fff"/><path d="M13 12h5c2.4 0 4 1.6 4 4.5s-1.6 4.5-4 4.5h-5z" fill="#2f6bff"/><path d="M7 27l5-5 4 3 7-8" fill="none" stroke="#b9d6ff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></div>
+            <span>DataAsk 数问</span>
+          </div>
+          <span class="login-brand-chip">企业内部平台</span>
+        </div>
+        <div class="login-brand-copy">
+          <span class="login-brand-eyebrow">企业经营数据问答平台</span>
+          <strong>经营数据<br/>一问即达</strong>
+          <ul class="login-brand-points">
+            <li><van-icon name="chat-o"/><span>数据问答</span></li>
+            <li><van-icon name="filter-o"/><span>只读校验</span></li>
+            <li><van-icon name="chart-trending-o"/><span>图表呈现</span></li>
+          </ul>
+        </div>
+        <div class="login-brand-visual" aria-hidden="true">
+          <div class="login-visual-card">
+            <div class="login-visual-bars"><i></i><i></i><i></i><i></i><i></i></div>
+            <div class="login-visual-line"><span></span><span></span><span></span></div>
+          </div>
+          <div class="login-visual-bubble"><van-icon name="chat-o"/></div>
+        </div>
+      </aside>
+      <main class="login-main">
+        <div v-if="isDesktop" class="login-topbar"><span class="login-status-dot"></span>内部系统 · 安全登录</div>
+        <div class="login-logo" aria-hidden="true"><svg class="brand-glyph" viewBox="0 0 36 36"><rect x="1.5" y="1.5" width="33" height="33" rx="10" fill="#2f6bff"/><path d="M10 8.5h8.2c4.8 0 8 3.5 8 8s-3.2 8-8 8H10z" fill="#fff"/><path d="M13 12h5c2.4 0 4 1.6 4 4.5s-1.6 4.5-4 4.5h-5z" fill="#2f6bff"/><path d="M7 27l5-5 4 3 7-8" fill="none" stroke="#b9d6ff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></div>
+        <h1>{{ isDesktop ? 'DataAsk' : 'DataAsk 数问' }}</h1>
+        <p>{{ isDesktop ? '企业经营数据问答平台' : '面向企业管理者的智能经营数据助手' }}</p>
+        <div class="login-card">
+          <div v-if="isDesktop" class="login-card-head">
+            <span class="login-card-eyebrow">账号登录</span>
+            <h2>欢迎回来</h2>
+            <p>请登录以继续访问 DataAsk 工作台</p>
+          </div>
+          <h2 v-else>登录到数问</h2>
+          <span v-if="isDesktop" class="login-label">账号</span>
+          <van-field v-model="loginForm.username" label="账号" placeholder="请输入账号" left-icon="manager-o" autocomplete="username"/>
+          <span v-if="isDesktop" class="login-label login-label-password">密码</span>
+          <van-field v-model="loginForm.password" label="密码" placeholder="请输入密码" left-icon="lock-o" :type="showPassword ? 'text' : 'password'" autocomplete="current-password" @keyup.enter="login">
+            <template v-if="isDesktop" #right-icon>
+              <button type="button" class="login-password-toggle" :aria-label="showPassword ? '隐藏密码' : '显示密码'" @click.stop="showPassword = !showPassword">
+                <van-icon :name="showPassword ? 'closed-eye' : 'eye-o'"/>
+              </button>
+            </template>
+          </van-field>
+          <van-button type="primary" block :loading="loggingIn" @click="login">登录</van-button>
+          <p v-if="isDesktop" class="login-footnote"><van-icon name="lock-o"/>账号由系统管理员分配，请勿共享登录凭证</p>
+        </div>
+        <p v-if="isDesktop" class="login-copyright">© 2026 DataAsk 数问 · 企业经营数据问答平台</p>
+      </main>
     </div>
     <template v-else>
       <aside class="desktop-sidebar" aria-label="DataAsk 功能导航">
         <div class="sidebar-brand">
-          <div class="brand-icon">问</div>
-          <div class="brand-title"><strong>DataAsk</strong><small>智能商业分析平台</small></div>
+          <div class="brand-icon" aria-hidden="true"><svg class="brand-glyph" viewBox="0 0 36 36"><rect x="1.5" y="1.5" width="33" height="33" rx="10" fill="#2f6bff"/><path d="M10 8.5h8.2c4.8 0 8 3.5 8 8s-3.2 8-8 8H10z" fill="#fff"/><path d="M13 12h5c2.4 0 4 1.6 4 4.5s-1.6 4.5-4 4.5h-5z" fill="#2f6bff"/><path d="M7 27l5-5 4 3 7-8" fill="none" stroke="#b9d6ff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></div>
+          <div class="brand-title"><strong>DataAsk</strong></div>
         </div>
         <button type="button" class="sidebar-new da-new-conversation" title="新建问数" @click="newConversation"><van-icon name="plus"/><span>新建问数</span></button>
-        <div class="da-nav-label tb-nav-category">工作空间</div>
-        <nav class="desktop-main-nav" aria-label="工作空间导航">
+        <div class="da-nav-label tb-nav-category">分析</div>
+        <nav class="desktop-main-nav" aria-label="分析导航">
           <button type="button" title="工作台" :class="{active:desktopSection==='overview'}" @click="switchDesktopSection('overview')"><van-icon name="home-o"/><span>工作台</span></button>
           <button type="button" title="智能问数" :class="{active:desktopSection==='ask'}" @click="switchDesktopSection('ask')"><van-icon name="chat-o"/><span>智能问数</span></button>
           <button type="button" title="我的图表" :class="{active:desktopSection==='charts'}" @click="switchDesktopSection('charts')"><van-icon name="chart-trending-o"/><span>我的图表</span></button>
           <button type="button" title="历史会话" :class="{active:desktopSection==='history'}" @click="switchDesktopSection('history')"><van-icon name="clock-o"/><span>历史会话</span></button>
         </nav>
-        <template v-if="isAdmin">
-          <div class="da-nav-label">系统</div>
-          <nav class="desktop-main-nav tb-single-admin-nav" aria-label="管理员功能">
-            <button type="button" title="系统管理" :class="{active:desktopIsAdminSection}" @click="openAdmin">
-              <van-icon name="setting-o"/><span>系统管理</span>
-            </button>
-          </nav>
-        </template>
+        <section v-if="sessions.length" class="da-sidebar-history" aria-label="最近会话">
+          <div class="da-nav-label">最近会话</div>
+          <button v-for="(item,index) in sessions.slice(0,5)" :key="item.id" type="button" :title="item.title"
+            :class="{active:desktopSection==='ask' && sessionId===item.id}" @click="openSession(item)">
+            <van-icon name="chat-o"/><span>{{ item.title }}</span>
+          </button>
+        </section>
         <div class="tb-sidebar-fill"></div>
-        <button type="button" class="da-sidebar-collapse" :title="sidebarCollapsed ? '展开导航' : '收起导航'"
-          :aria-expanded="!sidebarCollapsed" @click="toggleSidebar">
-          <van-icon :name="sidebarCollapsed ? 'arrow' : 'arrow-left'"/><span>收起导航</span>
-        </button>
+        <div v-if="isDesktop" class="da-account-menu" ref="accountMenuRef" @keydown="accountMenuKeydown">
+          <button type="button" class="da-account-trigger" :aria-expanded="accountMenuOpen"
+            aria-haspopup="menu" aria-label="当前用户菜单" :title="me.displayName || me.username" @click.stop="toggleAccountMenu">
+            <span class="da-account-avatar">{{ (me.displayName || me.username || '用').slice(0,1) }}</span>
+            <span class="da-account-label"><b>{{ me.displayName || me.username }}</b><small>{{ me.username }}</small></span>
+          </button>
+          <div v-if="accountMenuOpen" class="da-account-dropdown" role="menu" aria-label="账号选项" @click.stop>
+            <div class="da-account-dropdown-heading"><span class="da-account-avatar">{{ (me.displayName || me.username || '用').slice(0,1) }}</span><span><strong>{{ me.displayName || me.username }}</strong><small>{{ me.username }}</small></span></div>
+            <button type="button" role="menuitem" aria-label="个性化" @click="openPersonalization"><van-icon name="brush-o" aria-hidden="true"/> 个性化 <span class="da-menu-meta">{{ theme === 'dark' ? '深色' : '浅色' }}</span></button>
+            <button type="button" role="menuitem" aria-label="个人资料" @click="openProfile"><van-icon name="user-o" aria-hidden="true"/> 个人资料</button>
+            <button type="button" role="menuitem" aria-label="修改密码" @click="openPasswordChange"><van-icon name="lock" aria-hidden="true"/> 修改密码</button>
+            <button v-if="isAdmin" type="button" role="menuitem" aria-label="系统管理" @click="openAdmin"><van-icon name="setting-o" aria-hidden="true"/> 系统管理 <span class="da-menu-meta">管理员</span></button>
+            <div class="da-account-menu-divider" role="separator"></div>
+            <button type="button" role="menuitem" aria-label="退出登录" class="da-logout-action" @click="desktopLogout"><van-icon name="sign" aria-hidden="true"/> 退出登录</button>
+          </div>
+        </div>
       </aside>
       <header class="topbar">
         <div v-if="isDesktop" class="tb-header-breadcrumb">
@@ -1150,31 +1423,12 @@ onBeforeUnmount(() => {
           <strong>{{ desktopSectionTitle }}</strong>
         </div>
         <div v-else class="brand">
-          <div class="brand-icon">问</div>
+          <div class="brand-icon" aria-hidden="true"><svg class="brand-glyph" viewBox="0 0 36 36"><rect x="1.5" y="1.5" width="33" height="33" rx="10" fill="#2f6bff"/><path d="M10 8.5h8.2c4.8 0 8 3.5 8 8s-3.2 8-8 8H10z" fill="#fff"/><path d="M13 12h5c2.4 0 4 1.6 4 4.5s-1.6 4.5-4 4.5h-5z" fill="#2f6bff"/><path d="M7 27l5-5 4 3 7-8" fill="none" stroke="#b9d6ff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></div>
           <div class="brand-title"><strong class="mobile-brand">数问</strong>
             <strong class="desktop-current-session">{{ activeSessionTitle }}</strong>
             <small>经营数据助手</small></div>
         </div>
-        <div v-if="isDesktop" class="da-account-menu" ref="accountMenuRef">
-          <button type="button" class="da-account-trigger" :aria-expanded="accountMenuOpen"
-            aria-haspopup="menu" aria-label="当前用户菜单" @click.stop="accountMenuOpen=!accountMenuOpen">
-            <span class="da-account-avatar">{{ (me.displayName || me.username || '用').slice(0,1) }}</span>
-            <span class="da-account-label">{{ me.displayName || me.username }}</span>
-            <van-icon name="arrow-down" size="12"/>
-          </button>
-          <div v-if="accountMenuOpen" class="da-account-dropdown" role="menu" @click.stop>
-            <div class="da-account-dropdown-heading">
-              <strong>{{ me.displayName || me.username }}</strong>
-              <small>{{ isAdmin ? '系统管理员' : '普通用户' }} · {{ me.username }}</small>
-            </div>
-            <button type="button" role="menuitem" @click="openPasswordChange">
-              <van-icon name="lock"/> 修改密码
-            </button>
-            <button type="button" role="menuitem" @click="desktopLogout">
-              <van-icon name="sign"/> 退出登录
-            </button>
-          </div>
-        </div>
+        <span v-if="isDesktop" class="da-header-date">{{ todayLabel }}</span>
         <div v-if="!isDesktop" class="top-actions">
           <button title="历史对话" @click="historyVisible = true"><van-icon name="clock-o" size="21"/></button>
           <button title="新对话" @click="newConversation"><van-icon name="add-o" size="21"/></button>
@@ -1183,13 +1437,13 @@ onBeforeUnmount(() => {
       <main v-if="isDesktop && isAdmin && desktopIsAdminSection" class="tb-page-body tb-admin-page">
         <div class="tb-admin-heading">
           <div class="tb-admin-heading-copy">
+            <h1>{{ desktopSectionTitle }}</h1>
+            <p v-if="desktopSection==='admin-overview'">管理数据连接、分析模型与平台访问权限</p>
+          </div>
+          <div class="tb-admin-heading-actions">
             <button v-if="desktopSection!=='admin-overview'" type="button" class="tb-admin-back"
               @click="openAdminSection('admin-overview')"><van-icon name="arrow-left"/> 返回系统管理</button>
-            <div v-else class="tb-admin-location"><van-icon name="setting-o"/> 系统管理</div>
-            <h1>{{ desktopSectionTitle }}</h1>
-            <p>{{ desktopSection==='admin-overview' ? '平台配置与访问权限集中管理' : '配置仅管理员可修改，保存后按原后端规则生效' }}</p>
           </div>
-          <span class="tb-admin-heading-badge"><van-icon name="shield-o"/> 管理员权限</span>
         </div>
         <div v-if="unreadableConfigParts.length && !adminSectionBusy" class="tb-admin-credential-warning" role="alert">
           <van-icon name="warning-o" size="18"/>
@@ -1209,45 +1463,51 @@ onBeforeUnmount(() => {
           <div class="tb-admin-overview-grid">
             <button type="button" @click="openAdminSection('admin-source')">
               <span class="tb-admin-overview-icon icon-source"><van-icon name="cluster-o" size="21"/></span>
-              <strong>数据源配置</strong><small>{{ status.starrocksConfigured ? 'StarRocks 已配置' : '配置 StarRocks 数据源' }}</small>
+              <strong>数据源配置</strong><small>{{ status.starrocksConfigured ? '已配置' : '未配置' }}</small>
               <van-icon name="arrow" class="tb-admin-overview-arrow"/>
             </button>
             <button type="button" @click="openAdminSection('admin-model')">
               <span class="tb-admin-overview-icon icon-model"><van-icon name="chat-o" size="21"/></span>
-              <strong>对话模型</strong><small>{{ status.aiConfigured ? (status.model || '模型已配置') : '大模型与 API Key' }}</small>
+              <strong>对话模型</strong><small>{{ status.aiConfigured ? (status.model || '已配置') : '未配置' }}</small>
               <van-icon name="arrow" class="tb-admin-overview-arrow"/>
             </button>
             <button type="button" @click="openAdminSection('admin-embedding')">
               <span class="tb-admin-overview-icon icon-embedding"><van-icon name="setting-o" size="21"/></span>
-              <strong>Embedding 模型</strong><small>{{ status.embeddingConfigured ? '语义模型已启用' : '语义识别和索引' }}</small>
+              <strong>Embedding 模型</strong><small>{{ status.embeddingConfigured ? '已配置' : '未配置' }}</small>
               <van-icon name="arrow" class="tb-admin-overview-arrow"/>
             </button>
             <button type="button" @click="openAdminSection('admin-tables')">
               <span class="tb-admin-overview-icon icon-tables"><van-icon name="records-o" size="21"/></span>
-              <strong>ADS 表授权</strong><small>控制可查询的数据表</small>
+              <strong>ADS 表授权</strong>
               <van-icon name="arrow" class="tb-admin-overview-arrow"/>
             </button>
             <button type="button" @click="openAdminSection('admin-metrics')">
               <span class="tb-admin-overview-icon icon-metrics"><van-icon name="description" size="21"/></span>
-              <strong>指标口径</strong><small>维护业务指标定义</small>
+              <strong>指标口径</strong>
               <van-icon name="arrow" class="tb-admin-overview-arrow"/>
             </button>
             <button type="button" @click="openAdminSection('admin-users')">
               <span class="tb-admin-overview-icon icon-users"><van-icon name="friends-o" size="21"/></span>
-              <strong>用户管理</strong><small>用户账号与角色</small>
+              <strong>用户管理</strong>
               <van-icon name="arrow" class="tb-admin-overview-arrow"/>
             </button>
             <button type="button" @click="openAdminSection('admin-status')">
               <span class="tb-admin-overview-icon icon-status"><van-icon name="chart-trending-o" size="21"/></span>
-              <strong>配置状态</strong><small>刷新数据源、模型配置状态</small>
+              <strong>配置状态</strong>
               <van-icon name="replay" class="tb-admin-overview-arrow"/>
+            </button>
+            <button type="button" @click="openAdminSection('admin-audit')">
+              <span class="tb-admin-overview-icon icon-status"><van-icon name="shield-o" size="21"/></span>
+              <strong>审计日志</strong>
+              <van-icon name="arrow" class="tb-admin-overview-arrow"/>
             </button>
           </div>
         </div>
+        <AdminAuditLog v-else-if="desktopSection==='admin-audit'" :api="api"/>
         <div v-else-if="desktopSection==='admin-status'" class="tb-admin-panel-card tb-admin-status-page">
           <div class="tb-admin-panel-intro tb-admin-panel-intro-action">
             <div><strong>平台连接与配置状态</strong>
-              <p>检查模型与数据源是否已完成配置，点击条目进入对应设置。</p></div>
+              </div>
             <button type="button" class="tb-admin-plain-action" @click="refreshAdminOverview"
               :disabled="adminSectionBusy"><van-icon name="replay"/> 刷新状态</button>
           </div>
@@ -1262,9 +1522,9 @@ onBeforeUnmount(() => {
               <van-icon name="arrow"/>
             </button>
           </div>
-          <p class="muted">这里展示的是配置完整性，是否能够真正连接或调用，请进入对应模块点击“测试连接”。</p>
         </div>
-        <div v-else-if="['admin-source','admin-model','admin-embedding'].includes(desktopSection)"
+        <AdminDataSources v-else-if="desktopSection==='admin-source'" :api="api" @changed="refreshAdminStatus"/>
+        <div v-else-if="['admin-model','admin-embedding'].includes(desktopSection)"
           class="tb-admin-panel-card tb-admin-config-page">
           <div class="da-admin-config-intro">
             <div class="da-admin-config-icon">
@@ -1272,9 +1532,6 @@ onBeforeUnmount(() => {
             </div>
             <div class="da-admin-config-heading">
               <strong>{{ configKind==='starrocks' ? 'StarRocks 数据连接' : configKind==='ai' ? 'AI 对话模型' : 'Embedding 语义服务' }}</strong>
-              <p>{{ configKind==='starrocks' ? '连接已授权的 ADS 数据表，为智能问数提供可信的经营数据' :
-                configKind==='ai' ? '统一管理自然语言理解、SQL 生成与业务数据分析的模型' :
-                '管理字段语义匹配、指标口径检索与向量索引服务' }}</p>
             </div>
             <span class="da-admin-status-badge" :class="{ok:configKind==='starrocks' ? status.starrocksConfigured : configKind==='ai' ? status.aiConfigured : status.embeddingConfigured}">
               <van-icon :name="configKind==='starrocks' ? (status.starrocksConfigured ? 'passed' : 'info-o') :
@@ -1283,15 +1540,17 @@ onBeforeUnmount(() => {
               {{ (configKind==='starrocks' ? status.starrocksConfigured : configKind==='ai' ? status.aiConfigured : status.embeddingConfigured) ? '已配置' : '待配置' }}
             </span>
           </div>
+          <div class="da-list-table-wrap"><table class="da-list-table"><thead><tr><th>序号</th><th>模型名称</th><th>服务地址</th><th>操作</th></tr></thead><tbody><tr><td class="da-sequence">1</td><td>{{ configKind==='ai'?settingsData.ai?.model:settingsData.embedding?.model || '—' }}</td><td>{{ configKind==='ai'?settingsData.ai?.baseUrl:settingsData.embedding?.baseUrl || '—' }}</td><td class="da-row-actions"><button type="button" class="tb-admin-plain-action" @click="hydrateConfigForms();configTestMessage='';configVisible=true">{{ (configKind==='ai'?status.aiConfigured:status.embeddingConfigured)?'编辑配置':'新增配置' }}</button><button v-if="configKind==='embedding' && status.embeddingConfigured" type="button" class="tb-admin-plain-action" :disabled="semanticBusy" @click="rebuildSemanticIndex">重建语义索引</button></td></tr></tbody></table></div>
+          <ListPagination :page="1" :size="10" :total="1" disabled/>
+          <van-popup v-model:show="configVisible" round :close-on-click-overlay="false" class="da-crud-modal da-model-modal">
+            <header><h2>{{ configKind==='ai'?'对话模型配置':'Embedding 模型配置' }}</h2><button type="button" aria-label="关闭模型配置" :disabled="configBusy || configTestBusy || semanticBusy" @click="configVisible=false">×</button></header>
           <div class="da-admin-config-grid">
             <section class="da-admin-config-main" aria-label="连接配置表单">
               <div class="da-admin-config-form-title">
                 <strong>{{ configKind==='starrocks' ? '数据库连接参数' : '模型接入参数' }}</strong>
-                <small>必填信息通过服务端校验，敏感凭证不会显示明文</small>
               </div>
               <div class="tb-admin-config-fields">
             <template v-if="configKind === 'starrocks'">
-            <p class="muted">配置 StarRocks FE 只读账号，测试连接成功后保存并立即读取 ADS 字段注释。</p>
             <van-field v-model="srForm.jdbcUrl" label="JDBC 地址" label-width="85px" placeholder="jdbc:mysql://192.168.1.10:9030/ads"/>
             <van-field v-model="srForm.schema" label="ADS 数据库" label-width="85px" placeholder="ads"/>
             <van-field v-model="srForm.username" label="用户名" label-width="85px" placeholder="只读用户名"/>
@@ -1300,15 +1559,13 @@ onBeforeUnmount(() => {
             <p v-if="settingsData.starrocks?.passwordUnreadable" class="tb-admin-credential-warning">
               <van-icon name="warning-o"/> 已保存的数据库密码无法解密，请在上方填写新的数据库密码后保存。
             </p>
-            <p class="config-note">数据库密码由后端保存，留空会保留现有密码。</p>
           </template>
           <template v-else-if="configKind === 'ai'">
-            <p class="muted">在这里直接配置用于自然语言分析和 SQL 生成的大模型。保存后无需重启服务。</p>
             <van-field v-model="aiForm.baseUrl" label="Base URL" label-width="95px" placeholder="https://api.example.com/v1"/>
             <van-field v-model="aiForm.model" label="模型名称" label-width="95px" placeholder="输入服务商模型 ID"/>
             <van-field v-model="aiForm.apiKey" label="API Key" label-width="95px" type="password"
               autocomplete="new-password" :placeholder="settingsData.ai?.apiKeySet ? '已设置 · 留空不修改' : '填写 API Key'"/>
-            <van-cell title="清除原有 API Key" label="仅无密钥本地模型才需要开启；开启后测试不会携带原密钥">
+            <van-cell title="清除原有 API Key">
               <template #right-icon><van-switch v-model="aiForm.clearKey" size="20px"/></template>
             </van-cell>
             <p v-if="aiForm.clearKey" class="tb-admin-credential-warning">
@@ -1317,10 +1574,8 @@ onBeforeUnmount(() => {
             <p v-if="settingsData.ai?.apiKeyUnreadable" class="tb-admin-credential-warning">
               <van-icon name="warning-o"/> 已保存的 API Key 无法解密，请重新填写有效 API Key 后保存；不要留空。
             </p>
-            <p class="config-note">API Key 从此页面提交给后端保存，编辑时不会明文回显。</p>
           </template>
           <template v-else>
-            <p class="muted">用于 ADS 表、字段注释和 Excel 指标口径语义匹配。默认阿里云百炼 DashScope 原生 API；也支持 OpenAI 兼容 /embeddings 接口。</p>
             <van-cell title="启用 Embedding"><template #right-icon>
               <van-switch v-model="embeddingForm.enabled" size="20px"/>
             </template></van-cell>
@@ -1342,7 +1597,6 @@ onBeforeUnmount(() => {
               <strong>语义索引</strong>
               <span>{{ semanticStatus.count || 0 }} 条 · {{ semanticStatus.indexedModel || '尚未构建' }}</span>
             </div>
-            <p class="config-note">保存并测试模型后，点击“重建语义索引”。仅向模型发送授权 ADS 的字段描述及指标口径，不上传业务明细数据。</p>
           </template>
           <p v-if="configTestMessage" class="config-feedback">{{ configTestMessage }}</p>
           <div class="config-actions">
@@ -1356,30 +1610,13 @@ onBeforeUnmount(() => {
           </div>
               </div>
             </section>
-            <aside class="da-admin-config-aside" aria-label="配置帮助">
-              <h3><van-icon name="info-o"/> 接入说明</h3>
-              <template v-if="configKind==='starrocks'">
-                <div class="da-admin-guide-step"><span>01</span><div><b>使用只读账号</b><p>为 StarRocks 创建专用只读用户，避免使用 root 或其他高权限账号。</p></div></div>
-                <div class="da-admin-guide-step"><span>02</span><div><b>确认 ADS 数据库</b><p>填写 FE MySQL 协议地址与目标 ADS 库，字段注释用于智能问数语义理解。</p></div></div>
-                <div class="da-admin-guide-step"><span>03</span><div><b>测试后保存</b><p>先验证数据库连接，再保存；需要读取哪些表请进入 ADS 表授权设置。</p></div></div>
-              </template>
-              <template v-else-if="configKind==='ai'">
-                <div class="da-admin-guide-step"><span>01</span><div><b>使用兼容 API</b><p>填写服务商 API 地址和模型 ID，确保支持 Chat Completions 接口。</p></div></div>
-                <div class="da-admin-guide-step"><span>02</span><div><b>保护模型密钥</b><p>API Key 由后端加密保存。留空表示保留当前密钥，明确清除时需二次确认。</p></div></div>
-                <div class="da-admin-guide-step"><span>03</span><div><b>移动端自动生效</b><p>小程序和 PC 共用这份服务端模型配置，无须在手机端重复配置。</p></div></div>
-              </template>
-              <template v-else>
-                <div class="da-admin-guide-step"><span>01</span><div><b>选择语义模型</b><p>使用服务商实际支持的 Embedding 模型，并确认向量维度。</p></div></div>
-                <div class="da-admin-guide-step"><span>02</span><div><b>测试接入</b><p>检查 Base URL、模型名、API Key 和网络访问权限。</p></div></div>
-                <div class="da-admin-guide-step"><span>03</span><div><b>重建索引</b><p>更换模型或维度后，保存设置并重建语义索引。</p></div></div>
-              </template>
-              <div class="da-admin-config-security"><van-icon name="shield-o"/> 仅管理员可修改配置，普通用户与小程序不展示此入口。</div>
-            </aside>
           </div>
+          <footer><span/><button type="button" :disabled="configBusy || configTestBusy || semanticBusy" @click="configVisible=false">取消</button></footer>
+          </van-popup>
         </div>
         <div v-else-if="desktopSection==='admin-tables'" class="tb-admin-panel-card">
           <div class="tb-admin-panel-intro tb-admin-panel-intro-action">
-            <div><strong>ADS 表授权</strong><p>仅开启业务审核通过的 ADS 表。关闭授权后，普通用户将无法使用该表问数。</p></div>
+            <div><strong>ADS 表授权</strong></div>
             <div class="tb-admin-table-actions">
               <button type="button" class="tb-admin-plain-action" :disabled="adminSectionBusy"
                 @click="loadAdminSectionData('admin-tables')"><van-icon name="replay"/> 刷新表列表</button>
@@ -1388,10 +1625,9 @@ onBeforeUnmount(() => {
               </button>
             </div>
           </div>
-          <h3>开放给 AI 的 ADS 表</h3>
-          <p class="muted">默认不开放任何表。仅授权通过审核的经营数据表。</p>
-          <div v-for="table in allowedTables" :key="table.name" class="admin-table">
-            <div class="table-head">
+          <div class="da-list-toolbar"><h3>开放给 AI 的 ADS 表</h3><input v-model="tableSearch" aria-label="搜索数据表" placeholder="搜索数据表"></div>
+          <div v-for="(table,index) in pagedTables" :key="table.name" class="admin-table">
+            <div class="table-head"><span class="da-sequence">{{ (tablePage-1)*tableSize+index+1 }}</span>
               <button type="button" class="tb-table-expand"
                 :aria-expanded="expandedTable === table.name"
                 @click="expandedTable = expandedTable === table.name ? '' : table.name">
@@ -1403,13 +1639,13 @@ onBeforeUnmount(() => {
               <div v-for="col in table.columns" :key="col.name"><b>{{ col.name }}</b> {{ col.type }} <span>{{ col.comment }}</span></div>
             </div>
           </div>
-          <p v-if="!allowedTables.length" class="muted">没有读取到 ADS 表，请检查连接配置。</p>
+          <p v-if="!filteredTables.length" class="muted">暂无匹配的数据表</p>
+          <ListPagination v-model:page="tablePage" v-model:size="tableSize" :total="filteredTables.length"/>
         </div>
         <div v-else-if="desktopSection==='admin-metrics'" class="tb-admin-panel-card tb-admin-metrics-page">
           <section class="metric-admin">
             <div class="metric-section-title">
               <h3>指标口径 · Excel</h3>
-              <p class="muted">上传现有的指标定义，AI 将依据确认的业务口径理解 ADS 数据。当前已导入 {{ metricInfo.total || 0 }} 条。</p>
             </div>
             <input ref="metricFileInput" class="file-input-hidden" type="file"
               accept=".xlsx,.xls" @change="selectMetricFile" aria-label="选择指标口径Excel文件"/>
@@ -1417,7 +1653,6 @@ onBeforeUnmount(() => {
               <van-button size="small" type="primary" icon="plus" plain @click="chooseMetricFile">上传 Excel</van-button>
               <van-button size="small" plain icon="down" @click="downloadMetricTemplate">下载模板</van-button>
             </div>
-            <p class="muted">支持 .xlsx / .xls，最大 5 MB；至少包含“指标名称”和“指标口径”两列。</p>
             <div v-if="metricPreviewBusy" class="metric-upload-state">
               <van-loading size="16px"/> 正在解析 Excel ...
             </div>
@@ -1429,9 +1664,9 @@ onBeforeUnmount(() => {
               <p v-for="notice in metricPreview.notices" :key="notice" class="metric-note">{{ notice }}</p>
               <div class="metric-preview-table" tabindex="0" role="region" aria-label="指标预览表格">
                 <table>
-                  <thead><tr><th>指标名称</th><th>业务口径</th><th>ADS 表</th></tr></thead>
+                  <thead><tr><th>序号</th><th>指标名称</th><th>业务口径</th><th>ADS 表</th></tr></thead>
                   <tbody><tr v-for="(item, idx) in metricPreview.samples" :key="idx">
-                    <td>{{ item.metricName }}</td><td>{{ item.definition }}</td><td>{{ item.adsTable || '—' }}</td>
+                    <td>{{ idx+1 }}</td><td>{{ item.metricName }}</td><td>{{ item.definition }}</td><td>{{ item.adsTable || '—' }}</td>
                   </tr></tbody>
                 </table>
               </div>
@@ -1439,169 +1674,65 @@ onBeforeUnmount(() => {
                 确认导入 {{ metricPreview.count }} 条指标
               </van-button>
             </div>
-            <div v-if="metricInfo.batches?.length" class="metric-batches">
-              <h4>导入历史</h4>
-              <div v-for="batch in metricInfo.batches" :key="batch.id" class="metric-batch">
-                <div class="metric-batch-details"><b>{{ batch.filename }}</b>
-                  <small>{{ batch.count }} 条 · {{ batch.createdAt }}</small></div>
-                <button type="button" class="metric-delete" :aria-label="'删除'+batch.filename"
-                  @click="deleteMetricBatch(batch)"><van-icon name="delete-o" size="18"/></button>
-              </div>
-            </div>
-            <p v-else class="muted">尚未上传指标口径文件。</p>
-            <div v-if="metricInfo.metrics?.length" class="metric-definition-list">
-              <h4>最近导入的指标</h4>
-              <div v-for="item in metricInfo.metrics.slice(0, 8)" :key="item.id" class="metric-definition-item">
-                <strong>{{ item.metricName }}</strong>
-                <p>{{ item.definition }}</p>
-              </div>
-            </div>
+            <h4>导入历史</h4>
+            <RecordList :api="api" endpoint="/admin/metrics/batches/page" label="导入历史" :refresh="metricListRefresh" :columns="[{key:'filename',label:'文件名称'},{key:'count',label:'指标数量'},{key:'uploadedBy',label:'操作人'},{key:'createdAt',label:'导入时间'}]"><template #actions="{row}"><button type="button" class="da-danger-button" @click="deleteMetricBatch(row)">删除</button></template></RecordList>
+            <h4>指标口径</h4>
+            <RecordList :api="api" endpoint="/admin/metrics/page" label="指标口径" :refresh="metricListRefresh" :columns="[{key:'metricName',label:'指标名称'},{key:'definition',label:'业务口径'},{key:'adsTable',label:'ADS 表'},{key:'adsField',label:'指标字段'}]"/>
           </section>
         </div>
-        <div v-else-if="desktopSection==='admin-users'" class="tb-admin-panel-card tb-admin-users-page">
-          <div class="tb-admin-panel-intro">
-            <strong>用户与权限管理</strong>
-            <p>管理员可创建用户、编辑显示名称与角色、重置密码。普通用户不能操作这里的配置。</p>
-          </div>
-          <div class="tb-users-table">
-            <div class="tb-user-head"><span>用户</span><span>角色</span><span>操作</span></div>
-            <div v-for="user in users" :key="user.username" class="tb-user-row">
-              <span class="tb-user-identity">
-                <span class="tb-user-avatar">{{ (user.displayName || user.username || '用').slice(0,1) }}</span>
-                <span><strong>{{ user.displayName || user.username }}</strong><small>{{ user.username }}</small></span>
-              </span>
-              <span class="tb-user-role">{{ user.role==='ADMIN' ? '管理员' : '普通用户' }}</span>
-              <button type="button" class="tb-user-edit" @click="editUser(user)">
-                <van-icon name="edit"/> 编辑 / 重置密码
-              </button>
-            </div>
-            <div v-if="!users.length && !adminSectionBusy" class="tb-admin-empty">
-              暂无用户信息，请点击“重试加载”检查接口。
-            </div>
-          </div>
-          <div v-if="userEditVisible" class="tb-user-editor">
-            <div class="tb-user-editor-title">
-              <strong>编辑用户 · {{ userEditForm.username }}</strong>
-              <button type="button" :disabled="userEditSaving" @click="cancelUserEdit"><van-icon name="cross"/> 关闭</button>
-            </div>
-            <van-field v-model="userEditForm.displayName" label="显示名称" placeholder="请输入姓名"/>
-            <van-field label="用户角色"><template #input>
-              <van-radio-group v-model="userEditForm.role" direction="horizontal">
-                <van-radio name="USER">普通用户</van-radio>
-                <van-radio name="ADMIN">管理员</van-radio>
-              </van-radio-group>
-            </template></van-field>
-            <div class="tb-user-action-row">
-              <van-button type="primary" :loading="userEditSaving" @click="saveUserProfile">保存用户信息</van-button>
-            </div>
-            <div class="tb-user-reset">
-              <strong>重置登录密码</strong>
-              <p>仅由管理员执行，新密码需至少10位；重置后该账号需要重新登录。</p>
-              <van-field v-model="userEditForm.password" label="新密码"
-                type="password" autocomplete="new-password" placeholder="10–128 位"/>
-              <van-button plain type="danger" :loading="userEditSaving" @click="resetUserPassword">重置密码</van-button>
-            </div>
-          </div>
-          <div class="tb-user-create">
-            <h3>创建新账号</h3>
-            <van-field v-model="newUser.username" label="登录账号" placeholder="3–64 位英文账号" />
-            <van-field v-model="newUser.displayName" label="显示名称" placeholder="用户姓名" />
-            <van-field v-model="newUser.password" label="初始密码" type="password"
-              autocomplete="new-password" placeholder="至少10位" />
-            <van-field label="角色"><template #input>
-              <van-radio-group v-model="newUser.role" direction="horizontal">
-                <van-radio name="USER">普通用户</van-radio>
-                <van-radio name="ADMIN">管理员</van-radio>
-              </van-radio-group>
-            </template></van-field>
-            <van-button type="primary" :loading="userBusy" @click="addUser">创建账号</van-button>
-          </div>
-        </div>
+        <AdminUsers v-else-if="desktopSection==='admin-users'" :api="api"/>
       </main>
       <main v-if="isDesktop && desktopSection==='overview'" class="tb-page-body tb-overview ds-home" aria-label="DataAsk 工作台">
         <header class="ds-home-intro">
           <div class="ds-home-heading-copy">
-            <h1>{{ greeting }}，{{ me.displayName || me.username }}</h1>
-            <p>{{ todayLabel }} · 基于自然语言的智能数据分析，直接提问即可获得经营数据结果。</p>
+            <h1>工作台</h1>
+            <p class="da-home-greeting">{{ me.displayName || me.username }}，{{ todayLabel }}</p>
           </div>
-          <button type="button" class="ds-home-cta" @click="switchDesktopSection('ask')">
-            <van-icon name="chat-o"/> 进入智能问数
-          </button>
         </header>
-        <section class="da-home-ask" aria-label="快速提问">
-          <div class="da-home-ask-label"><van-icon name="magic-stick"/> 快速提问</div>
-          <form class="da-home-ask-row" @submit.prevent="askFromHome()">
-            <input v-model="homeQuestion" maxlength="800" placeholder="例如：昨天各城市的销售额是多少？" aria-label="输入经营数据问题"/>
-            <button type="submit" :disabled="busy || !homeQuestion.trim()"><van-icon name="guide-o"/> 发送</button>
-          </form>
-          <div class="da-home-ask-chips">
-            <button v-for="item in quickQuestions" :key="item" type="button" :disabled="busy" @click="askFromHome(item)">{{ item }}</button>
+        <div class="da-home-body">
+          <section class="da-home-ask" aria-label="快速提问">
+            <p class="da-home-ask-label"><van-icon name="chat-o"/> 快速提问</p>
+            <form class="da-home-ask-row" @submit.prevent="askFromHome()">
+              <textarea v-model="homeQuestion" maxlength="800" placeholder="例如：昨天各城市的销售额是多少？" aria-label="输入经营数据问题" @keydown.enter="!$event.shiftKey && !$event.isComposing && ($event.preventDefault(),askFromHome())"/>
+              <div class="da-home-composer-actions"><small>{{ homeQuestion.length }}/800</small><button type="submit" :disabled="busy || !homeQuestion.trim()">开始分析 <van-icon name="arrow"/></button></div>
+            </form>
+            <p class="da-home-quick-label">试试这样问</p>
+            <div class="da-home-ask-chips">
+              <button v-for="item in quickQuestions" :key="item" type="button" :disabled="busy" @click="askFromHome(item)">{{ item }}</button>
+            </div>
+          </section>
+          <div class="da-home-grid">
+            <section class="da-home-card" aria-label="最近会话">
+              <div class="da-home-card-head"><h3>最近会话</h3><button type="button" @click="switchDesktopSection('history')">查看全部 <van-icon name="arrow"/></button></div>
+              <div v-if="sessions.length" class="da-home-card-list">
+                <button v-for="item in sessions.slice(0,5)" :key="item.id" type="button" class="da-home-session-row" :title="item.title" @click="openSession(item)">
+                  <van-icon name="chat-o"/><span>{{ item.title }}</span><time>{{ sessionTimeLabel(item.updatedAt) }}</time>
+                </button>
+              </div>
+              <p v-else class="da-home-card-empty">暂无会话，从上方快速提问开始分析。</p>
+            </section>
+            <section class="da-home-card" aria-label="最近图表">
+              <div class="da-home-card-head"><h3>最近图表</h3><button type="button" @click="switchDesktopSection('charts')">查看全部 <van-icon name="arrow"/></button></div>
+              <div v-if="chartsError" class="da-home-card-error" role="alert"><van-icon name="warning-o"/><span>{{ chartsError }}</span><button type="button" @click="loadSavedCharts">重试</button></div>
+              <div v-if="savedCharts.length" class="da-home-card-list">
+                <button v-for="chart in savedCharts.slice(0,5)" :key="chart.id" type="button" class="da-home-chart-row" :title="chart.title" @click="revisitChart(chart)">
+                  <van-icon name="chart-trending-o"/><span>{{ chart.title }}</span><small>{{ chartTypeLabel(chart.chartType) }}</small><time>{{ sessionTimeLabel(chart.updatedAt) }}</time>
+                </button>
+              </div>
+              <p v-else-if="!chartsError" class="da-home-card-empty">暂无收藏图表，在问数结果中点击「收藏」即可保存。</p>
+            </section>
           </div>
-        </section>
-        <section class="da-home-stats" aria-label="数据概览">
-          <button type="button" class="da-home-stat" @click="switchDesktopSection('history')">
-            <span class="da-home-stat-icon"><van-icon name="chat-o" size="20"/></span>
-            <span class="da-home-stat-copy"><small>历史会话</small><strong>{{ sessions.length }}</strong></span>
-          </button>
-          <button type="button" class="da-home-stat" @click="switchDesktopSection('charts')">
-            <span class="da-home-stat-icon is-chart"><van-icon name="star-o" size="20"/></span>
-            <span class="da-home-stat-copy"><small>我的图表</small><strong>{{ savedCharts.length }}</strong></span>
-          </button>
-          <button type="button" class="da-home-stat" @click="switchDesktopSection('charts')">
-            <span class="da-home-stat-icon is-shared"><van-icon name="share-o" size="20"/></span>
-            <span class="da-home-stat-copy"><small>共享给我</small><strong>{{ sharedCharts.length }}</strong></span>
-          </button>
-          <div class="da-home-stat">
-            <span class="da-home-stat-icon is-data"><van-icon name="records-o" size="20"/></span>
-            <span class="da-home-stat-copy"><small>可用数据集</small><strong>{{ approvedDatasets.length }}</strong></span>
-          </div>
-        </section>
-        <section class="ds-home-shortcuts" aria-labelledby="ds-shortcut-label">
-          <div class="ds-home-section-title"><h3 id="ds-shortcut-label">快捷入口</h3></div>
-          <div class="ds-home-shortcut-grid">
-            <button type="button" class="ds-home-shortcut" @click="switchDesktopSection('ask')">
-              <span class="ds-shortcut-icon ds-shortcut-ask"><van-icon name="chat-o" size="25"/></span>
-              <span class="ds-shortcut-content"><strong>智能问数</strong><small>用自然语言提问，获取数据分析结果</small></span>
-              <van-icon name="arrow" class="ds-shortcut-chevron" size="17"/>
-            </button>
-            <button type="button" class="ds-home-shortcut" @click="switchDesktopSection('charts')">
-              <span class="ds-shortcut-icon ds-shortcut-chart"><van-icon name="chart-trending-o" size="25"/></span>
-              <span class="ds-shortcut-content"><strong>我的图表</strong><small>查看和管理已创建的图表及分析看板</small></span>
-              <van-icon name="arrow" class="ds-shortcut-chevron" size="17"/>
-            </button>
-            <button type="button" class="ds-home-shortcut" @click="switchDesktopSection('history')">
-              <span class="ds-shortcut-icon ds-shortcut-history"><van-icon name="clock-o" size="25"/></span>
-              <span class="ds-shortcut-content"><strong>历史会话</strong><small>查看过往提问记录，快速复用分析</small></span>
-              <van-icon name="arrow" class="ds-shortcut-chevron" size="17"/>
-            </button>
-          </div>
-        </section>
-        <section class="ds-home-recent" aria-labelledby="ds-recent-label">
-          <div class="ds-home-section-title ds-home-recent-title">
-            <h3 id="ds-recent-label">最近提问</h3>
-            <button type="button" @click="switchDesktopSection('history')">查看更多 <van-icon name="arrow" size="14"/></button>
-          </div>
-          <div class="ds-home-history-table">
-            <div class="ds-home-history-head"><span>问数内容</span><span>提问时间</span><span></span></div>
-            <button v-for="item in sessions.slice(0,5)" :key="item.id" type="button" class="ds-home-history-row" @click="openSession(item)">
-              <span class="ds-history-question"><van-icon name="chat-o" size="18"/><span>{{ item.title }}</span></span>
-              <time>{{ fullSessionTime(item.updatedAt) }}</time>
-              <van-icon name="arrow" size="15" class="ds-history-arrow"/>
-            </button>
-            <div v-if="!sessions.length" class="ds-home-history-empty">暂无历史问数。选择“智能问数”即可开始探索。</div>
-          </div>
-        </section>
+        </div>
       </main>
       <main v-if="isDesktop && desktopSection==='charts'" class="tb-page-body tb-content-page tb-charts-page">
         <template v-if="activeChart">
           <div class="da-chart-detail">
             <div class="da-chart-detail-heading">
-              <div>
+              <div class="da-chart-title-row">
                 <button type="button" class="da-chart-back" @click="closeChartDetail">
                   <van-icon name="arrow-left"/> 返回我的图表
                 </button>
-                <h1>{{ activeChart.title }}</h1>
-                <p>{{ activeChart.question }}</p>
+                <h1 :title="activeChart.question || activeChart.title">{{ activeChart.title }}</h1>
               </div>
               <div class="da-chart-detail-actions">
                 <span v-if="activeChartRefreshing" class="da-chart-refreshing"><van-loading size="14px"/> 正在更新数据…</span>
@@ -1637,8 +1768,8 @@ onBeforeUnmount(() => {
               <div v-if="activeChartCanPlot && activeChartMode==='chart'" class="da-chart-style-switch">
                 <span>切换展示</span>
                 <button v-for="type in ['bar','line',...(pieSupported(activeChartAnswer)?['pie']:[])]"
-                  :key="type" type="button" :class="{active:activeChartStyle===type}"
-                  @click="activeChartStyle=type">{{ {bar:'柱状图',line:'折线图',pie:'饼图'}[type] }}</button>
+                  :key="type" type="button" :class="{active:activeChartStyle===type}" :aria-pressed="activeChartStyle===type"
+                  @click="activeChartStyle=type"><van-icon :name="{bar:'bar-chart-o',line:'chart-trending-o',pie:'pie-chart-o'}[type]"/>{{ {bar:'柱状图',line:'折线图',pie:'饼图'}[type] }}</button>
               </div>
               <div v-if="activeChartIsMetric && activeChartMode==='summary'"
                 class="da-chart-metric">
@@ -1650,30 +1781,18 @@ onBeforeUnmount(() => {
               <AnswerChart v-if="activeChartCanPlot && activeChartMode==='chart'"
                 :message="activeChartAnswer" :chart-type-override="activeChartStyle"
                 :desktop-expanded="true"/>
-              <div v-if="activeChartMode==='table' || (!activeChartCanPlot && !activeChartIsMetric)"
-                class="result-table-scroll da-chart-detail-table" role="region" tabindex="0">
-                <table class="result-table"><thead><tr>
-                  <th v-for="(col,idx) in activeChartAnswer.columns" :key="col">
-                    {{ columnLabel(activeChartAnswer,col,idx) }}</th>
-                </tr></thead><tbody>
-                  <tr v-for="(row,i) in activeChartAnswer.rows" :key="i">
-                    <td v-for="col in activeChartAnswer.columns" :key="col">{{ pretty(row[col]) }}</td>
-                  </tr>
-                </tbody></table>
-              </div>
-              <div class="da-chart-detail-footer">
-                <span><van-icon name="shield-o"/> 数据来自当前授权的 ADS 表</span>
-                <span>展示实际查询结果，不会创建新的聊天会话</span>
-              </div>
+              <ResultTable v-if="activeChartMode==='table' || (!activeChartCanPlot && !activeChartIsMetric)" class="da-chart-detail-table" :message="activeChartAnswer" :label="columnLabel" :format="pretty"/>
+              <QueryExplanation :message="activeChartAnswer"/>
+              <section v-if="!activeChartAnswer.unsupported" class="da-analysis-summary" aria-label="AI 分析总结">
+                <h3><van-icon name="description"/> AI 分析总结</h3>
+                <p>{{ activeChartAnswer.summary || '本次未返回分析总结。' }}</p>
+              </section>
             </div>
           </div>
         </template>
         <template v-else>
         <div class="tb-page-heading">
-          <div><h1>我的图表</h1><p>查看已收藏或他人共享的分析，重新查询即可获取最新数据。</p></div>
-          <button type="button" class="tb-secondary-action" :disabled="chartsBusy" @click="loadSavedCharts">
-            <van-icon name="replay"/> 刷新数据
-          </button>
+          <div><h1>我的图表</h1><p>查看收藏与共享的分析结果</p></div>
         </div>
         <div class="tb-chart-workspace">
           <div class="tb-chart-toolbar">
@@ -1696,93 +1815,38 @@ onBeforeUnmount(() => {
               </select>
             </label>
           </div>
-          <section class="tb-chart-section">
-            <div class="tb-chart-section-title">
-              <h2><van-icon name="star-o"/> 我收藏的图表 <span>{{ filteredSavedCharts.length }}</span></h2>
-              <small>点击图表可按当前授权重新查询</small>
-            </div>
-            <div class="tb-chart-table-wrap" v-if="filteredSavedCharts.length">
-              <table class="tb-chart-table">
-                <thead><tr><th>图表名称</th><th>自然语言问题</th><th>图表类型</th><th>更新时间</th><th>操作</th></tr></thead>
-                <tbody>
-                  <tr v-for="item in filteredSavedCharts" :key="item.id">
-                    <td class="tb-chart-name-cell"><div class="tb-chart-name-inner">
-                      <span class="tb-chart-row-icon"><van-icon name="chart-trending-o" size="18"/></span>
-                      <button type="button" :title="item.title" @click="revisitChart(item)">{{ item.title }}</button>
-                    </div></td>
-                    <td class="tb-chart-question-cell" :title="item.question">{{ item.question }}</td>
-                    <td><span class="tb-chart-type-label">{{ chartTypeLabel(item.chartType) }}</span></td>
-                    <td class="tb-chart-date">{{ sessionTimeLabel(item.updatedAt || item.createdAt) }}</td>
-                    <td><button type="button" class="tb-chart-open" @click="revisitChart(item)">查看 <van-icon name="arrow"/></button></td>
-                  </tr>
-                </tbody>
-              </table>
-            </div>
-            <div v-else class="tb-chart-table-empty">
-              <van-icon name="chart-trending-o" size="28"/>
-              <strong>{{ chartsBusy ? '正在加载…' : chartSearch || chartTypeFilter!=='ALL' ? '没有匹配的图表' : '还没有收藏图表' }}</strong>
-              <p>在智能问数结果中点击“收藏”，就可以随时重新查看。</p>
-              <button v-if="!chartSearch && chartTypeFilter==='ALL' && !chartsBusy" type="button" @click="switchDesktopSection('ask')">去智能问数</button>
-            </div>
-          </section>
-          <section class="tb-chart-section">
-            <div class="tb-chart-section-title">
-              <h2><van-icon name="friends-o"/> 共享给我的图表 <span>{{ filteredSharedCharts.length }}</span></h2>
-            </div>
-            <div class="tb-chart-table-wrap" v-if="filteredSharedCharts.length">
-              <table class="tb-chart-table">
-                <thead><tr><th>图表名称</th><th>自然语言问题</th><th>图表类型</th><th>共享来源</th><th>更新时间</th><th>操作</th></tr></thead>
-                <tbody>
-                  <tr v-for="item in filteredSharedCharts" :key="item.id">
-                    <td class="tb-chart-name-cell"><div class="tb-chart-name-inner">
-                      <span class="tb-chart-row-icon tb-chart-row-shared"><van-icon name="share-o" size="18"/></span>
-                      <button type="button" :title="item.title" @click="revisitChart(item)">{{ item.title }}</button>
-                    </div></td>
-                    <td class="tb-chart-question-cell" :title="item.question">{{ item.question }}</td>
-                    <td><span class="tb-chart-type-label">{{ chartTypeLabel(item.chartType) }}</span></td>
-                    <td class="tb-chart-owner">{{ item.ownerUsername }}</td>
-                    <td class="tb-chart-date">{{ sessionTimeLabel(item.updatedAt || item.createdAt) }}</td>
-                    <td><button type="button" class="tb-chart-open" @click="revisitChart(item)">查看 <van-icon name="arrow"/></button></td>
-                  </tr>
-                </tbody>
-              </table>
-            </div>
-            <div v-else class="tb-chart-table-empty tb-shared-empty">
-              <van-icon name="share-o" size="25"/>
-              <strong>{{ chartSearch || chartTypeFilter!=='ALL' ? '没有匹配的共享图表' : '暂无共享给我的图表' }}</strong>
-            </div>
+          <section class="tb-chart-section" v-for="view in ['mine','shared']" :key="view">
+            <div class="tb-chart-section-title"><h2>{{ view==='mine'?'我收藏的图表':'共享给我的图表' }}</h2></div>
+            <RecordList :api="api" endpoint="/mini/charts/page" :params="{view,keyword:chartSearch,type:chartTypeFilter,sort:chartSortOrder}" :searchable="false" :refresh="chartListRefresh" :label="view==='mine'?'我的图表':'共享图表'" :columns="[{key:'title',label:'图表名称'},{key:'question',label:'自然语言问题'},{key:'chartType',label:'图表类型'},...(view==='shared'?[{key:'ownerUsername',label:'共享来源'}]:[]),{key:'updatedAt',label:'更新时间'}]">
+              <template #title="{row}"><button type="button" class="tb-chart-name-link" @click="revisitChart(row)">{{ row.title }}</button></template>
+              <template #chartType="{row}">{{ chartTypeLabel(row.chartType) }}</template>
+              <template #updatedAt="{row}">{{ sessionTimeLabel(row.updatedAt) }}</template>
+              <template #actions="{row}"><button type="button" class="tb-chart-open" @click="revisitChart(row)">查看 <van-icon name="arrow"/></button></template>
+            </RecordList>
           </section>
         </div>
         </template>
       </main>
       <main v-if="isDesktop && desktopSection==='history'" class="tb-page-body tb-content-page">
         <div class="tb-page-heading">
-          <div><h1>历史会话</h1><p>找回之前的分析，继续追问业务数据。</p></div>
-          <div class="da-history-header-actions"><button type="button" class="tb-secondary-action" @click="newConversation"><van-icon name="plus"/> 新建会话</button><button type="button" class="tb-secondary-action" @click="loadSessions"><van-icon name="replay"/> 刷新</button></div>
+          <div><h1>历史会话</h1><p>按日期查找并继续过往问数</p></div>
         </div>
-        <label class="tb-history-search"><van-icon name="search" size="18"/>
-          <input v-model="sessionSearch" aria-label="搜索会话" placeholder="搜索之前问过的问题"/>
-        </label>
-        <div class="tb-recent-list tb-history-list">
-          <button v-for="item in visibleSessions" :key="item.id" type="button" @click="openSession(item)">
-            <van-icon name="chat-o" class="tb-recent-icon"/>
-            <span>{{ item.title }}</span><small>{{ sessionTimeLabel(item.updatedAt) }}</small>
-            <van-icon name="arrow"/>
-          </button>
-          <div v-if="!visibleSessions.length" class="tb-empty-state">
-            <van-icon name="clock-o" size="40"/>
-            <h3>{{ sessionSearch ? '没有找到相关会话' : '还没有历史会话' }}</h3>
-            <p>从智能问数开始，你的问题会自动保存在这里。</p>
-            <button type="button" @click="switchDesktopSection('ask')">开始问数</button>
-          </div>
-        </div>
+        <RecordList :api="api" endpoint="/chat/sessions/page" label="历史会话" :params="{date:historyDate}" :refresh="historyListRefresh" selectable v-model:selected="historySelection" :columns="[{key:'title',label:'问数内容'},{key:'updatedAt',label:'提问时间'}]">
+          <template #toolbar>
+            <label class="da-history-date-filter"><span>日期</span><input v-model="historyDate" type="date" :max="currentDateInput()" aria-label="按日期筛选历史会话"></label>
+            <button type="button" @click="historyDate=''" :disabled="!historyDate">全部日期</button>
+            <button type="button" class="da-history-batch-delete" :disabled="!historySelection.length" @click="batchDeleteSessions"><van-icon name="delete-o"/> 批量删除{{ historySelection.length ? '（'+historySelection.length+'）' : '' }}</button>
+          </template>
+          <template #title="{row}"><button type="button" @click="openSession(row)">{{ row.title }}</button></template>
+          <template #updatedAt="{row}">{{ fullSessionTime(row.updatedAt) }}</template>
+          <template #actions="{row}"><button type="button" @click="openSession(row)">查看</button><button type="button" class="da-danger-button" @click="deleteSession(row)">删除</button></template>
+        </RecordList>
       </main>
       <main v-if="!isDesktop || desktopSection==='ask'" class="conversation">
         <section v-if="!messages.length && (!isDesktop || (!busy && !desktopFeedback))" class="welcome">
           <template v-if="isDesktop">
-            <div class="da-hero-mark" aria-hidden="true"><van-icon name="chart-trending-o" size="24"/></div>
-            <h2>你好，{{ me.displayName || me.username }}，今天想分析什么？</h2>
-            <p>用自然语言提问，系统会根据已授权的 ADS 数据计算真实结果。</p>
+            <h2>智能问数</h2>
+            <p>输入经营数据问题，或从下方示例开始分析。</p>
           </template>
           <template v-else>
             <div class="welcome-icon"><van-icon name="chart-trending-o" size="27"/></div>
@@ -1793,46 +1857,53 @@ onBeforeUnmount(() => {
                 {{ item }} <van-icon name="arrow" />
               </button>
             </div>
-            <p class="data-notice"><van-icon name="shield-o"/> 仅查询管理员开放的 ADS 表，结果来自真实数据库</p>
           </template>
         </section>
         <section v-for="msg in messages" :key="msg.id" class="turn">
           <div class="user-bubble">{{ msg.question }}</div>
           <div class="answer-card" :class="{ 'answer-needs-clarification': msg.unsupported && msg.followUps?.length }">
-            <div class="answer-heading"><span class="answer-mark">{{ isDesktop ? 'Q' : '数' }}</span><b>{{ msg.title }}</b>
+            <div v-if="isDesktop" class="da-answer-process-row">
+              <button type="button" class="da-analysis-toggle" :class="{active:analysisPanelOpen && analysisMessage?.id===msg.id}"
+                :aria-label="'查看分析过程：' + msg.question" @click="openAnalysis(msg)">
+                <van-icon :name="analysisPanelOpen && analysisMessage?.id===msg.id ? 'passed' : 'cluster-o'"/>
+                <span>分析过程{{ analysisPanelOpen && analysisMessage?.id===msg.id ? '已展开' : '' }}</span>
+                <van-icon name="arrow" size="11"/>
+              </button>
+            </div>
+            <div class="answer-heading"><span class="answer-mark">Q</span><span class="answer-agent-name">小Q</span><span class="answer-agent-divider">·</span><b>{{ msg.title }}</b>
               <span v-if="msg.timeLabel && !(isDesktop && answerScope(msg).length)" class="answer-time">{{ msg.timeLabel }}</span>
             </div>
-            <div v-if="isDesktop && answerScope(msg).length" class="da-answer-scope" aria-label="系统理解">
-              <span>系统理解</span>
-              <span v-for="item in answerScope(msg)" :key="item.key" class="da-chip" :title="item.value"><b>{{ item.label }}</b>{{ item.value }}</span>
+            <div v-if="isDesktop && answerScope(msg).length" class="da-answer-scope" aria-label="查询口径">
+              <span v-for="chip in answerScope(msg)" :key="chip.key" class="da-chip"><em>{{ chip.label }}</em>{{ chip.value }}</span>
             </div>
-            <p v-if="!isDesktop || !msg.rows?.length || !isRedundantSummary(msg)"
-              class="answer-summary da-answer-insight" :class="{ 'unsupported-text': msg.unsupported }">{{ msg.summary }}</p>
+            <p v-if="!isDesktop || msg.unsupported"
+              class="answer-summary da-answer-insight" :class="{ 'unsupported-text': msg.unsupported }">{{ answerSummary(msg) }}</p>
             <template v-if="msg.rows?.length">
               <div v-if="isDesktop" class="da-answer-result desktop-result-header">
                 <div class="desktop-result-heading"><van-icon name="chart-trending-o"/> 查询结果 <span>共 {{ msg.rows.length }} 行</span></div>
                 <div class="da-result-tools">
                   <div class="desktop-result-switch da-segmented" role="group" :aria-label="'图表视图切换：'+msg.title">
-                    <button v-if="msg.chartType === 'metric' && msg.rows.length === 1" type="button" :class="{active:resultView(msg)==='summary'}" @click="setResultView(msg,'summary')">指标</button>
+                    <button v-if="isSingleValue(msg)" type="button" :class="{active:resultView(msg)==='summary'}" :aria-pressed="resultView(msg)==='summary'" @click="setResultView(msg,'summary')">指标</button>
                     <button v-if="['bar','line','pie'].includes(msg.chartType) && msg.rows.length > 1" type="button"
-                      :class="{active:resultView(msg)==='chart'}" @click="setResultView(msg,'chart')">图表</button>
-                    <button type="button" :class="{active:resultView(msg)==='table'}" @click="setResultView(msg,'table')">表格</button>
+                      :class="{active:resultView(msg)==='chart'}" :aria-pressed="resultView(msg)==='chart'" @click="setResultView(msg,'chart')">图表</button>
+                    <button v-if="!isSingleValue(msg)" type="button" :class="{active:resultView(msg)==='table'}" :aria-pressed="resultView(msg)==='table'" @click="setResultView(msg,'table')">表格</button>
                   </div>
                   <div v-if="['bar','line','pie'].includes(msg.chartType) && msg.rows.length > 1 && resultView(msg)==='chart'" class="qbi-chart-type da-segmented" role="group" aria-label="图表类型">
-                    <button type="button" :class="{active:chartStyle(msg)==='bar'}" @click="setChartStyle(msg,'bar')">柱状图</button>
-                    <button type="button" :class="{active:chartStyle(msg)==='line'}" @click="setChartStyle(msg,'line')">折线图</button>
-                    <button v-if="pieSupported(msg)" type="button" :class="{active:chartStyle(msg)==='pie'}" @click="setChartStyle(msg,'pie')">饼图</button>
+                    <button type="button" :class="{active:chartStyle(msg)==='bar'}" :aria-pressed="chartStyle(msg)==='bar'" @click="setChartStyle(msg,'bar')"><van-icon name="bar-chart-o"/>柱状图</button>
+                    <button type="button" :class="{active:chartStyle(msg)==='line'}" :aria-pressed="chartStyle(msg)==='line'" @click="setChartStyle(msg,'line')"><van-icon name="chart-trending-o"/>折线图</button>
+                    <button v-if="pieSupported(msg)" type="button" :class="{active:chartStyle(msg)==='pie'}" :aria-pressed="chartStyle(msg)==='pie'" @click="setChartStyle(msg,'pie')"><van-icon name="pie-chart-o"/>饼图</button>
                   </div>
                 </div>
               </div>
-              <div v-if="msg.chartType === 'metric' && msg.rows.length === 1 && (!isDesktop || resultView(msg)==='summary')" class="metric-data">
+              <div v-if="isSingleValue(msg) && (!isDesktop || resultView(msg)==='summary')" class="metric-data">
                 <div v-for="col in msg.columns" :key="col">
                   <small :title="col">{{ columnLabel(msg, col, msg.columns.indexOf(col)) }}</small><strong>{{ pretty(msg.rows[0][col]) }}</strong>
                 </div>
               </div>
               <AnswerChart v-if="['bar','line','pie'].includes(msg.chartType) && msg.rows.length > 1 && (!isDesktop || resultView(msg)==='chart')"
                 :message="msg" :desktop-expanded="isDesktop" :chart-type-override="isDesktop ? chartStyle(msg) : ''"/>
-              <div v-if="!isDesktop || resultView(msg)==='table'" class="result-table-scroll" role="region" tabindex="0" aria-label="数据结果表格，可独立上下滚动">
+              <ResultTable v-if="isDesktop && resultView(msg)==='table' && !isSingleValue(msg)" :message="msg" :label="columnLabel" :format="pretty"/>
+              <div v-if="!isDesktop && !isSingleValue(msg)" class="result-table-scroll" role="region" tabindex="0" aria-label="数据结果表格，可独立上下滚动">
                 <table class="result-table">
                   <thead><tr><th v-for="(col, idx) in msg.columns" :key="col" :title="col">{{ columnLabel(msg, col, idx) }}</th></tr></thead>
                   <tbody><tr v-for="(row, idx) in msg.rows" :key="idx">
@@ -1840,27 +1911,35 @@ onBeforeUnmount(() => {
                   </tr></tbody>
                 </table>
               </div>
-              <p v-if="!isDesktop || resultView(msg)==='table'" class="table-foot">当前显示 {{ msg.rows.length }} 行，表格区域可独立上下滚动（最多200行）。</p>
+              <p v-if="(!isDesktop && !isSingleValue(msg)) || (isDesktop && resultView(msg)==='table' && !isSingleValue(msg))" class="table-foot">{{ msg.rows.length }} 行 · 最多 200 行</p>
             </template>
+            <section v-if="isDesktop && !msg.unsupported" class="da-analysis-summary" aria-label="AI 分析总结">
+              <h3><van-icon name="description"/> AI 分析总结</h3>
+              <p>{{ isRedundantSummary(msg) ? '未记录分析总结' : msg.summary || '本次未返回数据' }}</p>
+            </section>
             <div v-if="msg.unsupported && msg.followUps?.length" class="metric-clarification" aria-label="请选择查询指标">
               <div class="metric-clarification-heading">
                 <van-icon name="question-o" size="18"/>
                 <strong>你想查看哪项指标？</strong>
               </div>
-              <p>以下选项根据当前已授权的数据字段生成，点击即可继续查询：</p>
               <div class="metric-clarification-options">
                 <button v-for="item in msg.followUps" :key="item" type="button" :disabled="busy"
                   @click="ask(item, msg.id)">
                   {{ item }} <van-icon name="arrow" size="12"/>
                 </button>
               </div>
-              <small>也可以在输入框中说明需要的具体指标。</small>
             </div>
             <div v-if="isDesktop" class="desktop-answer-tools">
               <button type="button" @click="copyAnswer(msg)"><van-icon name="description"/> 复制结果</button>
+              <button v-if="!msg.unsupported && msg.rows?.length" type="button" @click="openFullScreen(msg)"><van-icon name="expand-o"/> 全屏查看</button>
+              <button v-if="!msg.unsupported && msg.rows?.length" type="button" @click="exportAnswer(msg)"><van-icon name="down"/> 导出数据</button>
               <button v-if="!msg.unsupported && msg.rows?.length" type="button" @click="saveChart(msg)"><van-icon name="star-o"/> 收藏</button>
               <button v-if="!msg.unsupported && msg.rows?.length" type="button" @click="shareChart(msg)"><van-icon name="share-o"/> 分享</button>
-              <button type="button" :disabled="busy" @click="ask(msg.question)"><van-icon name="replay"/> 重新查询</button>
+              <button v-if="!msg.unsupported" type="button" :disabled="busy" @click="startFollowUp(msg)"><van-icon name="comment-o"/> 追加提问</button>
+              <button type="button" :class="{active:answerFeedback[msg.id]==='up'}" title="结果有帮助" aria-label="结果有帮助" @click="voteAnswer(msg,'up')"><van-icon :name="answerFeedback[msg.id]==='up'?'good-job':'good-job-o'"/></button>
+              <button type="button" class="da-dislike-button" :class="{active:answerFeedback[msg.id]==='down'}" title="结果需改进" aria-label="结果需改进" @click="voteAnswer(msg,'down')"><van-icon :name="answerFeedback[msg.id]==='down'?'good-job':'good-job-o'"/></button>
+              <button type="button" title="复制 Trace ID" aria-label="复制 Trace ID" @click="copyTraceId(msg)"><van-icon name="link-o"/></button>
+              <button type="button" :disabled="busy" @click="ask(msg.question,null)"><van-icon name="replay"/> 重新查询</button>
             </div>
             <div v-if="!msg.unsupported && msg.followUps?.length" class="followups">
               <span v-if="isDesktop" class="da-followups-label">继续追问</span>
@@ -1871,12 +1950,10 @@ onBeforeUnmount(() => {
         </section>
         <template v-if="busy && isDesktop">
           <div class="turn desktop-pending-turn"><div class="user-bubble">{{ pendingQuestion }}</div>
-            <div class="loading-bubble"><span class="answer-mark">D</span><van-loading size="18px"/> 正在分析问题、生成 SQL 并查询数据…
-              <button type="button" @click="stopAsk" title="停止查询" class="desktop-inline-stop" aria-label="停止查询"><span class="stop-square"></span></button>
-            </div>
+            <div class="da-pending-execution"><span><van-loading size="15px"/> 小Q 正在分析问题，过程已在右侧展开</span><button type="button" @click="stopAsk" class="da-pending-stop"><van-icon name="stop-circle-o"/> 停止查询</button></div>
           </div>
         </template>
-        <div v-else-if="busy" class="loading-bubble"><van-loading size="16px"/> 正在理解问题并查询 ADS 数据...</div>
+        <div v-else-if="busy" class="loading-bubble"><van-loading size="16px"/> 小Q 正在理解问题并查询 ADS 数据...</div>
         <section v-if="isDesktop && !busy && desktopFeedback" class="turn desktop-feedback-turn" aria-live="polite">
           <div class="user-bubble">{{ desktopFeedback.question }}</div>
           <div class="desktop-feedback-card" :class="'feedback-'+desktopFeedback.type">
@@ -1892,6 +1969,8 @@ onBeforeUnmount(() => {
         </section>
         <div ref="footerRef" class="end-marker"></div>
       </main>
+      <AnalysisPanel v-if="isDesktop && desktopSection==='ask' && analysisPanelOpen"
+        :message="analysisMessage" :pending="busy && !analysisMessage" :question="analysisQuestion" @close="closeAnalysis"/>
       <footer v-if="!isDesktop || desktopSection==='ask'" class="composer"
         :style="isDesktop ? { '--da-composer-height': composerHeight + 'px' } : {}">
         <button v-if="isDesktop" type="button" class="da-composer-resize-handle"
@@ -1900,20 +1979,14 @@ onBeforeUnmount(() => {
           @keydown.up.prevent="adjustComposerHeight(24)"
           @keydown.down.prevent="adjustComposerHeight(-24)"><span></span></button>
         <div class="composer-row da-composer">
+          <div v-if="isDesktop && followUpSource" class="da-followup-context">
+            <span><van-icon name="comment-o"/> 正在追加提问：{{ followUpSource.title || followUpSource.question }}</span>
+            <button type="button" aria-label="退出追加提问" title="退出追加提问" @click="cancelFollowUp"><van-icon name="cross"/></button>
+          </div>
           <textarea ref="desktopQuestionRef" v-model="question" :rows="isDesktop ? (messages.length ? 1 : 3) : 1" maxlength="800"
-            :placeholder="isDesktop ? '例如：昨天各城市的销售额是多少？' : '问问经营数据，例如：昨日营业额'"
+            :placeholder="isDesktop ? (followUpSource ? '继续追问当前结果，例如：其中订单量最高的门店是哪家？' : '例如：昨天各城市的销售额是多少？') : '问问经营数据，例如：昨日营业额'"
             aria-label="输入经营数据问题" @keydown.enter.exact.prevent="ask()"></textarea>
           <div v-if="isDesktop" class="da-composer-bar">
-            <div class="da-composer-scope">
-              <label class="da-scope-chip" :class="{active:!!selectedDataset}" :title="selectedDataset ? '当前数据范围：'+selectedDataset : '选择数据范围（默认全部授权数据）'">
-                <van-icon name="records-o"/>
-                <select v-model="selectedDataset" aria-label="数据范围" :disabled="busy">
-                  <option value="">全部授权数据</option>
-                  <option v-for="name in approvedDatasets" :key="name" :value="name">{{ name }}</option>
-                </select>
-              </label>
-              <button v-if="selectedDataset" type="button" class="da-scope-clear" title="清除数据范围" aria-label="清除数据范围" @click="selectedDataset=''"><van-icon name="cross"/></button>
-            </div>
             <div class="da-composer-actions">
               <div class="desktop-composer-hints">
                 <span>Enter 发送 · Shift + Enter 换行</span>
@@ -1935,25 +2008,89 @@ onBeforeUnmount(() => {
           </button>
         </div>
         <section v-if="isDesktop && !messages.length && !busy && !desktopFeedback" class="da-suggestions" aria-label="示例问题">
-          <div class="da-suggestions-label"><span><van-icon name="fire-o"/> 你可以这样问</span><small>通用问法示例，实际可查询内容取决于指标口径</small></div>
-          <div class="da-suggestion-grid">
-            <button v-for="(item, idx) in quickQuestions" :key="item" :disabled="busy" type="button" @click="ask(item)">
-              <span class="da-suggestion-icon"><van-icon :name="['chart-trending-o','location-o','bar-chart-o','balance-o'][idx]" size="16"/></span>
-              <span>{{ item }}</span>
-              <van-icon name="arrow" size="12"/>
-            </button>
+          <div class="da-suggestions-label"><span><van-icon name="apps-o"/> 示例问题</span><small>按分析场景选择</small></div>
+          <div class="da-suggestion-group">
+            <p class="da-suggestion-group-label">指标查询</p>
+            <div class="da-suggestion-grid">
+              <button v-for="item in quickQuestions.slice(0,1)" :key="item" :disabled="busy" type="button" @click="ask(item)">
+                <span class="da-suggestion-icon"><van-icon name="chart-trending-o" size="16"/></span>
+                <span>{{ item }}</span>
+                <van-icon name="arrow" size="12"/>
+              </button>
+            </div>
           </div>
-          <p class="da-suggestions-note"><van-icon name="shield-o"/> 仅查询管理员授权的 ADS 表，结果来自真实数据库</p>
+          <div class="da-suggestion-group">
+            <p class="da-suggestion-group-label">排行 · 趋势 · 对比</p>
+            <div class="da-suggestion-grid">
+              <button v-for="(item, idx) in quickQuestions.slice(1)" :key="item" :disabled="busy" type="button" @click="ask(item)">
+                <span class="da-suggestion-icon"><van-icon :name="['location-o','bar-chart-o','balance-o'][idx]" size="16"/></span>
+                <span>{{ item }}</span>
+                <van-icon name="arrow" size="12"/>
+              </button>
+            </div>
+          </div>
         </section>
         <small>DataAsk · 仅供内部经营分析 · 以实际业务口径为准</small>
       </footer>
+      <van-popup v-if="isDesktop" v-model:show="resultFullscreenOpen" position="center"
+        :close-on-click-overlay="false" class="da-result-fullscreen" @keydown.esc="closeFullScreen">
+        <section v-if="fullScreenMessage" class="da-result-fullscreen-dialog" aria-label="全屏查看问数结果">
+          <header>
+            <div><small>问数结果</small><h2>{{ fullScreenMessage.title }}</h2></div>
+            <div class="da-result-fullscreen-actions">
+              <div class="da-segmented" role="group" aria-label="全屏结果视图">
+                <button v-if="isSingleValue(fullScreenMessage)" type="button" :class="{active:fullScreenView==='summary'}" @click="fullScreenView='summary'">指标</button>
+                <button v-if="['bar','line','pie'].includes(fullScreenMessage.chartType) && fullScreenMessage.rows?.length>1" type="button" :class="{active:fullScreenView==='chart'}" @click="fullScreenView='chart'">图表</button>
+                <button v-if="!isSingleValue(fullScreenMessage)" type="button" :class="{active:fullScreenView==='table'}" @click="fullScreenView='table'">表格</button>
+              </div>
+              <button type="button" class="da-result-fullscreen-export" @click="exportAnswer(fullScreenMessage)"><van-icon name="down"/> 导出</button>
+              <button type="button" class="da-result-fullscreen-close" aria-label="关闭全屏结果" title="关闭" @click="closeFullScreen"><van-icon name="cross"/></button>
+            </div>
+          </header>
+          <div class="da-result-fullscreen-body">
+            <div v-if="fullScreenView==='summary'" class="metric-data">
+              <div v-for="col in fullScreenMessage.columns" :key="col"><small>{{ columnLabel(fullScreenMessage,col,fullScreenMessage.columns.indexOf(col)) }}</small><strong>{{ pretty(fullScreenMessage.rows[0][col]) }}</strong></div>
+            </div>
+            <AnswerChart v-else-if="fullScreenView==='chart'" :message="fullScreenMessage" :desktop-expanded="true" :chart-type-override="chartStyle(fullScreenMessage)"/>
+            <ResultTable v-else-if="fullScreenView==='table' && !isSingleValue(fullScreenMessage)" :message="fullScreenMessage" :label="columnLabel" :format="pretty"/>
+          </div>
+          <footer><span>{{ fullScreenMessage.question }}</span><small>{{ fullScreenMessage.rows?.length || 0 }} 行 · 最多 200 行</small></footer>
+        </section>
+      </van-popup>
+      <van-popup v-if="isDesktop" v-model:show="personalizationOpen" position="center" round closeable
+        class="da-preferences-popup" :style="{width:'min(480px,calc(100vw - 36px))'}" aria-labelledby="da-personalization-title"
+        @keydown.esc="personalizationOpen=false">
+        <section class="da-preferences-dialog">
+          <h2 id="da-personalization-title">个性化</h2>
+          <div class="da-preference-heading"><h3>外观</h3><span>选择主题</span></div>
+          <div class="da-theme-options" role="group" aria-label="主题选择">
+            <button type="button" :aria-pressed="theme==='light'" :class="{selected:theme==='light'}" @click="chooseTheme('light')"><van-icon name="bulb-o"/><strong>浅色</strong><small>白色界面</small><van-icon v-if="theme==='light'" name="checked" class="da-theme-check"/></button>
+            <button type="button" :aria-pressed="theme==='dark'" :class="{selected:theme==='dark'}" @click="chooseTheme('dark')"><van-icon name="circle"/><strong>深色</strong><small>黑色界面</small><van-icon v-if="theme==='dark'" name="checked" class="da-theme-check"/></button>
+          </div>
+        </section>
+      </van-popup>
+      <van-popup v-if="isDesktop" v-model:show="profileOpen" position="center" round
+        class="da-preferences-popup" :closeable="!profileSaving" :close-on-click-overlay="!profileSaving"
+        :style="{width:'min(480px,calc(100vw - 36px))'}" aria-labelledby="da-profile-title" @keydown.esc="closeProfile" @closed="closeProfile">
+        <section class="da-preferences-dialog da-profile-dialog">
+          <h2 id="da-profile-title">个人资料</h2>
+          <van-loading v-if="profileLoading" size="20px">正在读取资料…</van-loading>
+          <div v-else-if="profileError" class="da-profile-error" role="alert"><p>{{ profileError }}</p><button type="button" @click="openProfile">重新加载</button></div>
+          <template v-else>
+            <van-field :model-value="me.username" label="登录账号" readonly/>
+            <van-field v-model="profileForm.displayName" label="显示名称" placeholder="请输入显示名称" maxlength="100" :disabled="profileSaving"/>
+            <van-field :model-value="isAdmin ? '系统管理员' : '普通用户'" label="账号角色" readonly/>
+            <van-field v-if="profileForm.createdAt" :model-value="fullSessionTime(profileForm.createdAt)" label="加入时间" readonly/>
+            <div class="da-password-actions"><van-button :disabled="profileSaving" @click="closeProfile">取消</van-button><van-button type="primary" :loading="profileSaving" @click="saveProfile">保存资料</van-button></div>
+          </template>
+        </section>
+      </van-popup>
       <van-popup v-if="isDesktop" v-model:show="changePasswordOpen"
         position="center" round :closeable="!changePasswordBusy" :close-on-click-overlay="!changePasswordBusy"
         :style="{width:'min(430px,calc(100vw - 36px))'}"
-        @closed="closePasswordChange">
+        @keydown.esc="closePasswordChange" @closed="closePasswordChange">
         <div class="da-password-dialog">
           <h2>修改密码</h2>
-          <p>为保障账号安全，请验证当前密码。修改后需要重新登录。</p>
           <van-field v-model="passwordForm.oldPassword" type="password"
             label="当前密码" placeholder="请输入当前密码" autocomplete="current-password"/>
           <van-field v-model="passwordForm.newPassword" type="password"

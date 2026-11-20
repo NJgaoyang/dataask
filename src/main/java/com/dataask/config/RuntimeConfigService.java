@@ -216,7 +216,12 @@ public class RuntimeConfigService {
         // corrupted existing credential before allowing the repair.
         String pass=(data.password()==null || data.password().isBlank())
                 ? starRocks().password() : data.password();
-        // Use a simple JDBC URL; untrusted JDBC parameters must not be accepted.
+        return validateConnection(url,username,pass,schema);
+    }
+
+    public StarRocksConfig validateConnection(String rawUrl, String username, String pass, String schema) {
+        String url=normalizeStarRocksUrl(rawUrl,schema);
+        // Profiles must use only their own credential, never the active source's password.
         if (!url.matches("jdbc:mysql://[A-Za-z0-9.-]+:[0-9]{1,5}/[A-Za-z_][A-Za-z0-9_]*")) {
             throw invalid("JDBC 地址应为 jdbc:mysql://FE地址:9030/ads，不允许额外参数");
         }
@@ -240,6 +245,19 @@ public class RuntimeConfigService {
         jdbc.update("INSERT INTO da_app_settings (setting_key,setting_value) VALUES(?,?) " +
             "ON DUPLICATE KEY UPDATE setting_value=VALUES(setting_value)",name,value);
     }
+
+    @Transactional
+    public void activateSource(String id, StarRocksConfig config) {
+        upsert("sr.activeSource",id);
+        upsert("sr.jdbcUrl",config.jdbcUrl());
+        upsert("sr.username",config.username());
+        upsert("sr.schema",config.schema());
+        upsert("sr.password",encrypt(config.password()));
+    }
+
+    public String activeSourceId() { return stored().getOrDefault("sr.activeSource",""); }
+    public String sealCredential(String value) { return encrypt(value); }
+    public String openCredential(String value) { return decrypt(value); }
 
     private record CredentialHealth(boolean set, boolean unreadable) {}
     /**

@@ -1,5 +1,9 @@
 package com.dataask.security;
 
+import com.dataask.audit.AuditContext;
+import com.dataask.audit.AuditFilter;
+import com.dataask.audit.AuditService;
+
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import jakarta.annotation.PostConstruct;
@@ -50,7 +54,7 @@ public class SecurityConfig {
     PasswordEncoder passwordEncoder() { return new BCryptPasswordEncoder(); }
 
     @Bean
-    SecurityFilterChain filterChain(HttpSecurity http, JwtFilter jwt) throws Exception {
+    SecurityFilterChain filterChain(HttpSecurity http, JwtFilter jwt, AuditService audit) throws Exception {
         http.csrf(AbstractHttpConfigurer::disable)
             .sessionManagement(s -> s.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
             .authorizeHttpRequests(a -> a
@@ -61,7 +65,8 @@ public class SecurityConfig {
                 .anyRequest().permitAll())
             .exceptionHandling(e -> e.authenticationEntryPoint(
                 (request, response, exception) -> response.sendError(401)))
-            .addFilterBefore(jwt, UsernamePasswordAuthenticationFilter.class);
+            .addFilterBefore(jwt, UsernamePasswordAuthenticationFilter.class)
+            .addFilterAfter(new AuditFilter(audit), JwtFilter.class);
         return http.build();
     }
 
@@ -185,11 +190,14 @@ class AuthController {
 
     @PostMapping("/login")
     Map<String, Object> login(@Valid @RequestBody LoginRequest input) {
+        AuditContext.set("detail", "登录账号：" + AuditService.bounded(input.username(),64));
         List<Map<String, Object>> users = jdbc.queryForList(
             "SELECT username,display_name,password_hash,role FROM da_users WHERE username=?", input.username());
         if (users.isEmpty() || !passwords.matches(input.password(), (String) users.getFirst().get("password_hash")))
             throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "用户名或密码错误");
         Map<String, Object> user = users.getFirst();
+        AuditContext.set("username", (String) user.get("username"));
+        AuditContext.set("role", (String) user.get("role"));
         return Map.of("token", tokens.issue((String) user.get("username"), (String) user.get("role"),
                 (String) user.get("password_hash")),
             "username", user.get("username"), "displayName", user.get("display_name"), "role", user.get("role"));
@@ -198,6 +206,9 @@ class AuthController {
     record ChangePasswordRequest(
         @NotBlank String oldPassword,
         @NotBlank String newPassword) {}
+
+    @PostMapping("/logout")
+    Map<String,Boolean> logout() { return Map.of("success",true); }
 
     /**
      * Every authenticated user may change only their own password.
@@ -227,7 +238,33 @@ class AuthController {
 
     @GetMapping("/me")
     Map<String, String> me(Authentication auth) {
+        return profile(auth);
+    }
+
+    @GetMapping("/profile")
+    Map<String,String> profile(Authentication auth) {
+        List<Map<String,Object>> users = jdbc.queryForList(
+            "SELECT display_name,created_at FROM da_users WHERE username=?", auth.getName());
+        if (users.isEmpty()) throw new ResponseStatusException(HttpStatus.NOT_FOUND, "账号不存在");
         boolean admin = auth.getAuthorities().stream().anyMatch(a -> "ROLE_ADMIN".equals(a.getAuthority()));
-        return Map.of("username", auth.getName(), "role", admin ? "ADMIN" : "USER");
+        var user = users.getFirst();
+        return Map.of("username", auth.getName(), "role", admin ? "ADMIN" : "USER",
+            "displayName", java.util.Objects.toString(user.get("display_name"), auth.getName()),
+            "createdAt", java.util.Objects.toString(user.get("created_at"), ""));
+    }
+
+    record UpdateProfileRequest(@NotBlank String displayName) {}
+
+    @PutMapping("/profile")
+    Map<String,String> updateProfile(@Valid @RequestBody UpdateProfileRequest input, Authentication auth) {
+        String name = input.displayName() == null ? "" : input.displayName().strip();
+        if (name.isEmpty() || name.length() > 100 || name.chars().anyMatch(Character::isISOControl))
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "显示名称需为1到100个字符，且不能包含控制字符");
+        // The target and role are never taken from the request body.
+        profile(auth);
+        AuditContext.set("target","用户："+auth.getName());
+        AuditContext.set("detail","显示名称修改为："+name);
+        jdbc.update("UPDATE da_users SET display_name=? WHERE username=?", name, auth.getName());
+        return Map.of("displayName", name, "username", auth.getName());
     }
 }

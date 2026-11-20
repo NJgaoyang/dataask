@@ -65,6 +65,11 @@ class ChatClarificationFlowTest {
         assertThat(answer.followUps()).containsExactly(
             "查看西安市近7天订单量趋势","查看西安市近7天用户数趋势");
         assertThat(answer.rows()).isEmpty();
+        assertThat(answer.semantic()).isNull();
+        assertThat(answer.execution().steps()).extracting(QueryExplanation.Step::key)
+            .containsExactly("metadata", "semantic", "planning", "stopped");
+        assertThat(answer.execution().steps()).extracting(QueryExplanation.Step::status)
+            .contains("needs_input", "skipped");
         verifyNoInteractions(guard);
         verify(starrocks,never()).query(anyString(),any());
         verify(jdbc).update(contains("INSERT INTO da_messages"),

@@ -1,5 +1,8 @@
 package com.dataask.mini;
 
+import com.dataask.audit.SqlVisibility;
+import com.dataask.audit.AuditContext;
+
 import com.dataask.chat.ChatController;
 import com.dataask.data.SqlGuard;
 import com.dataask.data.StarRocksGateway;
@@ -130,7 +133,7 @@ public class MiniappController {
             if(payload==null || payload.path("unsupported").asBoolean(false) ||
                !payload.path("rows").isArray())
                 throw new ResponseStatusException(HttpStatus.CONFLICT,"收藏的数据已失效");
-            return Map.of("chart",info,"answer",payload,"cached",true);
+            return Map.of("chart",info,"answer",SqlVisibility.visible(payload,user),"cached",true);
         } catch(ResponseStatusException e) {
             throw e;
         } catch(Exception e) {
@@ -145,6 +148,7 @@ public class MiniappController {
     @PostMapping("/charts/{id}/refresh")
     public Map<String,Object> refresh(@PathVariable String id, Authentication user) {
         Map<String,Object> info=chart(id,user);
+        AuditContext.set("target","图表："+id);
         ChatController.Answer answer=chat.previewChart(
             Objects.toString(info.get("question"),""),
             Objects.toString(info.get("dataset"),""),user);
@@ -185,6 +189,8 @@ public class MiniappController {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST,"共享范围必须为 PRIVATE、ALL 或 SELECTED");
         List<String> users = request.users()==null ? List.of() :
             request.users().stream().map(String::trim).filter(s -> !s.isEmpty()).distinct().toList();
+        AuditContext.set("target","图表："+id);
+        AuditContext.set("detail","共享范围："+scope+"；指定成员："+String.join(",",users));
         if ("SELECTED".equals(scope)) {
             if (users.isEmpty() || users.size()>20)
                 throw new ResponseStatusException(HttpStatus.BAD_REQUEST,"请选择1-20个成员账号");

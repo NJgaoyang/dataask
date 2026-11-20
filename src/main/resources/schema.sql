@@ -1,3 +1,16 @@
+CREATE TABLE IF NOT EXISTS da_datasources (
+ id VARCHAR(36) NOT NULL PRIMARY KEY,
+ name VARCHAR(100) NOT NULL UNIQUE,
+ jdbc_url VARCHAR(500) NOT NULL,
+ username VARCHAR(120) NOT NULL,
+ password_enc TEXT NOT NULL,
+ schema_name VARCHAR(64) NOT NULL,
+ description VARCHAR(500) NOT NULL DEFAULT '',
+ created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+ updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+ INDEX idx_da_datasource_updated (updated_at,id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
 CREATE TABLE IF NOT EXISTS da_users (
  id BIGINT NOT NULL AUTO_INCREMENT PRIMARY KEY,
  username VARCHAR(64) NOT NULL UNIQUE,
@@ -5,6 +18,55 @@ CREATE TABLE IF NOT EXISTS da_users (
  password_hash VARCHAR(100) NOT NULL,
  role VARCHAR(16) NOT NULL DEFAULT 'USER',
  created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+-- Independent audit history: no cascading FK to users, messages or charts.
+-- DATETIME(3) values are written/read explicitly as UTC; UI filters use Asia/Shanghai.
+CREATE TABLE IF NOT EXISTS da_operation_audit (
+ id VARCHAR(36) NOT NULL PRIMARY KEY,
+ request_id VARCHAR(36) NOT NULL,
+ username VARCHAR(64) NOT NULL,
+ actor_role VARCHAR(16) NOT NULL,
+ http_method VARCHAR(8) NOT NULL,
+ path VARCHAR(512) NOT NULL,
+ module VARCHAR(24) NOT NULL,
+ action VARCHAR(80) NOT NULL,
+ target VARCHAR(500) NOT NULL,
+ detail TEXT NULL,
+ outcome VARCHAR(16) NOT NULL,
+ http_status INT NULL,
+ duration_ms BIGINT NULL,
+ occurred_at DATETIME(3) NOT NULL,
+ finished_at DATETIME(3) NULL,
+ INDEX idx_da_op_time (occurred_at,id),
+ INDEX idx_da_op_user_time (username,occurred_at,id),
+ INDEX idx_da_op_module_time (module,occurred_at,id),
+ INDEX idx_da_op_action_time (action,occurred_at,id),
+ INDEX idx_da_op_outcome_time (outcome,occurred_at,id),
+ INDEX idx_da_op_request (request_id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+CREATE TABLE IF NOT EXISTS da_query_audit (
+ id VARCHAR(36) NOT NULL PRIMARY KEY,
+ operation_id VARCHAR(36) NULL,
+ request_id VARCHAR(36) NULL,
+ username VARCHAR(64) NOT NULL,
+ source VARCHAR(24) NOT NULL,
+ session_id VARCHAR(36) NULL,
+ question VARCHAR(800) NOT NULL,
+ sql_text TEXT NOT NULL,
+ status VARCHAR(16) NOT NULL,
+ row_count INT NULL,
+ duration_ms BIGINT NULL,
+ error_code VARCHAR(64) NULL,
+ started_at DATETIME(3) NOT NULL,
+ finished_at DATETIME(3) NULL,
+ INDEX idx_da_query_time (started_at,id),
+ INDEX idx_da_query_user_time (username,started_at,id),
+ INDEX idx_da_query_status_time (status,started_at,id),
+ INDEX idx_da_query_source_time (source,started_at,id),
+ INDEX idx_da_query_operation (operation_id),
+ INDEX idx_da_query_request (request_id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
 CREATE TABLE IF NOT EXISTS da_allowed_tables (

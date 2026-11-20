@@ -1,5 +1,7 @@
 package com.dataask.admin;
 
+import com.dataask.audit.AuditContext;
+
 import com.dataask.config.RuntimeConfigService;
 import com.dataask.data.StarRocksGateway;
 import com.dataask.semantic.EmbeddingSemanticService;
@@ -56,6 +58,8 @@ public class AdminController {
 
     @PostMapping("/settings/starrocks")
     Map<String,Object> saveStarRocks(@RequestBody RuntimeConfigService.StarRocksInput input) {
+        if (!Objects.toString(settings.activeSourceId(),"").isBlank())
+            throw new ResponseStatusException(HttpStatus.CONFLICT,"请在数据源管理中编辑或启用数据源");
         RuntimeConfigService.StarRocksConfig validated=settings.validateStarRocks(input);
         starrocks.test(validated); // Reject invalid connection before saving.
         settings.saveStarRocks(input);
@@ -148,6 +152,8 @@ public class AdminController {
 
     @PostMapping("/table-allow")
     Map<String,Object> allow(@Valid @RequestBody AllowTableRequest request) {
+        AuditContext.set("target",request.tableName());
+        AuditContext.set("detail",request.enabled() ? "开放数据表查询权限" : "停用数据表查询权限");
         boolean exists=starrocks.discover().stream().anyMatch(x->x.name().equals(request.tableName()));
         if(!exists) throw new ResponseStatusException(HttpStatus.BAD_REQUEST,"指定 ADS 表不存在");
         jdbc.update("INSERT INTO da_allowed_tables(table_name,enabled) VALUES(?,?) "+
@@ -163,11 +169,13 @@ public class AdminController {
                 "role",rs.getString(3),"createdAt",rs.getTimestamp(4).toString()));
     }
 
-    record UserRequest(@NotBlank String username,@NotBlank String displayName,
-                       @Size(min=10) String password,@NotBlank String role) {}
+    record UserRequest(@NotBlank String username,@NotBlank @Size(max=80) String displayName,
+                       @Size(min=10,max=128) String password,@NotBlank String role) {}
 
     @PostMapping("/users")
     Map<String,Object> createUser(@Valid @RequestBody UserRequest input) {
+        AuditContext.set("target","用户："+input.username());
+        AuditContext.set("detail","显示名称："+input.displayName()+"；角色："+input.role());
         if(!input.username().matches("[A-Za-z0-9_-]{3,64}"))
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST,"账号仅允许3~64位字母、数字、下划线和横线");
         if(!Set.of("ADMIN","USER").contains(input.role()))
@@ -194,6 +202,8 @@ public class AdminController {
     Map<String,Object> updateUser(@PathVariable String username,
                                   @Valid @RequestBody UserEditRequest input,
                                   Authentication operator) {
+        AuditContext.set("target","用户："+username);
+        AuditContext.set("detail","显示名称："+input.displayName()+"；角色："+input.role());
         if (!username.matches("[A-Za-z0-9_-]{3,64}"))
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "账号格式不正确");
         if (!Set.of("ADMIN","USER").contains(input.role()))

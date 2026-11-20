@@ -29,7 +29,11 @@ button,input,textarea{font:inherit}button{border:0;cursor:pointer;color:inherit}
 .quick-section{margin-top:29px}.quick-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:9px}.quick{height:84px;border-radius:15px;background:rgba(255,255,255,.9);border:1px solid #edf0fb;box-shadow:var(--shadow);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:8px;font-size:12px;font-weight:580}.quick .icon{width:25px;height:25px;color:#3575ff}.quick:first-child .icon{color:#f8b822}.quick:nth-child(3) .icon{color:#17c173}.quick:nth-child(4) .icon{color:#159bfa}
 .tabbar{height:68px;padding-bottom:env(safe-area-inset-bottom,0px);display:grid;grid-template-columns:repeat(4,1fr);background:rgba(255,255,255,.96);border-top:1px solid #edf0f7;flex:none;z-index:3;box-shadow:0 -10px 30px #e2e8ff21}.tab{background:transparent;color:#8790a6;display:flex;flex-direction:column;gap:3px;align-items:center;justify-content:center;font-size:11px;font-weight:550}.tab .icon{width:23px;height:23px}.tab.active{color:#346dff;font-weight:720}
 .chat-scroll{padding:8px 13px 26px}.user-msg{display:flex;align-items:flex-start;justify-content:flex-end;gap:8px;margin:13px 0 16px}.user-bubble{padding:13px 14px;background:linear-gradient(115deg,#d6e5ff,#ccdcff);max-width:270px;border-radius:17px 17px 5px 17px;font-size:13px;font-weight:570;line-height:1.5}.avatar{width:31px;height:31px;border-radius:50%;background:linear-gradient(145deg,#deebff,#c5d9ff);display:grid;place-items:center;color:#5589e8;flex:none}
-.answer-row{display:flex;gap:8px;align-items:flex-start;margin-bottom:12px}.ai-avatar{width:32px;height:32px;display:grid;place-items:center;flex:none;background:#fff;border-radius:11px;box-shadow:0 2px 7px #aabbe64d;border:1px solid #e4edff}.ai-avatar .logo{width:24px;height:24px}.answer{flex:1;min-width:0}.answer-top{padding:13px 15px;border:1px solid #e9ecfa;background:rgba(255,255,255,.93);border-radius:17px;box-shadow:var(--shadow)}.date-line{font-size:12px;color:#59647b}.main-number{font-size:30px;font-weight:840;letter-spacing:-1.1px;color:#2c72f7;margin:7px 0 6px;font-variant-numeric:tabular-nums}.comparison{font-size:12px;color:#46516a}.up{color:#0bbb65;font-weight:730}.down{color:#f35b6e;font-weight:730}.sample-note{font-size:10px;color:#a5aec1;margin:6px 1px 0}
+.answer-row{display:flex;gap:8px;align-items:flex-start;margin-bottom:12px}.ai-avatar{width:32px;height:32px;display:grid;place-items:center;flex:none;background:#fff;border-radius:11px;box-shadow:0 2px 7px #aabbe64d;border:1px solid #e4edff}.ai-avatar .logo{width:24px;height:24px}.answer{flex:1;min-width:0}.answer-top{padding:13px 15px;border:1px solid #e9ecfa;background:rgba(255,255,255,.93);border-radius:17px;box-shadow:var(--shadow)}.date-line{font-size:12px;color:#59647b}.ai-name{font-weight:760;color:#326dff;margin-right:6px}.main-number{font-size:30px;font-weight:840;letter-spacing:-1.1px;color:#2c72f7;margin:7px 0 6px;font-variant-numeric:tabular-nums}.comparison{font-size:12px;color:#46516a}.up{color:#0bbb65;font-weight:730}.down{color:#f35b6e;font-weight:730}.sample-note{font-size:10px;color:#a5aec1;margin:6px 1px 0}
+.mobile-analysis{margin-top:10px;border:1px solid #e5ebf8;border-radius:13px;background:#fff;overflow:hidden;box-shadow:0 3px 12px rgba(66,87,162,.045)}
+.analysis-toggle{width:100%;display:flex;align-items:center;justify-content:space-between;gap:8px;padding:11px 12px;background:#f7f9ff;color:#36537e;text-align:left;font-size:12px;font-weight:700}
+.analysis-toggle>span:first-child{display:flex;align-items:center;gap:6px}.analysis-toggle .icon{width:16px;height:16px;color:#477cf1}.analysis-toggle-meta{display:flex;align-items:center;gap:5px;color:#8998b1;font-size:10px;font-weight:560}.analysis-toggle-meta .icon{width:13px;height:13px;transition:transform .16s}.mobile-analysis.is-open .analysis-toggle-meta .icon{transform:rotate(90deg)}
+.analysis-detail{padding:11px 12px 12px;border-top:1px solid #edf1fa}.analysis-steps{display:grid;gap:9px;margin:0;padding:0;list-style:none}.analysis-step{display:grid;grid-template-columns:19px minmax(0,1fr);gap:8px;position:relative}.analysis-step:not(:last-child)::after{content:"";position:absolute;left:9px;top:19px;bottom:-9px;width:1px;background:#dce7fa}.analysis-step-icon{width:19px;height:19px;border-radius:50%;display:grid;place-items:center;background:#e9f7ef;color:#16a86a;font-size:10px;z-index:1}.analysis-step.is-running .analysis-step-icon,.analysis-step.is-needs_input .analysis-step-icon{background:#fff4dc;color:#d88a24}.analysis-step.is-rejected .analysis-step-icon{background:#ffeded;color:#d75e5e}.analysis-step-copy strong{font-size:11px;color:#405576;font-weight:700}.analysis-step-copy p{margin:3px 0 0;font-size:10px;line-height:1.55;color:#8998ae;overflow-wrap:anywhere}.analysis-block{margin-top:12px;padding-top:10px;border-top:1px solid #edf1fa}.analysis-block h4{margin:0 0 7px;font-size:11px;color:#526b91}.analysis-tags{display:flex;flex-wrap:wrap;gap:5px}.analysis-tags span{padding:4px 7px;border-radius:5px;background:#f0f5ff;color:#4b6da1;font-size:10px}.analysis-code{margin:0;padding:9px 10px;background:#f7f8fb;border-radius:8px;color:#5d6b82;font:10px/1.65 ui-monospace,SFMono-Regular,Consolas,monospace;white-space:pre-wrap;overflow:auto;max-height:190px}
 .kpi-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:0;border-radius:16px;background:#fff;border:1px solid #e9eefb;box-shadow:var(--shadow);margin:12px 0;padding:15px 7px}.kpi{padding:0 8px;border-right:1px solid #e9edf7}.kpi:last-child{border:0}.kpi-label{font-size:10px;color:#79839c}.kpi-value{font-weight:820;font-size:15px;margin:5px 0;white-space:nowrap;letter-spacing:-.4px}.kpi-change{font-size:10px;color:var(--green);font-weight:700}
 .chart-card{background:#fff;border:1px solid #e9edfa;border-radius:17px;padding:15px 12px 10px;box-shadow:var(--shadow);margin-top:10px}.chart-head{display:flex;justify-content:space-between;align-items:center;margin-bottom:7px}.chart-title{font-size:14px;font-weight:770;letter-spacing:-.1px}.chart-actions{display:flex;gap:5px;align-items:center}.chart-mode{background:#f0f4ff;border-radius:8px;padding:3px;display:flex}.chart-mode button{padding:4px 6px;display:grid;place-items:center;border-radius:6px;color:#8794b3;background:transparent}.chart-mode button.active{color:#326dff;background:#fff;box-shadow:0 2px 6px #cad5ef}.chart-mode .icon{width:15px;height:15px}.chart-download{display:grid;place-items:center;background:transparent;color:#8190a9;padding:4px}.chart-svg{display:block;width:100%;height:auto;overflow:visible}.table-data{width:100%;border-collapse:collapse;font-size:11px}.table-data th,.table-data td{text-align:left;padding:10px 6px;border-bottom:1px solid #edf1fa}.table-data th{color:#8c98af;font-weight:500}.table-data td:last-child{text-align:right;font-weight:650}.table-data tr:last-child td{border:none}
 .followups{margin:12px 0 3px}.follow-label{font-size:12px;color:#65718d;margin:8px 0 10px}.chips{display:flex;flex-wrap:wrap;gap:7px}.chip{background:#fff;border:1px solid #e9effb;border-radius:18px;box-shadow:0 3px 9px #8198da13;color:#495473;font-size:10.5px;white-space:nowrap;padding:9px 10px;display:flex;gap:5px;align-items:center}.chip .icon{color:#447aff;width:14px;height:14px}
@@ -151,7 +155,8 @@ button,input,textarea{font:inherit}button{border:0;cursor:pointer;color:inherit}
 }
 .mobile-result-row .chart-card,
 .mobile-result-row .toolbar,
-.mobile-result-row .followups{
+.mobile-result-row .followups,
+.mobile-result-row .mobile-analysis{
   grid-column:1 / -1;
   width:100%;
   min-width:0;
@@ -182,10 +187,9 @@ button,input,textarea{font:inherit}button{border:0;cursor:pointer;color:inherit}
    Switching bar/line/pie/table never grows or shrinks the chat result card.
    Long rankings scroll INSIDE this surface instead of pushing the composer. */
 .mobile-result-row .chart-viewport{
-  height: 400px;
-  height: clamp(280px, 45dvh, 440px);
+  height: auto;
   min-height: 0;
-  max-height: none;
+  max-height: min(360px, 45dvh);
   width: 100%;
   max-width: 100%;
   box-sizing: border-box;
@@ -236,6 +240,42 @@ button,input,textarea{font:inherit}button{border:0;cursor:pointer;color:inherit}
 .mobile-result-row .chart-viewport .chart-footnote{
   margin:6px 8px 2px;
   color:#899bb5;
+}
+
+/* Chat modules are edge-to-edge: no outer gutters, no stacked-card gaps. */
+.screen[data-view="chat"] .content{background:#fff}
+.screen[data-view="chat"] .chat-scroll{padding:0;background:#fff}
+.screen[data-view="chat"] .user-msg{margin:0;padding:9px 12px;border-bottom:1px solid #eef2f8;background:#fff}
+.screen[data-view="chat"] .user-bubble{border-radius:12px 12px 4px 12px}
+.screen[data-view="chat"] .answer-row{margin:0;gap:8px}
+.screen[data-view="chat"] .answer-row.mobile-result-row{column-gap:0;row-gap:0}
+.screen[data-view="chat"] .mobile-result-row>.ai-avatar{margin-left:8px}
+.screen[data-view="chat"] .answer-top,
+.screen[data-view="chat"] .mobile-result-row .answer-top{
+  padding:10px 12px;border:0;border-bottom:1px solid #eef2f8;border-radius:0;
+  background:#fff;box-shadow:none;
+}
+.screen[data-view="chat"] .mobile-analysis{
+  margin:0;border:0;border-bottom:1px solid #eef2f8;border-radius:0;box-shadow:none;
+}
+.screen[data-view="chat"] .chart-card,
+.screen[data-view="chat"] .mobile-result-row .chart-card{
+  margin:0;padding:11px 8px 10px;border:0;border-bottom:1px solid #eef2f8;border-radius:0;
+  background:#fff;box-shadow:none;
+}
+.screen[data-view="chat"] .mobile-result-row .chart-head{margin-bottom:6px}
+.screen[data-view="chat"] .mobile-result-row .mobile-chart-types{margin:0 0 8px}
+.screen[data-view="chat"] .mobile-result-row .chart-viewport{
+  margin:0;padding:4px 0 8px;border:0;border-radius:0;background:#fff;
+}
+.screen[data-view="chat"] .mobile-result-row .chart-plot{padding:0;margin:0}
+.screen[data-view="chat"] .mobile-result-row .chart-footnote{margin:6px 2px 0}
+.screen[data-view="chat"] .mobile-result-row .toolbar,
+.screen[data-view="chat"] .mobile-result-row .followups{margin:0;padding:8px}
+.screen[data-view="chat"] .clarify-followups{margin:0;border-radius:0;border-left:0;border-right:0}
+.screen[data-view="chat"] .composer-wrap{padding:0;background:#fff;border-top:1px solid #eef2f8}
+.screen[data-view="chat"] .composer{
+  height:52px;border:0;border-radius:0;box-shadow:none;background:#fff;padding:0 8px 0 12px;
 }
 
 
@@ -360,7 +400,7 @@ const robot=()=>`<svg viewBox="0 0 238 210" xmlns="http://www.w3.org/2000/svg" r
 const safe=(s)=>String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 
 const sets=[[['chart','昨日营业额是多少？'],['trending','近7天的订单量趋势如何？'],['pin','按城市看营业额TOP10'],['pie','本月新增用户数及环比？']],[['trending','本周营业额趋势怎么样？'],['pin','哪个城市的营业额最高？'],['chart','昨天订单总数是多少？'],['pie','近30天新增用户情况']]];
-const state={view:'home',tab:'home',sampleSet:0,chartMode:'chart',chartModes:{},chartStyles:{},historySearch:'',chat:[],sessionId:null,lastMessageId:null,modal:null,shareScope:'PRIVATE',sharePerson:'',toast:'',scrollBottom:false,loggedIn:Boolean(sessionStorage.getItem('dataask_token')),profile:null,sessions:[],charts:[],shared:[],chartDetail:null,loading:false,chatEpoch:0,authEpoch:0,activeRequestId:null};
+const state={view:'home',tab:'home',sampleSet:0,chartMode:'chart',chartModes:{},chartStyles:{},analysisOpen:{},historySearch:'',chat:[],sessionId:null,lastMessageId:null,modal:null,shareScope:'PRIVATE',sharePerson:'',toast:'',scrollBottom:false,loggedIn:Boolean(sessionStorage.getItem('dataask_token')),profile:null,sessions:[],charts:[],shared:[],chartDetail:null,loading:false,chatEpoch:0,authEpoch:0,activeRequestId:null};
 function statusBar(){return `<div class="status"><span>10:24</span><div class="status-right"><svg width="17" height="13" viewBox="0 0 17 13"><rect x="0" y="9" width="3" height="4" rx=".7"/><rect x="5" y="6" width="3" height="7" rx=".7"/><rect x="10" y="3" width="3" height="10" rx=".7"/><rect x="15" y="0" width="2" height="13" rx=".7"/></svg><svg width="17" height="14" viewBox="0 0 17 14"><path d="M1 4Q8-2 16 4M4 7Q8 4 13 7M7 10Q8.5 9 10 10" stroke="#10192d" stroke-width="1.8" fill="none" stroke-linecap="round"/><circle cx="8.5" cy="12" r="1"/></svg><svg width="24" height="12" viewBox="0 0 24 12"><rect x=".5" y=".5" width="20" height="11" rx="2.6" stroke="#10192d" fill="none"/><rect x="2.3" y="2.2" width="16.3" height="7.6" rx="1.3" fill="#10192d"/><rect x="21" y="3.5" width="2.5" height="5" rx="1" fill="#10192d"/></svg></div></div>`}
 function capsule(){return `<div class="capsule"><button data-action="more" aria-label="更多">${icon('dots','sm')}</button><div class="cut"></div><button data-action="more" aria-label="小程序菜单">${icon('target','sm')}</button></div>`}
 function header(){if(state.view==='home')return `<div class="appbar"><div class="brand">${logo()}<span>DataAsk 智能问数</span></div>${capsule()}</div>`;
@@ -391,6 +431,7 @@ async function login(){
 }
 
 function logout(){
+ api('/api/auth/logout','POST',{}).catch(()=>{});
  state.chatEpoch++;
  state.authEpoch++;
  const active=state.activeRequestId;
@@ -428,8 +469,22 @@ async function loadCharts(redraw=true){
 }
 
 function querySummary(a){
- if(a.unsupported)return safe(a.summary||'当前问题不支持，请找管理员“许愿”');
+ if(a.unsupported)return safe((a.summary||'当前问题暂时无法查询。')+' 请补充具体指标、时间范围或分析维度，例如“昨天各城市的订单量”。');
  return safe(a.summary||'已返回真实查询结果');
+}
+
+function analysisDuration(ms){
+ if(!Number.isFinite(Number(ms))||Number(ms)<0)return '';
+ return Number(ms)<1000?Math.round(Number(ms))+'毫秒':(Number(ms)/1000).toFixed(1)+'秒';
+}
+function analysisPanel(data){
+ const steps=data.execution?.steps||[],semantic=data.semantic||{},hasDetails=steps.length||data.sql||semantic.dimensions?.length||semantic.metrics?.length||semantic.filters?.length;
+ if(!hasDetails)return '';
+ const open=!!state.analysisOpen[data.id],completed=steps.filter(s=>s.status==='completed').length;
+ const stepHtml=steps.length?'<ol class="analysis-steps">'+steps.map(step=>'<li class="analysis-step is-'+safe(step.status||'completed')+'"><span class="analysis-step-icon">'+icon(step.status==='completed'?'check':step.status==='rejected'?'close':'target','sm')+'</span><div class="analysis-step-copy"><strong>'+safe(step.label||'分析步骤')+(analysisDuration(step.durationMs)?' · '+safe(analysisDuration(step.durationMs)):'')+'</strong>'+(step.detail?'<p>'+safe(step.detail)+'</p>':'')+'</div></li>').join('')+'</ol>':'';
+ const semanticHtml=(semantic.dimensions?.length||semantic.metrics?.length||semantic.filters?.length||semantic.tables?.length)?'<div class="analysis-block"><h4>语义理解</h4><div class="analysis-tags">'+[...(semantic.dimensions||[]).map(f=>f.label||f.column),...(semantic.metrics||[]).map(f=>f.label||f.column),...(semantic.filters||[]),...(semantic.tables||[])].map(v=>'<span>'+safe(v)+'</span>').join('')+'</div></div>':'';
+ const sqlHtml=data.sql?'<div class="analysis-block"><h4>执行 SQL</h4><pre class="analysis-code">'+safe(data.sql)+'</pre></div>':'';
+ return '<section class="mobile-analysis '+(open?'is-open':'')+'"><button class="analysis-toggle" data-action="toggle-analysis" data-mid="'+safe(data.id)+'" aria-expanded="'+(open?'true':'false')+'"><span>'+icon('target')+'分析过程</span><span class="analysis-toggle-meta">'+(open?'收起':(completed&&steps.length?'已完成 · '+completed+' 步':'已完成'))+icon('arrow','sm')+'</span></button>'+(open?'<div class="analysis-detail">'+stepHtml+semanticHtml+sqlHtml+'</div>':'')+'</section>';
 }
 
 
@@ -468,7 +523,7 @@ function resultChart(a){
  const W=340,svgLabel=safe(colLabel(a,x))+' / '+safe(colLabel(a,y));
  let svg='',H=220;
  if(type==='bar'){
-   const left=77,right=42,top=26,rowH=31,barH=14,inner=W-left-right;
+   const left=52,right=30,top=18,rowH=30,barH=13,inner=W-left-right;
    H=top+rows.length*rowH+25;
    const min=Math.min(0,...nums),max=Math.max(0,...nums),range=max-min||1;
    const zero=left+(0-min)/range*inner;
@@ -480,7 +535,7 @@ function resultChart(a){
    svg+=rows.map((r,i)=>{
      const val=nums[i],end=left+(val-min)/range*inner,xx=Math.min(zero,end),barWidth=Math.max(1,Math.abs(end-zero)),yy=top+i*rowH;
      const name=String(r[x]??'未分类');
-     return '<text x="'+(left-8)+'" y="'+(yy+10)+'" text-anchor="end" font-size="10.5" fill="#526784">'+safe(name.length>8?name.slice(0,8)+'…':name)+'</text>'+
+     return '<text x="2" y="'+(yy+10)+'" text-anchor="start" font-size="10.5" fill="#526784">'+safe(name.length>4?name.slice(0,4)+'…':name)+'</text>'+
        '<rect x="'+xx.toFixed(1)+'" y="'+yy+'" width="'+barWidth.toFixed(1)+'" height="'+barH+'" rx="3" fill="'+chartColors[i%chartColors.length]+'"/>'+
        '<text x="'+(val>=0?Math.min(end+5,W-3):Math.max(end-4,3)).toFixed(1)+'" y="'+(yy+10)+'" text-anchor="'+(val>=0?'start':'end')+'" font-size="9.5" font-weight="600" fill="#526784">'+safe(valueFmt(val))+'</text>';
    }).join('');
@@ -510,13 +565,13 @@ function resultChart(a){
      '<text x="31" y="'+(firstY+i*21)+'" font-size="11" fill="#526784">'+safe(String(row[x]??'未分类').slice(0,14))+'</text>'+
      '<text x="326" y="'+(firstY+i*21)+'" font-size="10.5" text-anchor="end" fill="#526784">'+safe(valueFmt(nums[i]))+' · '+(nums[i]/total*100).toFixed(1)+'%</text>').join('');
  }
- return '<div class="chart-plot" role="img" aria-label="'+svgLabel+'图表"><svg class="chart-svg" viewBox="0 0 '+W+' '+H+'" preserveAspectRatio="xMidYMin meet">'+svg+'</svg>'+
+ return '<div class="chart-plot" role="img" aria-label="'+svgLabel+'图表"><svg class="chart-svg" viewBox="0 0 '+W+' '+H+'" preserveAspectRatio="xMinYMin meet">'+svg+'</svg>'+
  '<p class="chart-footnote">'+svgLabel+(all.length>rows.length?' · 仅展示前'+rows.length+'项':'')+'</p></div>';
 }
 
 function answerCard(item){
- if(item.pending)return '<div class="answer-row"><div class="ai-avatar">'+logo()+'</div><div class="answer"><div class="answer-top"><div class="date-line">正在分析真实业务数据…</div></div></div></div>';
- if(item.error)return '<div class="answer-row"><div class="ai-avatar">'+logo()+'</div><div class="answer"><div class="answer-top"><div class="date-line">'+safe(item.error)+'</div></div></div></div>';
+ if(item.pending)return '<div class="answer-row"><div class="ai-avatar">'+logo()+'</div><div class="answer"><div class="answer-top"><div class="date-line"><span class="ai-name">小Q</span>正在分析真实业务数据…</div></div></div></div>';
+ if(item.error)return '<div class="answer-row"><div class="ai-avatar">'+logo()+'</div><div class="answer"><div class="answer-top"><div class="date-line"><span class="ai-name">小Q</span>'+safe(item.error)+'</div></div></div></div>';
  const data=item.answer||{},single=data.rows?.length===1&&data.columns?.length===1;
  const value=single?data.rows[0][data.columns[0]]:null;
  const saved=state.charts.some(c=>c.sourceMessageId===data.id);
@@ -524,7 +579,7 @@ function answerCard(item){
  const generic=/^(已从\s*StarRocks|已查询到|查询到|已返回|已获取|数据查询成功|本次查询返回)/i.test(summary)&&
    /(\d+\s*行|条数据|真实数据|查询结果|点击下方|继续分析|来自)/.test(summary);
  const analysis=(!data.rows?.length||data.unsupported||!generic)?'<div class="comparison">'+querySummary(data)+'</div>':'';
- const visual=!data.unsupported&&!!data.rows?.length;
+ const visual=!data.unsupported&&!!data.rows?.length&&!single;
  const type=displayType(data),canPlot=chartable(data),view=state.chartModes[data.id]||(!canPlot?'table':'chart');
  const views='<div class="chart-mode" role="group" aria-label="数据展示">'+
    (canPlot?'<button aria-label="图表" class="'+(view==='chart'?'active':'')+'" data-action="chart-mode" data-mode="chart" data-mid="'+safe(data.id)+'">'+icon('chart')+'</button>':'')+
@@ -533,9 +588,10 @@ function answerCard(item){
  const chartTypes=canPlot?'<div class="mobile-chart-types">'+
    ['bar','line',...(pieAllowed(data)?['pie']:[])].map(t=>'<button class="'+(type===t?'active':'')+'" data-action="chart-style" data-style="'+t+'" data-mid="'+safe(data.id)+'">'+({bar:'柱状图',line:'折线图',pie:'饼图'})[t]+'</button>').join('')+'</div>':'';
  return '<div class="answer-row'+(visual?' mobile-result-row':'')+'"><div class="ai-avatar">'+logo()+'</div><div class="answer">'+
- '<div class="answer-top"><div class="date-line">'+safe(data.title||'数据查询')+'</div>'+
+ '<div class="answer-top"><div class="date-line"><span class="ai-name">小Q</span>'+safe(data.title||'数据查询')+'</div>'+
  (single&&!data.unsupported?'<div class="main-number">'+safe(value??'—')+'</div>':'')+
  analysis+(data.timeLabel?'<div class="sample-note">'+safe(data.timeLabel)+'</div>':'')+'</div>'+
+ analysisPanel(data)+
  (visual?'<div class="chart-card"><div class="chart-head"><div class="chart-title">'+safe(data.metricLabel||'业务分析')+'</div>'+
  '<div class="chart-actions">'+views+'</div></div>'+chartTypes+
  '<div class="chart-viewport" tabindex="0" role="region" aria-label="数据图表与表格区域，可上下滚动">'+
@@ -604,7 +660,7 @@ function chartDetailPage(){
   (view==='table'||!canPlot?resultTable(a):resultChart(a)))+'</div></div>'+
  (mine?'<div class="chart-detail-actions"><button data-action="share" data-chart="'+safe(c.id)+'">'+icon('share')+'共享图表</button>'+
  '<button data-action="remove-chart" data-id="'+safe(c.id)+'">'+icon('close')+'取消收藏</button></div>':'')+
- '<p class="chart-detail-notice">数据来自已授权 ADS 表 · 此页面不会创建聊天记录</p></div>';
+ '<p class="chart-detail-notice">大数据团队提供服务支持 · 此页面不会创建聊天记录</p></div>';
 }
 
 function profilePage(){
@@ -637,7 +693,7 @@ function modal(){
 
 function render(){
  const root=document.getElementById('app');
- root.innerHTML='<div class="device"><div class="screen">'+statusBar()+header()+'<main class="content" id="scroll-area">'+(state.view==='home'?homePage():state.view==='chat'?chatPage():state.view==='history'?historyPage():state.view==='charts'?chartsPage():state.view==='chart-detail'?chartDetailPage():profilePage())+'</main>'+(state.view==='chat'?composer():nav())+modal()+(state.toast?'<div class="toast">'+safe(state.toast)+'</div>':'')+'</div></div>';
+ root.innerHTML='<div class="device"><div class="screen" data-view="'+state.view+'">'+statusBar()+header()+'<main class="content" id="scroll-area">'+(state.view==='home'?homePage():state.view==='chat'?chatPage():state.view==='history'?historyPage():state.view==='charts'?chartsPage():state.view==='chart-detail'?chartDetailPage():profilePage())+'</main>'+(state.view==='chat'?composer():nav())+modal()+(state.toast?'<div class="toast">'+safe(state.toast)+'</div>':'')+'</div></div>';
  if(state.scrollBottom){const el=document.getElementById('scroll-area');if(el)el.scrollTop=el.scrollHeight;state.scrollBottom=false}
 }
 
@@ -743,7 +799,7 @@ async function applyShare(){
 async function handleClick(e){
  const target=e.target.closest('[data-action]');if(!target)return;const a=target.dataset.action;
  switch(a){
- case 'tab':state.view=target.dataset.view;state.tab=state.view;state.modal=null;render();if(state.view==='history')loadHistory();if(state.view==='charts')loadCharts();break;
+ case 'tab':state.view=target.dataset.view;state.tab=state.view;state.modal=null;if(state.loggedIn)api('/api/audit/events','POST',{action:'PAGE_VIEW',target:'mini:'+state.view}).catch(()=>{});render();if(state.view==='history')loadHistory();if(state.view==='charts')loadCharts();break;
  case 'back':state.view=state.view==='chart-detail'?'charts':'home';state.chartDetail=null;render();break;
  case 'new-session':newConversation();break;
  case 'question':openChat(target.dataset.q);break;
@@ -764,6 +820,12 @@ async function handleClick(e){
    state.chartModes[target.dataset.mid]='chart';
    render();
    const area=document.getElementById('scroll-area');if(area)area.scrollTop=scroll;
+   break;
+ }
+ case 'toggle-analysis':{
+   const id=target.dataset.mid;
+   state.analysisOpen[id]=!state.analysisOpen[id];
+   render();
    break;
  }
  case 'save':await saveAnswer(target.dataset.mid);break;

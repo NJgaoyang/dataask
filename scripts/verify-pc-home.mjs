@@ -1,87 +1,87 @@
-import { readFileSync, existsSync } from 'node:fs';
-import assert from 'node:assert/strict';
+import { readFileSync } from 'node:fs'
+import assert from 'node:assert/strict'
 
-const vue = readFileSync('web/src/App.vue','utf8');
-const system = readFileSync('web/src/pc-design-system.css','utf8');
-const admin = readFileSync('web/src/pc-admin.css','utf8');
-const base = readFileSync('web/src/style.css','utf8');
-const entry = readFileSync('web/src/main.js','utf8');
-const mobile = readFileSync('web/public/miniapp/index.html','utf8');
+const read = path => readFileSync(path, 'utf8')
+const vue = read('web/src/App.vue')
+const base = read('web/src/style.css')
+const system = read('web/src/pc-design-system.css')
+const admin = read('web/src/pc-admin.css')
+const lists = read('web/src/pc-lists.css')
+const entry = read('web/src/main.js')
+const miniapp = read('web/public/miniapp/index.html')
+const audit = read('web/src/components/AdminAuditLog.vue')
 
-// 1. Stylesheet entry order: mobile base -> desktop design system -> desktop admin.
-const order = ["import './style.css'", "import './pc-design-system.css'", "import './pc-admin.css'"];
-for (const token of order) assert(entry.includes(token), 'Stylesheet not imported: ' + token);
-assert(entry.indexOf(order[0]) < entry.indexOf(order[1]) && entry.indexOf(order[1]) < entry.indexOf(order[2]),
-  'Desktop stylesheets must load after the mobile base, admin last');
-for (const legacy of [
-  'quickbi-pc.css', 'tencentbi-pc.css', 'admin-compact-pc.css', 'pc-bluewhite.css',
-  'reference-home-pc.css', 'pc-global-layout-v4.css', 'pc-layout-v5.css',
-  'admin-functional-pc.css', 'visualization-admin-v9.css', 'composer-resize.css', 'clarification.css'
-]) {
-  assert(!existsSync('web/src/' + legacy), 'Legacy desktop stylesheet must be removed: ' + legacy);
-  assert(!entry.includes(legacy), 'Legacy desktop stylesheet must not be imported: ' + legacy);
+const imports = [
+  "import './style.css'",
+  "import './pc-design-system.css'",
+  "import './pc-admin.css'",
+  "import './pc-lists.css'"
+]
+for (const name of imports) assert(entry.includes(name), `缺少样式入口：${name}`)
+assert(!entry.includes('pc-redesign.css'), 'pc-redesign.css 已并入设计系统，入口不应再引用')
+for (let i = 1; i < imports.length; i++) {
+  assert(entry.indexOf(imports[i - 1]) < entry.indexOf(imports[i]), 'PC 样式层加载顺序错误')
 }
+for (const [name, css] of Object.entries({ system, admin, lists })) {
+  assert(css.includes('@media (min-width:1024px)'), `${name} 必须限定为 PC 端`)
+}
+assert(base.includes('@media (max-width:1023px)'), '移动端样式入口丢失')
+assert(!miniapp.includes('pc-redesign.css'), '小程序不应依赖 PC 样式')
 
-// 2. Design tokens are the single source of truth and only apply on desktop.
 for (const token of [
-  '--da-primary:#2f6bff', '--da-canvas:#f5f7fa', '--da-text:#1f2733', '--da-border:#e5e8ee',
-  '--da-sidebar-w:232px', '--da-topbar-h:56px', '--da-chat-max:880px', '--da-fs-kpi:28px',
-  '.app-shell.consumer-pc', 'grid-template-areas:"sidebar topbar" "sidebar content" "sidebar composer"',
-  '.sidebar-collapsed', '.da-composer-bar', '.da-scope-chip', '.da-answer-scope', '.da-answer-insight',
-  '.da-suggestion-grid', '.da-home-ask', '.da-home-stats', '.ds-home-shortcut-grid', '.ds-home-history-head',
-  '.tb-chart-table', '.da-chart-detail-body', '.tb-history-list', '.login-card', '.da-password-dialog',
-  '.da-composer-resize-handle', '.metric-clarification', 'tabular-nums'
-]) {
-  assert(system.includes(token), 'Design system rule missing: ' + token);
-}
-assert(system.trimStart().startsWith('/*') && system.includes('@media (min-width:1024px)'),
-  'Design system must be desktop scoped');
-assert((system.match(/linear-gradient\(/g) || []).length <= 1,
-  'Desktop surfaces must stay flat (only the loading shimmer may use a gradient)');
-assert(!vue.includes('ds-home-wave') && !vue.includes('ds-home-window'),
-  'Illustrated workbench banner must be removed');
+  '--da-sidebar-w:216px',
+  '--da-topbar-h:48px',
+  '--da-primary:#0064C8',
+  '--da-chat-max:100%',
+  '.consumer-pc .da-home-grid',
+  '.consumer-pc .da-home-ask-row',
+  '.consumer-pc .da-home-session-row',
+  '.consumer-pc .ds-home{background:var(--da-surface)',
+  '.consumer-pc .da-home-grid>.da-home-card:first-child',
+  '.consumer-pc .login-brand',
+  '.consumer-pc .answer-card',
+  '.consumer-pc[data-theme="dark"]'
+]) assert(system.includes(token), `PC 页面规范缺失：${token}`)
 for (const token of [
-  '.tb-admin-page', '.tb-admin-overview-grid', '.tb-admin-panel-card', '.tb-admin-config-fields',
-  '.tb-user-editor', '.tb-user-reset', '.tb-admin-metrics-page', '.tb-config-status-list',
-  '.tb-admin-load-error', '.admin-table', '.metric-preview', '.da-admin-config-grid'
-]) {
-  assert(admin.includes(token), 'Admin rule missing: ' + token);
-}
-assert(admin.includes('@media (min-width:1024px)'), 'Admin stylesheet must be desktop scoped');
-assert(!/@media\s*\(min-width:\s*1024px\)/.test(base) && !/@media\s*\(min-width:\s*1500px\)/.test(base),
-  'style.css must only hold the mobile/H5 base');
-assert(base.includes('@media (max-width:1023px)') && base.includes('.metric-clarification'),
-  'style.css must keep the mobile clarification + desktop element hiding rules');
+  '.consumer-pc .tb-content-page>.da-record-list',
+  '.consumer-pc .tb-admin-source-page .da-list-table',
+  '.consumer-pc .da-list-table .da-check input[type=checkbox]'
+]) assert(lists.includes(token), `PC 列表规范缺失：${token}`)
+assert(admin.includes('.consumer-pc .tb-admin-overview'), 'PC 管理规范缺失：.consumer-pc .tb-admin-overview')
 
-// 3. Desktop template structure.
 for (const token of [
-  "'consumer-pc': isDesktop", "'sidebar-collapsed'", 'class="da-sidebar-collapse"', 'toggleSidebar',
-  'class="desktop-main-nav"', 'tb-single-admin-nav', 'class="tb-header-breadcrumb"',
-  'class="da-account-menu"', 'openPasswordChange', 'submitPasswordChange', 'desktopLogout', 'changePasswordOpen',
-  'class="ds-home-intro"', '{{ greeting }}', 'class="da-home-ask"', 'askFromHome', 'class="da-home-stats"',
-  '{{ sessions.length }}', '{{ savedCharts.length }}', '{{ sharedCharts.length }}', '{{ approvedDatasets.length }}',
-  'ds-home-shortcut-grid', 'ds-home-history-head', 'ds-home-history-row', 'sessions.slice(0,5)', 'fullSessionTime(item.updatedAt)',
-  'class="composer-row da-composer"', 'class="da-composer-bar"', 'v-model="selectedDataset"', 'class="da-suggestions"',
-  'class="da-answer-scope"', 'answerScope(msg)', 'answer-summary da-answer-insight', 'da-answer-result', 'desktop-result-switch da-segmented',
-  'class="da-followups-label"', 'da-composer-resize-handle', 'tb-chart-open', 'da-chart-view-buttons', 'tb-history-search',
-  "desktopSection==='overview'", "desktopSection==='ask'", "desktopSection==='charts'", "desktopSection==='history'", 'desktopIsAdminSection'
-]) {
-  assert(vue.includes(token), 'Desktop template token missing: ' + token);
-}
-for (const removed of [
-  'desktop-insights', 'resultPanelOpen', 'latestAnswer', 'resultTab', 'desktop-toggle-results',
-  'ds-home-banner', 'ds-home-kicker', 'quickbi-pc', 'tencentbi-pc', 'desktop-no-result', 'sidebar-profile-card', 'qbi-welcome-brand'
-]) {
-  assert(!vue.includes(removed), 'Removed desktop structure still present: ' + removed);
-}
-assert((vue.match(/class="da-chart-metric"/g) || []).length === 1, 'Chart detail KPI block must not be duplicated');
-assert(!vue.includes('张经理') && !vue.includes('2025-01-20 14:28'),
-  'Home cannot contain fabricated user/data examples');
+  'class="desktop-main-nav"',
+  'class="ds-home-intro"',
+  'class="da-home-ask"',
+  'class="da-home-quick-label"',
+  'class="da-home-grid"',
+  'aria-label="最近会话"',
+  'aria-label="最近图表"',
+  'class="da-account-menu"',
+  'role="menuitem" aria-label="系统管理"',
+  'endpoint="/chat/sessions/page"',
+  'v-model="historyDate" type="date"',
+  'selectable v-model:selected="historySelection"',
+  'class="da-history-batch-delete"',
+  "api.delete('/chat/sessions/'+encodeURIComponent(row.id))",
+  "api.post('/chat/sessions/batch-delete', { ids })",
+  'endpoint="/mini/charts/page"',
+  'class="answer-card"',
+  '<AnalysisPanel v-if="isDesktop',
+  'class="composer-row da-composer"'
+]) assert(vue.includes(token), `PC 交互结构缺失：${token}`)
 
-// 4. Mobile/miniapp isolation.
-assert(mobile.includes('function resultChart(a)') && mobile.includes('mobile-result-row'),
-  'Mobile visual and chart functionality must be kept intact');
-assert(!mobile.includes('pc-design-system') && !mobile.includes('--da-primary'),
-  'Miniapp must not depend on the desktop design system');
-
-console.log('PC: design tokens, two-file desktop stylesheet, collapsible sidebar, inline answer cards, workbench stats, dataset scope and mobile isolation OK');
+assert(!vue.includes('ds-home-hero'), '工作台不应再保留营销 hero 区')
+assert(!vue.includes('class="da-home-columns"'), '首页不应使用旧双列列表结构')
+assert(vue.includes('小Q'), '回答者名称缺失')
+// 审计日志时间筛选遵循阿里云日志页形态：预设下拉 + 自定义区间，切换即查询。
+for (const token of [
+  'aria-label="时间范围"',
+  "['today','今天'],['yesterday','昨天'],['3d','近 3 天'],['7d','近 7 天'],['30d','近 30 天'],['custom','自定义区间'],['all','全部时间']",
+  'function applyRange',
+  'class="audit-querybar"',
+  'class="audit-conditions"'
+]) assert(audit.includes(token), `审计时间筛选契约缺失：${token}`)
+assert(!audit.includes('class="audit-filters"'), '审计旧筛选表单应被查询栏替代')
+assert(!audit.includes('重置为今日'), '审计按钮文案应为重置')
+console.log('PC 页面结构、统一样式、管理入口与移动端隔离检查通过')

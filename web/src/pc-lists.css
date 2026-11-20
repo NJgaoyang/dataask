@@ -1,0 +1,78 @@
+@media (min-width:1024px){
+  /* Shared list / pagination / CRUD surfaces. In-shell classes are scoped to
+     .consumer-pc; the teleported CRUD modal resolves tokens from the
+     desktop-only html[data-dataask-theme] attribute instead. */
+  .consumer-pc .da-sequence{width:48px;color:var(--da-text-3);font-variant-numeric:tabular-nums;white-space:nowrap}
+  .consumer-pc .da-record-list{min-width:0;color:var(--da-text);background:var(--da-surface);padding:0}
+  .consumer-pc .tb-content-page>.da-record-list{margin:var(--da-panel-padding);padding:var(--da-panel-padding);border:1px solid var(--da-border);border-radius:var(--da-radius-md)}
+  .consumer-pc .da-list-toolbar{display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-bottom:var(--da-sp-4);padding-bottom:var(--da-sp-4);border-bottom:1px solid var(--da-border)}
+  .consumer-pc .da-list-search{display:flex;align-items:center;gap:8px;flex:1;min-width:180px}
+  .consumer-pc .da-history-date-filter{display:inline-flex;align-items:center;gap:8px;height:var(--da-control-h);padding-left:2px;color:var(--da-text-2);font-size:13px;white-space:nowrap}
+  .consumer-pc .da-history-date-filter input{min-width:150px}
+  .consumer-pc .da-record-list input,.consumer-pc .da-list-toolbar>input,.consumer-pc .da-pagination select{height:var(--da-control-h);border:1px solid var(--da-border-strong);background:var(--da-surface);color:var(--da-text);border-radius:var(--da-radius-sm);padding:0 10px;font:inherit;font-size:13px}
+  .consumer-pc .da-list-search input{width:280px;max-width:100%;min-width:0}
+  /* 批量管理：选择列 + 原生 checkbox（主色 accent），仅 selectable 列表渲染。
+     类名用 da-check，避免与下拉控件 .da-select 的外观重置规则冲突。 */
+  .consumer-pc .da-list-table th.da-check,.consumer-pc .da-list-table td.da-check{width:40px;padding:0 0 0 14px}
+  .consumer-pc .da-list-table .da-check input[type=checkbox]{width:16px;height:16px;min-height:0;padding:0;border:0;background:none;box-shadow:none;appearance:auto;-webkit-appearance:auto;accent-color:var(--da-primary);cursor:pointer;vertical-align:middle}
+  .consumer-pc .da-history-batch-delete:not(:disabled){color:var(--da-danger,#d9534f)}
+  .consumer-pc .da-history-batch-delete:hover:not(:disabled){color:var(--da-danger,#d9534f);border-color:var(--da-danger,#d9534f)}
+  .consumer-pc .da-record-list button,.consumer-pc .da-pagination button{min-height:var(--da-control-h);border:1px solid var(--da-border-strong);border-radius:var(--da-radius-sm);padding:4px 12px;color:var(--da-text-2);background:var(--da-surface);font:inherit;font-size:13px;cursor:pointer;white-space:nowrap}
+  .consumer-pc .da-record-list button:hover:not(:disabled),.consumer-pc .da-pagination button:hover:not(:disabled){color:var(--da-primary);border-color:var(--da-primary)}
+  .consumer-pc .da-list-table-wrap{overflow:auto;border:1px solid var(--da-border);border-radius:var(--da-radius-md)}
+  .consumer-pc .da-list-table{width:100%;border-collapse:collapse;text-align:left;font-size:13px}
+  .consumer-pc .da-list-table th,.consumer-pc .da-list-table td{padding:0 14px;border-bottom:1px solid var(--da-border);vertical-align:middle;overflow-wrap:anywhere;max-width:400px}
+  .consumer-pc .da-list-table th{height:36px;background:var(--da-surface-2);font-weight:600;font-size:12px;color:var(--da-text-2);white-space:nowrap}
+  .consumer-pc .da-list-table td{height:var(--da-row-h);color:var(--da-text-2);line-height:1.5}
+  .consumer-pc .da-list-table tbody tr:last-child td{border-bottom:0}
+  .consumer-pc .da-list-table tbody tr:hover{background:var(--da-surface-2)}
+  .consumer-pc .da-list-table .da-row-actions{white-space:nowrap;max-width:none}
+  /* 控制台惯例：操作列为文字链接 + 竖分隔线，而非一排带边框小按钮。 */
+  .consumer-pc .da-row-actions button{height:auto;min-height:0;padding:0 8px;border:0;border-radius:0;background:transparent;color:var(--da-primary);font-size:13px}
+  .consumer-pc .da-row-actions button+button{border-left:1px solid var(--da-border)}
+  .consumer-pc .da-row-actions button:hover:not(:disabled){color:var(--da-primary-hover);text-decoration:underline}
+  .consumer-pc .da-row-actions button+button:hover:not(:disabled){border-left-color:var(--da-border)}
+  .consumer-pc .da-row-actions button:disabled{opacity:1;color:var(--da-text-disabled);cursor:not-allowed}
+  .consumer-pc .da-row-actions .da-danger-button{color:var(--da-danger,#d9534f)}
+  .consumer-pc .da-row-actions .da-danger-button:hover:not(:disabled){color:var(--da-danger,#d9534f)}
+  .consumer-pc .da-list-table td.da-list-empty{text-align:center;height:160px;color:var(--da-text-3);max-width:none}
+  .consumer-pc .da-list-empty .van-icon{display:block;margin:0 auto 8px;font-size:28px;color:var(--da-text-disabled)}
+  .consumer-pc .da-pagination{display:flex;justify-content:flex-end;align-items:center;gap:12px;padding:var(--da-sp-4) 0 0;font-size:12px;color:var(--da-text-2);flex-wrap:wrap}
+  .consumer-pc .da-pagination>span:first-child{margin-right:auto}
+  .consumer-pc .da-pagination label{display:flex;align-items:center;gap:8px}
+  .consumer-pc .da-pagination select{min-width:80px}
+  .consumer-pc .da-record-list button:disabled,.consumer-pc .da-pagination button:disabled{opacity:.45;cursor:not-allowed}
+  /* 状态用「圆点 + 文字」的控制台徽标，而非色块 chip。 */
+  .consumer-pc .da-active-source,.consumer-pc .da-idle-source{display:inline-flex;align-items:center;gap:6px;padding:0;background:transparent;border-radius:0;color:var(--da-text-2);white-space:nowrap}
+  .consumer-pc .da-active-source::before,.consumer-pc .da-idle-source::before{content:"";height:6px;width:6px;border-radius:50%;background:var(--da-success,#2fa36b)}
+  .consumer-pc .da-idle-source::before{background:var(--da-text-disabled,#b4bcc9)}
+  .consumer-pc .da-record-list .da-primary-button{background:var(--da-primary);border-color:var(--da-primary);color:#fff}
+  .consumer-pc .da-record-list .da-primary-button:hover:not(:disabled){background:var(--da-primary-hover);border-color:var(--da-primary-hover);color:#fff}
+  .consumer-pc .da-record-list .da-danger-button{color:var(--da-danger,#d9534f)}
+  /* Data source table keeps every column readable on narrow desktops. */
+  .consumer-pc .tb-admin-source-page .da-list-table{min-width:900px}
+  .consumer-pc .tb-admin-source-page .da-list-table td{overflow-wrap:normal;word-break:normal}
+  .consumer-pc .tb-admin-source-page .da-list-table td:nth-child(4){min-width:220px;word-break:break-all}
+  /* Teleported CRUD dialog (outside .consumer-pc). */
+  html[data-dataask-theme] .da-crud-modal{width:520px;max-width:calc(100vw - 48px);max-height:90vh;overflow-y:auto;background:var(--da-surface,#fff);color:var(--da-text,#1f2733);border:1px solid var(--da-border,#e2e6ec);border-radius:8px!important;box-shadow:0 8px 24px rgba(31,39,51,.14);font-size:13px}
+  html[data-dataask-theme] .da-crud-modal header{display:flex;align-items:center;justify-content:space-between;padding:14px 20px;border-bottom:1px solid var(--da-border,#e2e6ec)}
+  html[data-dataask-theme] .da-crud-modal header h2{font-size:16px;font-weight:600;margin:0}
+  html[data-dataask-theme] .da-crud-modal header button{border:0;font-size:22px;padding:0;width:32px;min-height:32px;line-height:1;background:transparent;color:var(--da-text-3,#8c95a3)}
+  html[data-dataask-theme] .da-crud-modal button{min-height:32px;border:1px solid var(--da-border-strong,#cbd2db);border-radius:4px;padding:4px 12px;color:var(--da-text-2,#5a6472);background:var(--da-surface,#fff);font:inherit;font-size:13px;cursor:pointer;white-space:nowrap}
+  html[data-dataask-theme] .da-crud-modal button:hover:not(:disabled){color:var(--da-primary,#0064c8);border-color:var(--da-primary,#0064c8)}
+  html[data-dataask-theme] .da-crud-modal button:disabled{opacity:.45;cursor:not-allowed}
+  html[data-dataask-theme] .da-crud-modal .da-primary-button{background:var(--da-primary,#0064c8);border-color:var(--da-primary,#0064c8);color:#fff}
+  html[data-dataask-theme] .da-crud-modal .da-primary-button:hover:not(:disabled){background:var(--da-primary-hover,#0052a3);border-color:var(--da-primary-hover,#0052a3);color:#fff}
+  html[data-dataask-theme] .da-crud-fields{display:grid;gap:14px;padding:20px}
+  html[data-dataask-theme] .da-crud-fields label{display:grid;grid-template-columns:88px minmax(0,1fr);align-items:center;gap:12px;font-size:13px;color:var(--da-text-2,#5a6472)}
+  html[data-dataask-theme] .da-crud-fields input,html[data-dataask-theme] .da-crud-fields select,html[data-dataask-theme] .da-crud-fields textarea{width:100%;min-width:0;min-height:32px;border:1px solid var(--da-border-strong,#cbd2db);border-radius:4px;padding:6px 10px;color:var(--da-text,#1f2733);background:var(--da-surface,#fff);font:inherit;box-sizing:border-box}
+  html[data-dataask-theme] .da-crud-fields input:disabled{background:var(--da-surface-2,#f7f9fb);color:var(--da-text-3,#8c95a3)}
+  html[data-dataask-theme] .da-crud-fields textarea{resize:vertical;min-height:68px}
+  html[data-dataask-theme] .da-crud-modal footer{display:flex;align-items:center;gap:10px;border-top:1px solid var(--da-border,#e2e6ec);padding:14px 20px}
+  html[data-dataask-theme] .da-crud-modal footer span{flex:1}
+  html[data-dataask-theme] .da-crud-modal form>p{margin:0 20px 16px;overflow-wrap:anywhere}
+  .consumer-pc .da-model-modal .da-admin-config-grid{padding:20px;display:block}
+  .consumer-pc .da-model-modal .da-admin-config-main{padding:0;border:0}
+  .consumer-pc .da-model-modal .da-admin-config-form-title{display:none}
+  html[data-dataask-theme] .da-crud-modal :focus-visible,.consumer-pc .da-record-list :focus-visible,.consumer-pc .da-pagination :focus-visible{outline:2px solid var(--da-primary,#0064c8);outline-offset:2px}
+}

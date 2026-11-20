@@ -6,7 +6,11 @@
   "scripts": {
     "dev": "vite --host 0.0.0.0",
     "build": "vite build",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "test:pc": "node scripts/pc-design-smoke.mjs",
+    "test:audit": "node scripts/audit-ui-smoke.mjs",
+    "test:layout": "node scripts/compact-layout-smoke.mjs",
+    "test:management": "node scripts/management-ui-smoke.mjs"
   },
   "dependencies": {
     "axios": "^1.8.4",
@@ -16,6 +20,7 @@
   },
   "devDependencies": {
     "@vitejs/plugin-vue": "^5.2.3",
+    "playwright": "^1.65.0",
     "vite": "^6.3.5"
   }
 }

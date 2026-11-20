@@ -13,7 +13,7 @@ BUILT_AT="$(date -u '+%Y-%m-%dT%H:%M:%SZ')"
 mkdir -p src/main/resources/static
 rm -rf src/main/resources/static/*
 cp -R web/dist/. src/main/resources/static/
-printf '{"buildSha":"%s","builtAt":"%s","uiLayout":"pc-design-system","modelManagement":"web"}\n' "$BUILD_SHA" "$BUILT_AT" > src/main/resources/static/build-info.json
+printf '{"buildSha":"%s","builtAt":"%s","uiLayout":"pc-platform-v2","modelManagement":"web"}\n' "$BUILD_SHA" "$BUILT_AT" > src/main/resources/static/build-info.json
 mvn -B clean package
 OUT="$ROOT/release/dataask-0.1.0"
 rm -rf "$OUT"

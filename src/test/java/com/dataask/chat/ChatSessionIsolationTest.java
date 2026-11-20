@@ -83,4 +83,59 @@ class ChatSessionIsolationTest {
             "SELECT COUNT(*) FROM da_sessions WHERE id=? AND username=?",
             Integer.class, "alice-session", "alice");
     }
+
+    @Test
+    void rejectsDeletingAnotherUsersSessionBeforeAnyDelete() {
+        when(jdbc.queryForObject(
+            "SELECT COUNT(*) FROM da_sessions WHERE id=? AND username=?",
+            Integer.class, "alice-session", "bob")).thenReturn(0);
+
+        ResponseStatusException error = assertThrows(ResponseStatusException.class,
+            () -> controller.deleteSession("alice-session", bob));
+
+        assertEquals(HttpStatus.NOT_FOUND, error.getStatusCode());
+        verify(jdbc, never()).update(startsWith("DELETE FROM"), any(Object[].class));
+    }
+
+    @Test
+    void deletesOwnSessionTogetherWithItsMessages() {
+        when(jdbc.queryForObject(
+            "SELECT COUNT(*) FROM da_sessions WHERE id=? AND username=?",
+            Integer.class, "alice-session", "alice")).thenReturn(1);
+        when(jdbc.update("DELETE FROM da_messages WHERE session_id=?", "alice-session")).thenReturn(3);
+        when(jdbc.update("DELETE FROM da_sessions WHERE id=? AND username=?", "alice-session", "alice")).thenReturn(1);
+
+        assertEquals(1, controller.deleteSession("alice-session", alice).get("deleted"));
+
+        verify(jdbc).update("DELETE FROM da_messages WHERE session_id=?", "alice-session");
+        verify(jdbc).update("DELETE FROM da_sessions WHERE id=? AND username=?", "alice-session", "alice");
+    }
+
+    @Test
+    void batchDeleteOnlyRemovesSessionsOwnedByTheCaller() {
+        var request = new ChatController.SessionDeleteRequest(List.of("alice-session", "bob-session"));
+        when(jdbc.queryForList(contains("SELECT id FROM da_sessions WHERE username=? AND id IN"),
+            eq(String.class), any(Object[].class))).thenReturn(List.of("alice-session"));
+        when(jdbc.update(contains("DELETE FROM da_messages WHERE session_id IN"), any(Object[].class))).thenReturn(2);
+        when(jdbc.update(contains("DELETE FROM da_sessions WHERE username=? AND id IN"), any(Object[].class))).thenReturn(1);
+
+        assertEquals(1, controller.deleteSessions(request, alice).get("deleted"));
+
+        verify(jdbc).queryForList(contains("SELECT id FROM da_sessions WHERE username=? AND id IN"),
+            eq(String.class), eq(new Object[]{"alice", "alice-session", "bob-session"}));
+        verify(jdbc).update("DELETE FROM da_messages WHERE session_id IN (?)", new Object[]{"alice-session"});
+        verify(jdbc).update("DELETE FROM da_sessions WHERE username=? AND id IN (?)",
+            new Object[]{"alice", "alice-session"});
+    }
+
+    @Test
+    void batchDeleteWithoutOwnedSessionsIssuesNoDelete() {
+        var request = new ChatController.SessionDeleteRequest(List.of("bob-session"));
+        when(jdbc.queryForList(contains("SELECT id FROM da_sessions WHERE username=? AND id IN"),
+            eq(String.class), any(Object[].class))).thenReturn(List.of());
+
+        assertEquals(0, controller.deleteSessions(request, alice).get("deleted"));
+
+        verify(jdbc, never()).update(startsWith("DELETE FROM"), any(Object[].class));
+    }
 }

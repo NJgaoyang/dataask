@@ -34,6 +34,7 @@ async function mockBackend(route) {
   const ok = payload => route.fulfill({status:200,json:payload});
   const fail = () => route.fulfill({status:404,json:{message:'Mock endpoint missing: '+method+' '+path}});
   if(path==='/api/auth/me') return ok({username:'admin',role:'ADMIN'});
+  if(path==='/api/audit/events'||path==='/api/auth/logout') return ok({success:true});
   if(path==='/api/chat/sessions') return ok([]);
   if(path==='/api/chat/datasets') return ok(['ads.city_orders','ads.sales']);
   if(path==='/api/mini/charts') return ok([]);
@@ -63,6 +64,11 @@ async function mockBackend(route) {
   if(path.startsWith('/api/admin/metrics/batches/') && method==='DELETE') {
     metrics={total:0,batches:[],definitions:[]};return ok({success:true});
   }
+  if(path==='/api/admin/users/page')return ok({items:users,total:users.length});
+  if(path==='/api/admin/metrics/page')return ok({items:metrics.definitions,total:metrics.definitions.length});
+  if(path==='/api/admin/metrics/batches/page')return ok({items:metrics.batches,total:metrics.batches.length});
+  if(path==='/api/admin/datasources' && method==='GET')return ok({items:[{id:'source-1',name:'经营数据源',jdbcUrl:settings.starrocks.jdbcUrl,username:'readonly',schema:'ads',active:true}],total:1});
+  if(path.startsWith('/api/admin/datasources') && method==='POST')return ok({success:true});
   if(path==='/api/admin/users' && method==='GET') return ok(users);
   if(path==='/api/admin/users' && method==='POST') {
     const body=req.postDataJSON();users.push({username:body.username,displayName:body.displayName,role:body.role});return ok({success:true});
@@ -84,7 +90,10 @@ async function visible(locator,label){
   assert(await locator.first().isVisible(),label+' not visible');
 }
 async function clickTile(page,label) {
-  await page.locator('.tb-single-admin-nav button').click();
+  if(!await page.locator('.tb-admin-overview-grid').count()){
+    if(await page.locator('.tb-breadcrumb-admin').count())await page.locator('.tb-breadcrumb-admin').click();
+    else{await page.locator('.da-account-trigger').click();await page.getByRole('menuitem',{name:'系统管理'}).click()}
+  }
   await visible(page.locator('.tb-admin-overview-grid button').filter({hasText:label}),label+' tile');
   await page.locator('.tb-admin-overview-grid button').filter({hasText:label}).click();
   await visible(page.locator('.tb-admin-page h1'),label+' heading');
@@ -112,11 +121,17 @@ try {
   await page.goto(base,{waitUntil:'networkidle'});
 
   await clickTile(page,'数据源配置');
+  await page.getByRole('button',{name:'新增数据源',exact:true}).click();
+  await page.locator('.da-crud-modal:visible').getByLabel('名称',{exact:true}).fill('测试数据源');
+  await page.locator('.da-crud-modal:visible').getByLabel('JDBC 地址').fill('jdbc:mysql://127.0.0.1:9030/ads');
+  await page.locator('.da-crud-modal:visible').getByLabel('用户名',{exact:true}).fill('readonly');
   await visible(page.locator('input[placeholder*="jdbc:mysql"]'),'StarRocks form');
   await page.getByRole('button',{name:'测试连接'}).click();
-  await page.getByRole('button',{name:'保存配置'}).click();
+  await page.locator('.da-crud-modal:visible').getByRole('button',{name:'保存',exact:true}).click();
+  await page.locator('.da-crud-modal:visible').waitFor({state:'hidden'});
 
   await clickTile(page,'对话模型');
+  await page.getByRole('button',{name:'编辑配置',exact:true}).click();
   await visible(page.locator('input[placeholder="https://api.example.com/v1"]'),'AI URL');
   await page.getByRole('button',{name:'测试连接'}).click();
   // Prevent accidental 401 when the operator toggles "clear stored API Key".
@@ -133,10 +148,11 @@ try {
   await page.getByRole('button',{name:'保存配置'}).click();
 
   await clickTile(page,'Embedding 模型');
+  await page.getByRole('button',{name:'编辑配置',exact:true}).click();
   await visible(page.locator('input[placeholder="qwen3.7-text-embedding-flash"]'),'Embedding model');
   await page.getByRole('button',{name:'测试连接'}).click();
   await page.getByRole('button',{name:'保存配置'}).click();
-  await page.getByRole('button',{name:'重建语义索引'}).click();
+  await page.locator('.tb-admin-config-page').getByRole('button',{name:'重建语义索引',exact:true}).first().click();
 
   await clickTile(page,'ADS 表授权');
   await visible(page.locator('.admin-table'),'ADS tables');
@@ -159,24 +175,26 @@ try {
   await requireCall('POST /api/admin/metrics/import');
 
   await clickTile(page,'用户管理');
-  await visible(page.locator('.tb-user-row'),'User listing');
-  await page.locator('.tb-user-row').filter({hasText:'alice'}).getByRole('button',{name:/编辑/}).click();
-  await visible(page.locator('.tb-user-editor'),'User editor');
-  await page.locator('.tb-user-editor input[placeholder="请输入姓名"]').fill('Alice Zhang');
-  await page.getByRole('button',{name:'保存用户信息'}).click();
+  const alice=page.locator('.da-list-table tbody tr').filter({hasText:'alice'});
+  await visible(alice,'User listing');
+  await alice.getByRole('button',{name:'编辑',exact:true}).click();
+  await page.locator('.da-crud-modal:visible').getByLabel('姓名',{exact:true}).fill('Alice Zhang');
+  await page.locator('.da-crud-modal:visible').getByRole('button',{name:'保存',exact:true}).click();
   await requireCall('PUT /api/admin/users/alice');
-  await page.locator('.tb-user-row').filter({hasText:'alice'}).getByRole('button',{name:/编辑/}).click();
-  await page.locator('.tb-user-reset input[type=password]').fill('new-password-123');
-  await page.locator('.tb-user-reset').getByRole('button',{name:'重置密码',exact:true}).click();
-  await page.getByRole('dialog').getByRole('button',{name:'确认'}).click();
+  await page.locator('.da-crud-modal:visible').waitFor({state:'hidden'});
+  await alice.getByRole('button',{name:'重置密码',exact:true}).click();
+  await page.locator('.da-crud-modal:visible').getByLabel('新密码',{exact:true}).fill('new-password-123');
+  await page.locator('.da-crud-modal:visible').getByRole('button',{name:'保存',exact:true}).click();
+  await page.locator('.van-dialog').getByRole('button',{name:'确认',exact:true}).click();
   await requireCall('POST /api/admin/users/alice/reset-password');
+  await page.locator('.da-crud-modal:visible').waitFor({state:'hidden'});
 
   await clickTile(page,'配置状态');
   await visible(page.locator('.tb-config-status-list'),'Configuration status page');
   await page.getByRole('button',{name:/刷新状态/}).click();
 
   // Regression: an API failure must not block navigation into a module.
-  await page.locator('.tb-single-admin-nav button').click();
+  await page.locator('.tb-breadcrumb-admin').click();
   await visible(page.locator('.tb-admin-overview-grid'),'Admin overview');
   await page.waitForTimeout(200);
   failNextAdminSettings = true;
@@ -184,7 +202,7 @@ try {
   await visible(page.locator('.tb-admin-load-error'),'Configuration load error');
   await page.getByRole('button',{name:'重试加载'}).click();
   await page.locator('.tb-admin-load-error').waitFor({state:'hidden',timeout:10000});
-  await visible(page.locator('input[placeholder*="jdbc:mysql"]'),'Configuration retry success');
+  await visible(page.getByRole('button',{name:'新增数据源',exact:true}),'Configuration retry success');
 
   await mkdir('artifacts',{recursive:true});
   await page.screenshot({path:'artifacts/admin-desktop.png',fullPage:true});
@@ -205,7 +223,8 @@ try {
     return route.fulfill({status:403,json:{message:'Forbidden'}});
   });
   await userPage.goto(base,{waitUntil:'networkidle'});
-  assert.equal(await userPage.locator('.tb-single-admin-nav').count(),0,'Regular users must not see admin modules');
+  await userPage.locator('.da-account-trigger').click();
+  assert.equal(await userPage.getByRole('menuitem',{name:'系统管理'}).count(),0,'Regular users must not see admin modules');
   await ctxUser.close();
   console.log('PASS: seven admin tiles, real HTTP requests, role restrictions, editor and password reset, desktop browser');
 } catch(e) {

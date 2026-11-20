@@ -1,5 +1,9 @@
 package com.dataask.chat;
 
+import com.dataask.audit.AuditService;
+import com.dataask.audit.AuditContext;
+import com.dataask.audit.SqlVisibility;
+
 import com.dataask.config.RuntimeConfigService;
 import com.dataask.data.SqlGuard;
 import com.dataask.data.StarRocksGateway;
@@ -10,10 +14,14 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.NotEmpty;
+import jakarta.validation.constraints.Pattern;
 import jakarta.validation.constraints.Size;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.security.core.Authentication;
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.client.RestClient;
 import org.springframework.web.server.ResponseStatusException;
@@ -38,12 +46,22 @@ public class ChatController {
     private final QuestionPresentationService presentation;
     private final EmbeddingSemanticService embeddings;
     private final ChatCancellationService cancellations;
+    private final AuditService audit;
 
     public ChatController(JdbcTemplate jdbc, StarRocksGateway starrocks, SqlGuard guard,
             ObjectMapper json, RuntimeConfigService settings, EntityValueResolver entities,
             MetricDictionaryService metricDictionary, ColumnLabelService labels,
             QuestionPresentationService presentation, EmbeddingSemanticService embeddings,
             ChatCancellationService cancellations) {
+        this(jdbc,starrocks,guard,json,settings,entities,metricDictionary,labels,presentation,embeddings,cancellations,new AuditService(jdbc));
+    }
+
+    @Autowired
+    public ChatController(JdbcTemplate jdbc, StarRocksGateway starrocks, SqlGuard guard,
+            ObjectMapper json, RuntimeConfigService settings, EntityValueResolver entities,
+            MetricDictionaryService metricDictionary, ColumnLabelService labels,
+            QuestionPresentationService presentation, EmbeddingSemanticService embeddings,
+            ChatCancellationService cancellations, AuditService audit) {
         this.jdbc = jdbc; this.starrocks = starrocks; this.guard = guard; this.json = json;
         this.settings = settings;
         this.entities = entities;
@@ -52,6 +70,7 @@ public class ChatController {
         this.presentation = presentation;
         this.embeddings = embeddings;
         this.cancellations = cancellations;
+        this.audit = audit;
         this.http = RestClient.builder().build();
     }
 
@@ -60,7 +79,18 @@ public class ChatController {
     public record Answer(String id, String sessionId, String question, String title, String summary,
                   String chartType, List<String> columns, Map<String,String> columnLabels,
                   List<Map<String,Object>> rows, List<String> followUps,
-                  String metricLabel, String timeLabel, boolean unsupported, String dataset) {}
+                  String metricLabel, String timeLabel, boolean unsupported, String dataset,
+                  QueryExplanation.Semantic semantic, QueryExplanation.Execution execution,
+                  String sql) {
+        // Preserve source compatibility for existing integrations and cached visualization tests.
+        public Answer(String id, String sessionId, String question, String title, String summary,
+                String chartType, List<String> columns, Map<String,String> columnLabels,
+                List<Map<String,Object>> rows, List<String> followUps,
+                String metricLabel, String timeLabel, boolean unsupported, String dataset) {
+            this(id, sessionId, question, title, summary, chartType, columns, columnLabels,
+                rows, followUps, metricLabel, timeLabel, unsupported, dataset, null, null, null);
+        }
+    }
 
     /**
      * Read-only list of datasets approved by an administrator. This is not a
@@ -102,7 +132,7 @@ public class ChatController {
         List<String> raw = jdbc.query("SELECT payload_json FROM da_messages WHERE session_id=? ORDER BY created_at,id",
             (rs,n) -> rs.getString(1), sessionId);
         return raw.stream().map(s -> {
-            try { return json.readTree(s); }
+            try { return SqlVisibility.visible(json.readTree(s),user); }
             catch (Exception ex) { throw new IllegalStateException("历史对话数据格式错误"); }
         }).toList();
     }
@@ -110,6 +140,39 @@ public class ChatController {
     @PostMapping("/cancel")
     Map<String,Boolean> cancel(@Valid @RequestBody CancelRequest request, Authentication user) {
         return Map.of("cancelled", cancellations.cancel(user.getName(), request.requestId()));
+    }
+
+    public record SessionDeleteRequest(@NotEmpty @Size(max=200) List<@Pattern(regexp="[0-9a-fA-F-]{36}") String> ids) {}
+
+    @DeleteMapping("/sessions/{sessionId}")
+    @Transactional
+    Map<String,Object> deleteSession(@PathVariable String sessionId, Authentication user) {
+        requireSession(sessionId, user.getName());
+        jdbc.update("DELETE FROM da_messages WHERE session_id=?", sessionId);
+        int deleted = jdbc.update("DELETE FROM da_sessions WHERE id=? AND username=?", sessionId, user.getName());
+        return Map.of("deleted", deleted);
+    }
+
+    @PostMapping("/sessions/batch-delete")
+    @Transactional
+    Map<String,Object> deleteSessions(@Valid @RequestBody SessionDeleteRequest input, Authentication user) {
+        List<String> ids = input.ids().stream().distinct().toList();
+        String placeholders = String.join(",", Collections.nCopies(ids.size(), "?"));
+        List<Object> ownedArgs = new ArrayList<>();
+        ownedArgs.add(user.getName());
+        ownedArgs.addAll(ids);
+        List<String> owned = jdbc.queryForList(
+            "SELECT id FROM da_sessions WHERE username=? AND id IN (" + placeholders + ")",
+            String.class, ownedArgs.toArray());
+        if (owned.isEmpty()) return Map.of("deleted", 0);
+        String ownedPlaceholders = String.join(",", Collections.nCopies(owned.size(), "?"));
+        jdbc.update("DELETE FROM da_messages WHERE session_id IN (" + ownedPlaceholders + ")", owned.toArray());
+        List<Object> deleteArgs = new ArrayList<>();
+        deleteArgs.add(user.getName());
+        deleteArgs.addAll(owned);
+        int deleted = jdbc.update("DELETE FROM da_sessions WHERE username=? AND id IN (" + ownedPlaceholders + ")",
+            deleteArgs.toArray());
+        return Map.of("deleted", deleted);
     }
 
     @PostMapping("/ask")
@@ -129,6 +192,7 @@ public class ChatController {
     private Answer execute(AskRequest input, Authentication user, boolean persist) {
         String username = user.getName();
         ChatCancellationService.Active active = cancellations.begin(username, input.requestId());
+        QueryExplanation.Trace trace = new QueryExplanation.Trace();
         try {
         if (!settings.ai().configured())
             throw new ResponseStatusException(HttpStatus.SERVICE_UNAVAILABLE,
@@ -143,6 +207,10 @@ public class ChatController {
         } else {
             requireSession(session, username);
         }
+
+        if (persist || AuditContext.get("target") == null)
+            AuditContext.set("target",persist ? "会话："+session : "图表刷新");
+        AuditContext.set("detail","问题："+question);
 
         String previous = "";
         String previousQuestion = "";
@@ -182,11 +250,16 @@ public class ChatController {
         }
         if (metadata.isEmpty())
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "已开放的 ADS 表不存在或无权读取表结构");
+        trace.mark("metadata", "数据准备", "completed", newSession
+            ? "已确认登录身份并读取当前授权 ADS 表结构" : "已验证会话归属并读取当前授权 ADS 表结构");
 
         List<EntityValueResolver.Match> cityMatches = entities.resolve(question, allowed, discovered);
         String cityHints = entities.hints(cityMatches);
         String metricHints = metricDictionary.promptForQuestion(question, allowed);
         String semanticHints = embeddings.hints(question, allowed);
+        trace.mark("semantic", "语义检索", "completed",
+            "已检索业务口径并检查实体映射；" + (semanticHints == null || semanticHints.isBlank()
+                ? "未返回向量检索参考，使用授权字段与可用口径" : "已返回向量检索参考"));
         LocalDate today = LocalDate.now(ZoneId.of("Asia/Shanghai"));
         String instruction = """
             你是企业经营数据 SQL 分析助手。必须基于给定 ADS 元数据的真实表名、字段名和注释分析，绝不能猜测不存在的列。
@@ -228,6 +301,10 @@ public class ChatController {
                 .put("clarification","请确认要分析的业务指标")
             : plan(instruction, full);
         active.checkCancelled();
+        trace.mark("planning", "查询规划", needsMetric ? "needs_input" :
+            (QuestionPresentationService.hasValidPlan(plan) ? "completed" : "needs_input"),
+            needsMetric ? "缺少明确指标，等待选择后继续" :
+                (QuestionPresentationService.hasValidPlan(plan) ? "已生成结构化查询计划" : "未生成可执行的查询计划"));
         QuestionPresentationService.Presentation shown =
             presentation.resolve(question, previousQuestion, plan);
         String sql = "";
@@ -238,6 +315,7 @@ public class ChatController {
         Map<String,String> columnLabels = Map.of();
         List<Map<String,Object>> rows = List.of();
         List<String> followups = List.of();
+        QueryExplanation.Semantic semantic = null;
         boolean unsupported = !QuestionPresentationService.hasValidPlan(plan);
 
         if (!unsupported) {
@@ -246,22 +324,30 @@ public class ChatController {
                     plan.path("sql").asText(""), cityMatches);
                 if (!QuestionPresentationService.supportsRequestedDay(question, normalizedSql, today)) {
                     unsupported = true;
+                    trace.mark("validation", "查询校验", "rejected", "生成的查询未满足问题要求的日期，已阻止执行");
                 } else {
                     sql = guard.validate(normalizedSql, allowed, starrocks.schema());
+                    trace.mark("validation", "查询校验", "completed", "只读 SELECT、授权表范围与指定日期校验通过");
                     if (!Set.of("metric","table","bar","line","pie").contains(chart)) chart = "table";
-                    StarRocksGateway.QueryResult data = starrocks.query(sql, active);
+                    String executedSql = sql;
+                    StarRocksGateway.QueryResult data = audit.query(username,
+                        persist ? "CHAT" : "CHART_REFRESH",persist ? session : null,question,executedSql,
+                        () -> starrocks.query(executedSql, active));
                     columns = data.columns();
                     rows = data.rows();
+                    trace.mark("query", "数据查询", "completed", "StarRocks 实际返回 " + rows.size() + " 行（最多 200 行）");
                     columnLabels = presentation.alignLabels(shown, columns, rows,
                         labels.labels(columns, plan.path("columnLabels"), allowed, discovered), plan);
                     chart = inferChartType(chart, columns, rows);
-                    summary = summarize(rows, columns, columnLabels);
+                    semantic = QueryExplanation.semantic(sql, columns, columnLabels, plan);
+                    summary = QueryExplanation.summarize(rows, columns, columnLabels, semantic);
                     for (EntityValueResolver.Match match : cityMatches) {
                         if (!match.alias().equals(match.canonical()) && sql.contains(match.canonical())) {
                             summary += "（已识别“" + match.alias() + "”为“" + match.canonical() + "”）";
                         }
                     }
                     followups = List.of("按城市看", "按门店看", "查看近7天趋势");
+                    trace.mark("result", "结果整理", "completed", "根据实际查询解析维度、指标和筛选条件，并整理返回数据摘要");
                 }
             } catch (ResponseStatusException ex) {
                 // Invalid or unapproved generated SQL is an unsupported business
@@ -269,6 +355,7 @@ public class ChatController {
                 if (ex.getStatusCode().value() == 400) {
                     unsupported = true;
                     sql = "";
+                    trace.mark("validation", "查询校验", "rejected", "查询无法通过校验，未返回该查询的结果");
                 } else {
                     throw ex;
                 }
@@ -276,6 +363,8 @@ public class ChatController {
         }
 
         if (unsupported) {
+            semantic = null;
+            trace.mark("stopped", "流程结束", "skipped", "本次未完成有效数据查询，请明确业务口径或调整问题后重试");
             boolean promptForMetric = metricOptions.size() >= 2 &&
                 (needsMetric || clarification.isMetricClarification(
                     plan.path("clarification").asText("")));
@@ -296,7 +385,8 @@ public class ChatController {
         active.checkCancelled();
         String messageId = UUID.randomUUID().toString();
         Answer answer = new Answer(messageId, session, question, title, summary, chart, columns,
-            columnLabels, rows, followups, shown.metricLabel(), shown.periodLabel(), unsupported, dataset);
+            columnLabels, rows, followups, shown.metricLabel(), shown.periodLabel(), unsupported, dataset,
+            semantic, trace.finish(), sql);
         if (persist) {
         try {
             String serialized = json.writeValueAsString(answer);
@@ -314,7 +404,8 @@ public class ChatController {
             throw new IllegalStateException("保存会话失败", e);
         }
         }
-        return answer;
+        return SqlVisibility.admin(user) ? answer : json.convertValue(
+            SqlVisibility.visible(json.valueToTree(answer),user),Answer.class);
         } finally {
             cancellations.end(active);
         }
@@ -359,17 +450,6 @@ public class ChatController {
         if (!numeric) return requested;
         if (dimension.matches("(?i).*(dt|date|month|day|日期|月份|时间).*")) return "line";
         return "bar";
-    }
-
-    private String summarize(List<Map<String,Object>> rows, List<String> columns,
-            Map<String,String> columnLabels) {
-        if (rows.isEmpty()) return "当前查询范围没有返回数据，请检查日期、数据刷新状态或过滤条件。";
-        if (rows.size() == 1 && columns.size() == 1) {
-            Object value = rows.getFirst().get(columns.getFirst());
-            return "查询结果：" + columnLabels.getOrDefault(columns.getFirst(), columns.getFirst()) +
-                " = " + value;
-        }
-        return "已从 StarRocks 查询到 " + rows.size() + " 行真实数据。可点击下方快捷追问继续分析。";
     }
 
     private void requireSession(String session, String username) {

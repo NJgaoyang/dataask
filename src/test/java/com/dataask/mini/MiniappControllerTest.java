@@ -102,7 +102,10 @@ class MiniappControllerTest {
 
     @Test
     void chartPreviewRespectsSharingAndCurrentTablePermissions() throws Exception {
-        String payload="{\"id\":\"msg1\",\"columns\":[\"city\",\"count\"],\"rows\":[{\"city\":\"西安市\",\"count\":18}],\"unsupported\":false}";
+        String payload="""
+            {"id":"msg1","sql":"SELECT city,count FROM ads.orders","columns":["city","count"],"rows":[{"city":"西安市","count":18}],"unsupported":false,
+             "semantic":{"dimensions":[{"column":"city","label":"城市","expression":"o.city"}],"metrics":[{"column":"count","label":"订单量","expression":"SUM(orders)"}],"filters":["dt='2026-11-09'"],"tables":["ads.orders"]}}
+            """;
         when(jdbc.queryForList(anyString(),eq("chart1"))).thenReturn(List.of(Map.of(
             "id","chart1","ownerUsername","alice","shareScope","PRIVATE",
             "sourceMessageId","msg1","question","昨日各城市订单量排行")));
@@ -115,6 +118,9 @@ class MiniappControllerTest {
         when(starrocks.schema()).thenReturn("ads");
         when(guard.validate(anyString(),anySet(),eq("ads"))).thenReturn("SELECT city,count FROM ads.orders");
         Map<String,Object> view=controller.view("chart1",alice);
+        assertTrue(view.get("answer").toString().contains("SELECT"));
+        assertTrue(view.get("answer").toString().contains("SUM(orders)"));
+        assertTrue(view.get("answer").toString().contains("订单量"));
         assertEquals("昨日各城市订单量排行",((Map<?,?>)view.get("chart")).get("title"));
         assertEquals("西安市",((JsonNode)view.get("answer")).path("rows").get(0).path("city").asText());
         verify(guard).validate("SELECT city,count FROM ads.orders",Set.of("ads.orders"),"ads");
