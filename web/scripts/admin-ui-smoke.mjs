@@ -137,7 +137,23 @@ try {
   await visible(modelSections.nth(1),'Embedding card loaded');
   assert.equal(await modelSections.count(),2,'Both chat and Embedding models must appear in the same section');
   const chatModel=modelSections.nth(0), embeddingModel=modelSections.nth(1);
+  const chatToggle=chatModel.locator('.da-model-setting-trigger');
+  const embeddingToggle=embeddingModel.locator('.da-model-setting-trigger');
+  assert.equal(await chatToggle.getAttribute('aria-expanded'),'false','Chat model must be collapsed by default');
+  assert.equal(await embeddingToggle.getAttribute('aria-expanded'),'false','Embedding model must be collapsed by default');
+  assert.equal(await chatModel.locator('#da-model-ai-body').isVisible(),false);
+  assert.equal(await embeddingModel.locator('#da-model-embedding-body').isVisible(),false);
+  const outer=await page.locator('.tb-admin-model-full').boundingBox();
+  const panel=await page.locator('.tb-admin-config-page').boundingBox();
+  assert(outer && panel && Math.abs(outer.x-panel.x)<2 && Math.abs(outer.width-panel.width)<2,
+    'Model configuration must span the entire content area without card gutters');
+  await chatToggle.click();
+  assert.equal(await chatToggle.getAttribute('aria-expanded'),'true');
   await visible(chatModel.locator('input[placeholder*="compatible-mode"]'),'Chat model URL');
+  assert.equal(await embeddingModel.locator('#da-model-embedding-body').isVisible(),false,
+    'Opening the chat model must not automatically open Embedding');
+  await embeddingToggle.click();
+  assert.equal(await embeddingToggle.getAttribute('aria-expanded'),'true');
   await visible(embeddingModel.locator('input[placeholder="qwen3.7-text-embedding-flash"]'),'Embedding model ID');
   await chatModel.getByRole('button',{name:'测试连接'}).click();
   await requireCall('POST /api/admin/settings/ai/test');
@@ -159,6 +175,11 @@ try {
   await requireCall('POST /api/admin/settings/embedding');
   await embeddingModel.getByRole('button',{name:'重建语义索引'}).click();
   await requireCall('POST /api/admin/semantic/rebuild');
+  await chatToggle.click();
+  assert.equal(await chatToggle.getAttribute('aria-expanded'),'false');
+  assert.equal(await chatModel.locator('#da-model-ai-body').isVisible(),false);
+  assert.equal(await embeddingToggle.getAttribute('aria-expanded'),'true',
+    'Collapsing one model must not collapse the other');
   assert.equal(await page.locator('.tb-admin-page h1').innerText(),'模型配置');
 
   await clickTile(page,'ADS 表授权');

@@ -1484,7 +1484,8 @@ onBeforeUnmount(() => {
           <button title="新对话" @click="newConversation"><van-icon name="add-o" size="21"/></button>
         </div>
       </header>
-      <main v-if="isDesktop && isAdmin && desktopIsAdminSection" class="tb-page-body tb-admin-page">
+      <main v-if="isDesktop && isAdmin && desktopIsAdminSection" class="tb-page-body tb-admin-page"
+        :class="{'tb-admin-model-full':desktopSection==='admin-model'}">
         <div class="tb-admin-heading">
           <div class="tb-admin-heading-copy">
             <h1>{{ desktopSectionTitle }}</h1>

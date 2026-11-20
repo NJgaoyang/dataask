@@ -42,6 +42,15 @@
   /* ---------- 3. Panel card ---------- */
   .consumer-pc .tb-admin-overview{padding:var(--da-panel-padding)}
   .consumer-pc .tb-admin-panel-card{margin:var(--da-panel-padding);padding:var(--da-panel-padding);border:1px solid var(--da-border);border-radius:var(--da-radius-md);background:var(--da-surface);min-height:0}
+
+  /* The unified model page uses the full main content width, unlike other inset admin cards. */
+  .consumer-pc .tb-admin-model-full>*{max-width:none;width:100%;margin-left:0;margin-right:0}
+  .consumer-pc .tb-admin-model-full>.tb-admin-config-page{
+    margin:0;padding:0;min-height:calc(100% - var(--da-page-header-h));
+    border:0;border-radius:0;background:var(--da-surface);
+  }
+  .consumer-pc .tb-admin-model-full .da-model-center{max-width:none;width:100%;margin:0;padding:0}
+
   .consumer-pc .tb-admin-panel-intro{margin-bottom:var(--da-sp-5);padding-bottom:var(--da-sp-4);border-bottom:1px solid var(--da-border)}
   .consumer-pc .tb-admin-panel-intro strong{display:block;font-size:var(--da-fs-lg);font-weight:600;color:var(--da-text)}
   .consumer-pc .tb-admin-panel-intro p{margin:4px 0 0;font-size:var(--da-fs-sm);color:var(--da-text-3);line-height:1.6}

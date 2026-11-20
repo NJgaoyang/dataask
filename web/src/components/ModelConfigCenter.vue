@@ -5,6 +5,9 @@ import { showConfirmDialog,showSuccessToast,showFailToast } from 'vant'
 const props=defineProps({api:{type:Object,required:true}})
 const emit=defineEmits(['status-changed'])
 const loading=ref(true),error=ref(''),settings=ref({}),status=ref({}),semantic=ref({})
+// Collapsed by default; this controls presentation, not the enabled model setting.
+const expanded=ref({ai:false,embedding:false})
+function toggleModel(kind){expanded.value[kind]=!expanded.value[kind]}
 const ai=ref({baseUrl:'',model:'',apiKey:'',clearKey:false})
 const embedding=ref({enabled:false,baseUrl:'https://dashscope.aliyuncs.com/api/v1',
   model:'qwen3.7-text-embedding-flash',dimensions:1024,apiKey:'',clearKey:false})
@@ -96,18 +99,27 @@ onMounted(load)
 <template>
   <section class="da-model-center" aria-label="模型统一配置">
     <div class="da-model-center-heading">
-      <div><h2>模型配置</h2><p>统一管理智能问数与语义检索模型，配置分别保存，密钥不会明文回显。</p></div>
+      <p>点击模型标题展开配置；两种模型分别测试和保存，密钥不会明文回显。</p>
       <button type="button" class="td-btn" :disabled="locked()" @click="load"><van-icon name="replay"/> 刷新配置</button>
     </div>
     <p v-if="loading" class="da-model-center-loading"><van-loading size="17px"/> 正在读取模型配置…</p>
     <div v-if="error" class="metric-error" role="alert">{{ error }} <button type="button" class="td-btn" @click="load">重试</button></div>
     <template v-if="!loading && !error">
       <article class="da-model-setting-card" aria-labelledby="ai-settings-title">
-        <header class="da-model-setting-header">
-          <div><h3 id="ai-settings-title"><van-icon name="chat-o"/> 对话模型</h3>
-            <p>用于理解经营问题、生成 SQL 与解释查询结果。</p></div>
-          <span class="da-model-setting-state" :class="{ok:status.aiConfigured}">{{ status.aiConfigured?'已配置':'待配置' }}</span>
+        <header class="da-model-setting-header" :class="{'is-open':expanded.ai}">
+          <button type="button" class="da-model-setting-trigger"
+            :aria-expanded="expanded.ai" aria-controls="da-model-ai-body" @click="toggleModel('ai')">
+            <span class="da-model-setting-copy">
+              <strong id="ai-settings-title"><van-icon name="chat-o"/> 对话模型</strong>
+              <small>用于理解经营问题、生成 SQL 与解释查询结果。</small>
+            </span>
+            <span class="da-model-setting-meta">
+              <span class="da-model-setting-state" :class="{ok:status.aiConfigured}">{{ status.aiConfigured?'已配置':'待配置' }}</span>
+              <van-icon name="arrow-down" class="da-model-chevron" :class="{'is-open':expanded.ai}" aria-hidden="true"/>
+            </span>
+          </button>
         </header>
+        <div v-show="expanded.ai" id="da-model-ai-body" role="region" aria-labelledby="ai-settings-title" class="da-model-setting-body">
         <div class="da-model-fields">
           <van-field v-model.trim="ai.baseUrl" label="Base URL" placeholder="https://dashscope.aliyuncs.com/compatible-mode/v1"
             :disabled="locked()"/>
@@ -129,14 +141,24 @@ onMounted(load)
             <van-loading v-if="progress==='ai-save'" size="14px"/><van-icon v-else name="success"/> 保存对话模型
           </button>
         </footer>
+        </div>
       </article>
 
       <article class="da-model-setting-card" aria-labelledby="embedding-settings-title">
-        <header class="da-model-setting-header">
-          <div><h3 id="embedding-settings-title"><van-icon name="cluster-o"/> Embedding 模型</h3>
-            <p>用于 ADS 表字段、中文别名与指标口径的语义匹配。</p></div>
-          <span class="da-model-setting-state" :class="{ok:status.embeddingConfigured}">{{ status.embeddingConfigured?'已配置':'未启用 / 待配置' }}</span>
+        <header class="da-model-setting-header" :class="{'is-open':expanded.embedding}">
+          <button type="button" class="da-model-setting-trigger"
+            :aria-expanded="expanded.embedding" aria-controls="da-model-embedding-body" @click="toggleModel('embedding')">
+            <span class="da-model-setting-copy">
+              <strong id="embedding-settings-title"><van-icon name="cluster-o"/> Embedding 模型</strong>
+              <small>用于 ADS 表字段、中文别名与指标口径的语义匹配。</small>
+            </span>
+            <span class="da-model-setting-meta">
+              <span class="da-model-setting-state" :class="{ok:status.embeddingConfigured}">{{ status.embeddingConfigured?'已配置':'未启用 / 待配置' }}</span>
+              <van-icon name="arrow-down" class="da-model-chevron" :class="{'is-open':expanded.embedding}" aria-hidden="true"/>
+            </span>
+          </button>
         </header>
+        <div v-show="expanded.embedding" id="da-model-embedding-body" role="region" aria-labelledby="embedding-settings-title" class="da-model-setting-body">
         <div class="da-model-fields">
           <van-cell title="启用 Embedding" label="关闭后不使用向量语义增强">
             <template #right-icon><van-switch v-model="embedding.enabled" size="20px" :disabled="locked()"/></template>
@@ -172,6 +194,7 @@ onMounted(load)
             <van-loading v-if="progress==='embedding-save'" size="14px"/><van-icon v-else name="success"/> 保存 Embedding
           </button>
         </footer>
+        </div>
       </article>
     </template>
   </section>
@@ -217,4 +240,31 @@ onMounted(load)
   .da-model-actions .td-btn{flex:1;min-height:40px}
   .da-model-index{padding:14px}
 }
+
+/* Full-width accordion; no card gutters or gap between models. */
+.da-model-center{display:block;width:100%;min-height:100%;background:var(--da-surface,#fff)}
+.da-model-center-heading{min-height:62px;margin:0;padding:12px 20px;border-bottom:1px solid var(--da-border,#e6e8eb);align-items:center}
+.da-model-center-heading>p{margin:0;font-size:13px;color:var(--da-text-3,#86909c);line-height:1.6}
+.da-model-setting-card{margin:0;width:100%;border:0;border-bottom:1px solid var(--da-border,#e6e8eb);border-radius:0}
+.da-model-setting-header{display:block;padding:0;border-bottom:0}
+.da-model-setting-header.is-open{border-bottom:1px solid var(--da-border,#e6e8eb)}
+.da-model-setting-trigger{display:flex;align-items:center;justify-content:space-between;gap:16px;width:100%;min-height:80px;padding:16px 20px;border:0;border-radius:0;background:transparent;color:var(--da-text,#1f2329);text-align:left;cursor:pointer}
+.da-model-setting-trigger:hover{background:var(--da-surface-2,#f8f9fb)}
+.da-model-setting-trigger:focus-visible{outline:2px solid var(--da-primary,#0052d9);outline-offset:-3px}
+.da-model-setting-copy{display:flex;flex-direction:column;align-items:flex-start;gap:6px;min-width:0}
+.da-model-setting-copy>strong{display:flex;align-items:center;gap:8px;font-size:15px;font-weight:600;line-height:1.35}
+.da-model-setting-copy>strong .van-icon{font-size:17px;color:var(--da-primary,#0052d9)}
+.da-model-setting-copy>small{font-size:12px;color:var(--da-text-3,#86909c);line-height:1.5}
+.da-model-setting-meta{display:flex;align-items:center;flex-shrink:0;gap:16px}
+.da-model-chevron{font-size:16px;color:var(--da-text-3,#86909c);transition:transform .18s ease}
+.da-model-chevron.is-open{transform:rotate(180deg)}
+.da-model-setting-body{width:100%}
+@media(max-width:767px){
+ .da-model-center-heading{padding:12px 14px;gap:8px}
+ .da-model-center-heading>p{max-width:68%;font-size:12px}
+ .da-model-setting-trigger{min-height:72px;padding:14px}
+ .da-model-setting-meta{gap:8px}
+}
+@media(prefers-reduced-motion:reduce){.da-model-chevron{transition:none}}
+
 </style>
