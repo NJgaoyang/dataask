@@ -93,7 +93,9 @@ try {
     assert.equal(backStyle.border,'solid');assert.equal(backStyle.height,32);
     await page.locator('.da-chart-back').focus();await page.keyboard.press('Enter');
     assert.equal(await page.locator('.da-chart-detail').count(),0,'Back button must work with the keyboard');
-    await page.locator('.desktop-main-nav button').filter({hasText:'历史会话'}).click();
+    assert.equal(await page.locator('.desktop-main-nav button').filter({hasText:'历史会话'}).count(),0,
+      'History is not duplicated in the primary navigation');
+    await page.getByRole('button',{name:'查看全部会话'}).click();
     await capture(page,width,'history','.da-record-list');
     await page.locator('.da-account-trigger').click();await page.getByRole('menuitem',{name:'系统管理'}).click();
     await capture(page,width,'admin','.tb-admin-overview-grid');

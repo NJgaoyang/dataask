@@ -9,6 +9,7 @@ import './pc-lists.css'
 import './tdesign-console.css'
 import './edge-to-edge.css'
 import './ask-home-console.css'
+import './workspace-polish.css'
 import './login-v3.css'
 // Place all Vant success, error and info prompts in the viewport center.
 setToastDefaultOptions({position:'middle'})

@@ -1,0 +1,275 @@
+/* Post-login workspace polish inspired by lightweight task-centric assistants.
+   No business behavior changes; this file only refines authenticated desktop hierarchy. */
+@media (min-width:1024px){
+  .consumer-pc .desktop-sidebar{
+    padding:0 10px 10px;
+    background:linear-gradient(180deg,#fbfcfe 0%,#f8f9fb 100%);
+    border-right:1px solid #e7eaf0;
+  }
+  .consumer-pc .sidebar-brand{
+    height:56px;
+    padding:0 10px;
+  }
+  .consumer-pc .sidebar-brand .brand-icon{
+    width:30px;
+    height:30px;
+    border-radius:9px;
+    box-shadow:0 5px 14px rgba(0,86,204,.12);
+  }
+  .consumer-pc .sidebar-brand .brand-title strong{
+    font-size:16px;
+    font-weight:650;
+  }
+  .consumer-pc .sidebar-new{
+    height:36px;
+    margin:4px 2px 14px;
+    border:1px solid #d7dce5;
+    border-radius:8px;
+    background:#fff;
+    color:var(--da-text);
+    font-size:13px;
+    font-weight:600;
+    box-shadow:0 1px 2px rgba(31,39,51,.03);
+  }
+  .consumer-pc .sidebar-new:hover{
+    border-color:#b9c9df;
+    background:#f7faff;
+    color:var(--da-primary);
+  }
+  .consumer-pc .sidebar-new:active{
+    background:#eef5ff;
+  }
+  .consumer-pc .sidebar-new .van-icon{
+    color:var(--da-primary);
+    font-size:16px;
+  }
+
+  .consumer-pc .desktop-main-nav{
+    gap:3px;
+    margin:0 0 8px;
+  }
+  .consumer-pc .desktop-main-nav button{
+    height:34px;
+    padding:0 10px;
+    border-radius:8px;
+    color:#4c596a;
+    font-size:13px;
+  }
+  .consumer-pc .desktop-main-nav button.active{
+    background:#edf3fb;
+    color:#1f4f8f;
+    font-weight:600;
+  }
+  .consumer-pc .desktop-main-nav button.active::before{
+    display:none;
+  }
+  .consumer-pc .desktop-main-nav button.active .van-icon{
+    color:#2f73d9;
+  }
+
+  .consumer-pc .da-sidebar-history{
+    margin-top:6px;
+    padding-top:10px;
+    border-top:1px solid #eceff3;
+    overflow:visible;
+  }
+  .consumer-pc .da-sidebar-history-head{
+    display:flex;
+    align-items:center;
+    justify-content:space-between;
+    gap:8px;
+    height:30px;
+    padding:0 8px 4px;
+    color:#8a94a3;
+    font-size:11px;
+    font-weight:600;
+    letter-spacing:.2px;
+  }
+  .consumer-pc .da-sidebar-history-all{
+    width:auto;
+    min-height:0;
+    height:24px;
+    padding:0 4px;
+    border:0;
+    background:transparent;
+    color:#98a1af;
+    font-size:11px;
+    font-weight:400;
+  }
+  .consumer-pc .da-sidebar-history-all:hover,
+  .consumer-pc .da-sidebar-history-all.active{
+    background:transparent;
+    color:var(--da-primary);
+  }
+
+  .consumer-pc .da-sidebar-session{
+    position:relative;
+    display:flex;
+    align-items:center;
+    gap:2px;
+    min-width:0;
+    height:34px;
+    margin:1px 0;
+    border-radius:8px;
+    color:#3d4856;
+    transition:background .12s,color .12s;
+  }
+  .consumer-pc .da-sidebar-session:hover{
+    background:#f0f2f5;
+  }
+  .consumer-pc .da-sidebar-session.active{
+    background:#eceef1;
+    color:#202833;
+  }
+  .consumer-pc .da-sidebar-session-open{
+    display:flex;
+    align-items:center;
+    flex:1;
+    min-width:0;
+    height:34px;
+    min-height:0;
+    padding:0 6px 0 10px;
+    border:0;
+    border-radius:8px;
+    background:transparent!important;
+    color:inherit!important;
+    text-align:left;
+    font-size:12px;
+  }
+  .consumer-pc .da-sidebar-session-open span{
+    overflow:hidden;
+    min-width:0;
+    text-overflow:ellipsis;
+    white-space:nowrap;
+  }
+  .consumer-pc .da-recent-menu{
+    position:relative;
+    flex:0 0 auto;
+    width:28px;
+    height:28px;
+    margin-right:3px;
+  }
+  .consumer-pc .da-session-more{
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    width:28px;
+    height:28px;
+    min-height:0;
+    padding:0;
+    border:0;
+    border-radius:6px;
+    background:transparent!important;
+    color:#7f8997!important;
+    font-size:14px;
+    line-height:1;
+    letter-spacing:1px;
+    opacity:0;
+    transition:opacity .12s,background .12s,color .12s;
+  }
+  .consumer-pc .da-sidebar-session:hover .da-session-more,
+  .consumer-pc .da-sidebar-session.active .da-session-more,
+  .consumer-pc .da-session-more[aria-expanded="true"]{
+    opacity:1;
+  }
+  .consumer-pc .da-session-more:hover{
+    background:#e4e7eb!important;
+    color:#303844!important;
+  }
+  .consumer-pc .da-recent-session-menu{
+    position:absolute;
+    z-index:40;
+    top:30px;
+    right:0;
+    width:132px;
+    padding:5px;
+    border:1px solid #e1e5ea;
+    border-radius:10px;
+    background:#fff;
+    box-shadow:0 10px 28px rgba(31,39,51,.14);
+  }
+  .consumer-pc .da-recent-session-menu button{
+    display:flex;
+    align-items:center;
+    gap:8px;
+    width:100%;
+    height:32px;
+    min-height:0;
+    padding:0 9px;
+    border:0;
+    border-radius:7px;
+    background:transparent!important;
+    color:#4c5664!important;
+    font-size:12px;
+  }
+  .consumer-pc .da-recent-session-menu button:hover{
+    background:#f6f7f9!important;
+  }
+  .consumer-pc .da-recent-session-menu button.danger{
+    color:#d54941!important;
+  }
+  .consumer-pc .da-recent-session-menu button.danger:hover{
+    background:#fff1f0!important;
+  }
+
+  /* Give the empty Q&A page a little more product identity without becoming decorative. */
+  .consumer-pc.consumer-home .composer{
+    background:
+      radial-gradient(circle at 50% 4%,rgba(80,137,219,.07),transparent 32%),
+      linear-gradient(180deg,#f6f8fb 0%,#f3f5f8 100%);
+  }
+  .consumer-pc.consumer-home .da-ask-hero h1{
+    font-size:24px;
+    line-height:32px;
+    letter-spacing:-.3px;
+  }
+  .consumer-pc.consumer-home .da-ask-hero p{
+    color:#7a8799;
+  }
+  .consumer-pc.consumer-home .composer-row{
+    border-color:#d8dde6;
+    box-shadow:0 8px 28px rgba(31,39,51,.05);
+  }
+  .consumer-pc.consumer-home .da-suggestion-grid button{
+    border-color:#e1e5eb;
+    box-shadow:0 1px 2px rgba(31,39,51,.025);
+  }
+  .consumer-pc.consumer-home .da-suggestion-grid button:hover:not(:disabled){
+    border-color:#c8d6ea;
+    box-shadow:0 6px 16px rgba(31,39,51,.06);
+    transform:translateY(-1px);
+  }
+
+  .consumer-pc[data-theme="dark"].consumer-home .composer{
+    background:linear-gradient(180deg,#191d23 0%,#171a1f 100%);
+  }
+  .consumer-pc[data-theme="dark"] .desktop-sidebar{
+    background:#1a1e24;
+    border-right-color:#30363f;
+  }
+  .consumer-pc[data-theme="dark"] .sidebar-new{
+    background:#22272f;
+    border-color:#3a424e;
+    color:#e6e9ed;
+  }
+  .consumer-pc[data-theme="dark"] .desktop-main-nav button.active{
+    background:#233247;
+    color:#dceaff;
+  }
+  .consumer-pc[data-theme="dark"] .da-sidebar-history{
+    border-top-color:#30363f;
+  }
+  .consumer-pc[data-theme="dark"] .da-sidebar-session:hover,
+  .consumer-pc[data-theme="dark"] .da-sidebar-session.active{
+    background:#252a31;
+    color:#f0f2f5;
+  }
+  .consumer-pc[data-theme="dark"] .da-recent-session-menu{
+    background:#20252c;
+    border-color:#343c47;
+    box-shadow:0 10px 30px rgba(0,0,0,.34);
+  }
+  .consumer-pc[data-theme="dark"] .da-recent-session-menu button:hover{
+    background:#2a3039!important;
+  }
+}

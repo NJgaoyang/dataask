@@ -46,6 +46,7 @@ const showPassword = ref(false)
 // Desktop account actions live at the foot of the navigation rail.
 const accountMenuOpen = ref(false)
 const accountMenuRef = ref(null)
+const recentSessionMenuId = ref('')
 const personalizationOpen = ref(false)
 const theme = ref('light')
 const profileOpen = ref(false)
@@ -82,6 +83,18 @@ function handleAccountOutsideClick(event) {
   if (accountMenuOpen.value && !accountMenuRef.value?.contains(event.target)) {
     accountMenuOpen.value = false
   }
+  const target = event.target instanceof Element ? event.target : null
+  if (recentSessionMenuId.value && !target?.closest('.da-recent-menu')) {
+    recentSessionMenuId.value = ''
+  }
+}
+function toggleRecentSessionMenu(id) {
+  recentSessionMenuId.value = recentSessionMenuId.value === id ? '' : id
+  accountMenuOpen.value = false
+}
+async function deleteRecentSession(item) {
+  recentSessionMenuId.value = ''
+  await deleteSession(item)
 }
 function closeAccountMenu(returnFocus = false) {
   accountMenuOpen.value = false
@@ -682,6 +695,7 @@ function logout(record = true) {
   verifiedRole.value = ''
   configVisible.value = false
   accountMenuOpen.value = false
+  recentSessionMenuId.value = ''
   personalizationOpen.value = false
   profileOpen.value = false
   profileSequence++
@@ -811,6 +825,7 @@ async function loadSavedCharts() {
   finally { if (epoch === authEpoch) chartsBusy.value = false }
 }
 async function openSession(item) {
+  recentSessionMenuId.value = ''
   if (busy.value) stopAsk()
   const version = ++conversationVersion
   try {
@@ -828,6 +843,7 @@ async function openSession(item) {
   } catch (e) { if (version === conversationVersion) showFailToast(errorText(e)) }
 }
 function newConversation() {
+  recentSessionMenuId.value = ''
   if (busy.value) stopAsk()
   conversationVersion++
   sessionId.value = ''; messages.value = []; question.value = ''; historyVisible.value = false
@@ -1543,18 +1559,32 @@ onBeforeUnmount(() => {
           <div class="brand-title"><strong>DataAsk</strong></div>
         </div>
         <button type="button" class="sidebar-new da-new-conversation" title="新建问数" @click="newConversation"><van-icon name="plus"/><span>新建问数</span></button>
-        <div class="da-nav-label tb-nav-category">分析</div>
         <nav class="desktop-main-nav" aria-label="分析导航">
           <button type="button" title="智能问数" :class="{active:desktopSection==='ask'}" @click="switchDesktopSection('ask')"><van-icon name="chat-o"/><span>智能问数</span></button>
           <button type="button" title="我的图表" :class="{active:desktopSection==='charts'}" @click="switchDesktopSection('charts')"><van-icon name="chart-trending-o"/><span>我的图表</span></button>
-          <button type="button" title="历史会话" :class="{active:desktopSection==='history'}" @click="switchDesktopSection('history')"><van-icon name="clock-o"/><span>历史会话</span></button>
         </nav>
         <section v-if="sessions.length" class="da-sidebar-history" aria-label="最近会话">
-          <div class="da-nav-label">最近会话</div>
-          <button v-for="(item,index) in sessions.slice(0,5)" :key="item.id" type="button" :title="item.title"
-            :class="{active:desktopSection==='ask' && sessionId===item.id}" @click="openSession(item)">
-            <van-icon name="chat-o"/><span>{{ item.title }}</span>
-          </button>
+          <div class="da-sidebar-history-head">
+            <span>最近</span>
+            <button type="button" class="da-sidebar-history-all" aria-label="查看全部会话"
+              :class="{active:desktopSection==='history'}" @click="switchDesktopSection('history')">查看全部</button>
+          </div>
+          <div v-for="item in sessions.slice(0,5)" :key="item.id" class="da-sidebar-session"
+            :class="{active:desktopSection==='ask' && sessionId===item.id}">
+            <button type="button" class="da-sidebar-session-open" :title="item.title" @click="openSession(item)">
+              <span>{{ item.title }}</span>
+            </button>
+            <div class="da-recent-menu" @click.stop>
+              <button type="button" class="da-session-more" :aria-label="'会话操作：'+item.title"
+                :aria-expanded="recentSessionMenuId===item.id" title="更多操作"
+                @click.stop="toggleRecentSessionMenu(item.id)">•••</button>
+              <div v-if="recentSessionMenuId===item.id" class="da-recent-session-menu" role="menu">
+                <button type="button" role="menuitem" class="danger" aria-label="删除会话" @click="deleteRecentSession(item)">
+                  <van-icon name="delete-o"/><span>删除会话</span>
+                </button>
+              </div>
+            </div>
+          </div>
         </section>
         <div class="tb-sidebar-fill"></div>
         <div v-if="isDesktop" class="da-account-menu" ref="accountMenuRef" @keydown="accountMenuKeydown">

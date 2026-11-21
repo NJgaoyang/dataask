@@ -190,8 +190,15 @@ try {
       await snap(page,'1440-admin-source-dark');
       await page.locator('.da-crud-modal:visible').getByRole('button',{name:'取消',exact:true}).click();
       // Old records must not fabricate semantic results or past durations.
-      await page.locator('.da-sidebar-history button').first().click();
+      await page.locator('.da-sidebar-session-open').first().click();
       assert.equal(await page.locator('.da-analysis-panel').count(),0);
+      await page.locator('.da-session-more').first().click();
+      assert.equal(await page.getByRole('menuitem',{name:'删除会话'}).isVisible(),true);
+      const deleteResponse=page.waitForResponse(r=>r.request().method()==='DELETE'&&r.url().includes('/api/chat/sessions/s2'));
+      await page.getByRole('menuitem',{name:'删除会话'}).click();
+      await page.locator('.van-dialog').getByRole('button',{name:'确认',exact:true}).click();
+      await deleteResponse;
+      assert(calls.includes('DELETE /api/chat/sessions/s2'),'Recent-session menu must delete through the existing API');
       await page.getByRole('button',{name:/查看分析过程/}).click();
       await page.locator('.da-analysis-panel').waitFor();
       assert.equal(await page.locator('.da-analysis-steps').count(),0);
