@@ -110,15 +110,22 @@ public class DataSourceController {
         gateway.test(config);
         if (!id.equals(settings.activeSourceId())) {
             String previous=settings.activeSourceId();
-            // Preserve legacy permissions before clearing the active-runtime cache.
+            // Preserve previous source grants before resetting the runtime allowlist.
             if(previous!=null && !previous.isBlank()){
-                jdbc.update("INSERT IGNORE INTO da_source_table_permissions(data_source_id,table_name,enabled) " +
-                    "SELECT ?,table_name,enabled FROM da_allowed_tables WHERE enabled=1",previous);
+                List<String> legacy=jdbc.query(
+                    "SELECT table_name FROM da_allowed_tables WHERE enabled=1",
+                    (rs,n)->rs.getString(1));
+                for(String table:legacy)
+                    jdbc.update("INSERT IGNORE INTO da_source_table_permissions(data_source_id,table_name,enabled) " +
+                        "VALUES(?,?,1)",previous,table);
             }
             jdbc.update("UPDATE da_allowed_tables SET enabled=0");
-            jdbc.update("INSERT INTO da_allowed_tables(table_name,enabled) " +
-                "SELECT table_name,1 FROM da_source_table_permissions WHERE data_source_id=? AND enabled=1 " +
-                "ON DUPLICATE KEY UPDATE enabled=VALUES(enabled)",id);
+            List<String> restored=jdbc.query(
+                "SELECT table_name FROM da_source_table_permissions WHERE data_source_id=? AND enabled=1",
+                (rs,n)->rs.getString(1),id);
+            for(String table:restored)
+                jdbc.update("INSERT INTO da_allowed_tables(table_name,enabled) VALUES(?,1) " +
+                    "ON DUPLICATE KEY UPDATE enabled=VALUES(enabled)",table);
             jdbc.update("DELETE FROM da_semantic_vectors");
             settings.activateSource(id,config);
         }
