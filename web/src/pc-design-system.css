@@ -270,13 +270,29 @@
   .consumer-pc .conversation>.turn,.consumer-pc .conversation>.welcome,.consumer-pc .conversation>.loading-bubble,.consumer-pc .conversation>.end-marker{
     width:min(var(--da-chat-max),calc(100% - 48px));max-width:var(--da-chat-max);margin-left:auto;margin-right:auto
   }
-  /* Empty and analysis states share the same shell rows so the workspace never jumps in size. */
-  .app-shell.consumer-pc.consumer-home{grid-template-rows:var(--da-topbar-h) minmax(0,1fr) auto}
+  /* The empty ask page is a dedicated landing state; once querying starts the shell switches to conversation + bottom composer. */
+  .app-shell.consumer-pc.consumer-home{
+    grid-template-rows:var(--da-topbar-h) minmax(0,1fr);
+    grid-template-areas:"sidebar topbar" "sidebar content";
+  }
   .consumer-pc.consumer-home .conversation{display:block;padding:0;background:var(--da-canvas)}
-  .consumer-pc .da-empty-ask-home{width:100%;min-height:100%;padding:56px 24px 32px}
-  .consumer-pc .da-empty-ask-inner{width:min(var(--da-chat-max),100%);margin:0 auto}
-  .consumer-pc .da-ask-hero{margin:0 0 24px}
-  .consumer-pc .da-ask-hero h1{margin:0;font-size:26px;line-height:1.3;font-weight:650;color:var(--da-text);letter-spacing:-.2px}
+  .consumer-pc .da-empty-ask-home{width:100%;min-height:100%;padding:54px 32px 42px}
+  .consumer-pc .da-empty-ask-inner{width:min(1120px,100%);margin:0 auto}
+  .consumer-pc .da-ask-hero{margin:0 0 22px}
+  .consumer-pc .da-ask-hero h1{margin:0;font-size:28px;line-height:1.3;font-weight:650;color:var(--da-text);letter-spacing:-.25px}
+  .consumer-pc .da-home-question-box{
+    display:flex;flex-direction:column;gap:12px;height:158px;margin:0 0 28px;padding:18px 18px 14px;
+    border:1px solid var(--da-border-strong);border-radius:12px;background:var(--da-surface);box-shadow:var(--da-shadow-sm);
+    transition:border-color .12s,box-shadow .12s;
+  }
+  .consumer-pc .da-home-question-box:focus-within{border-color:var(--da-primary);box-shadow:var(--da-focus)}
+  .consumer-pc .da-home-question-box textarea{
+    flex:1 1 auto;width:100%;min-height:72px;padding:0;border:0;outline:0;resize:none;overflow-y:auto;
+    background:transparent;color:var(--da-text);font:inherit;font-size:15px;line-height:1.65;box-shadow:none;
+  }
+  .consumer-pc .da-home-question-box textarea::placeholder{color:var(--da-text-3)}
+  .consumer-pc .da-home-question-actions{display:flex;align-items:center;justify-content:flex-end;gap:12px;flex-shrink:0}
+  .consumer-pc .da-home-question-actions .desktop-composer-hints{margin-right:auto}
   .consumer-pc .welcome{width:100%;padding:0;text-align:left}
   .consumer-pc.consumer-home .welcome{display:flex;flex-direction:column;justify-content:center;min-height:var(--da-page-header-h);padding:8px var(--da-panel-padding);border-bottom:1px solid var(--da-border)}
   .consumer-pc .welcome h2{margin:0;font-size:var(--da-fs-xl);line-height:26px;font-weight:600;color:var(--da-text)}
@@ -387,8 +403,6 @@
     background:var(--da-surface);box-shadow:none;transition:border-color .12s,box-shadow .12s;
   }
   .consumer-pc .composer-row:focus-within{border-color:var(--da-primary);box-shadow:var(--da-focus)}
-  .consumer-pc.consumer-home .composer{overflow:visible;justify-content:flex-start;background:var(--da-surface);border-top:1px solid var(--da-border)}
-  .consumer-pc.consumer-home .composer-row{flex:1 1 auto;height:auto;min-height:0}
   .consumer-pc .composer textarea{flex:1 1 auto;width:100%;min-height:28px;max-height:none;height:100%;resize:none;overflow-y:auto;line-height:1.6;font-size:var(--da-fs-md);color:var(--da-text);background:transparent;padding:0}
   .consumer-pc .composer textarea:focus,.consumer-pc .composer textarea:focus-visible{box-shadow:none;outline:0}
   .consumer-pc .composer textarea::placeholder{color:var(--da-text-3)}
@@ -794,6 +808,7 @@
     .consumer-pc .da-suggestions{margin-bottom:var(--da-sp-3)}
     .consumer-pc .da-suggestion-grid button{min-height:44px}
     .consumer-pc .da-empty-ask-home{padding-top:28px}
+    .consumer-pc .da-home-question-box{height:132px;margin-bottom:20px}
     .consumer-pc .login-brand{padding-top:24px;padding-bottom:24px}
     .consumer-pc .login-brand-points{margin-top:20px}
     .consumer-pc .login-main{padding-top:56px;padding-bottom:24px}

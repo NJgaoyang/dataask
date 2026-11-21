@@ -1951,6 +1951,23 @@ onBeforeUnmount(() => {
             <section class="da-ask-hero">
               <h1>从一个经营问题开始</h1>
             </section>
+            <div class="da-home-question-box">
+              <textarea ref="desktopQuestionRef" v-model="question" rows="4" maxlength="800"
+                placeholder="例如：昨天各城市的销售额是多少？"
+                aria-label="输入经营数据问题" @keydown.enter.exact.prevent="ask()"></textarea>
+              <div class="da-home-question-actions">
+                <div class="desktop-composer-hints">
+                  <span>Enter 发送 · Shift + Enter 换行</span>
+                  <span :class="{ 'near-limit': question.length > 700 }">{{ question.length }}/800</span>
+                </div>
+                <button class="send-btn" type="button" :disabled="!question.trim()"
+                  title="发送问题" aria-label="发送问题" @click="ask()">
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none"
+                    stroke="currentColor" stroke-width="2.5" stroke-linecap="round"
+                    stroke-linejoin="round" aria-hidden="true"><path d="M12 19V5M5 12l7-7 7 7"/></svg>
+                </button>
+              </div>
+            </div>
             <section class="da-suggestions" aria-label="示例问题">
               <div class="da-suggestions-label"><span>常用问题</span></div>
               <div class="da-suggestion-grid">
@@ -2079,7 +2096,7 @@ onBeforeUnmount(() => {
       </main>
       <AnalysisPanel v-if="isDesktop && desktopSection==='ask' && analysisPanelOpen"
         :message="analysisMessage" :pending="busy && !analysisMessage" :question="analysisQuestion" @close="closeAnalysis"/>
-      <footer v-if="!isDesktop || desktopSection==='ask'" class="composer"
+      <footer v-if="!isDesktop || (desktopSection==='ask' && (messages.length || busy || desktopFeedback))" class="composer"
         :style="isDesktop ? { '--da-composer-height': composerHeight + 'px' } : {}">
         <button v-if="isDesktop" type="button" class="da-composer-resize-handle"
           title="向上或向下拖动调整提问框高度" aria-label="上下拖动调整提问框高度"
