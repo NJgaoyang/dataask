@@ -238,14 +238,8 @@ try {
       assert((await page.locator('.login-brand-hero defs').count())===1,'The SVG hero keeps gradients and shadows inside the transparent scene');
       assert.equal(await page.locator('.login-brand-hero g[transform*="rotate(7 170 190)"]').count(),1,
         'The main analytics window must lean left, not right');
-      const cardCorner=await page.locator('.login-card').evaluate(el=>({
-        before:getComputedStyle(el,'::before').backgroundImage,
-        beforeRadius:getComputedStyle(el,'::before').borderBottomLeftRadius,
-        after:getComputedStyle(el,'::after').borderBottomLeftRadius
-      }));
-      assert.match(cardCorner.before,/linear-gradient/,'Login card top-right must use the blue arc gradient');
-      assert.notEqual(cardCorner.beforeRadius,'0px','Outer top-right arc must remain curved');
-      assert.notEqual(cardCorner.after,'0px','Inner top-right arc must remain curved');
+      assert.equal(await page.locator('.login-card-corner').count(),1,'Login card uses the vector top-right arc decoration');
+      assert.equal(await page.locator('.login-background-waves').count(),1,'Login bottom uses the vector wave layers');
       const hero=await page.locator('.login-brand-hero').boundingBox();
       const card=await page.locator('.login-card').boundingBox();
       const viewport=page.viewportSize();
@@ -257,6 +251,10 @@ try {
       assert(calls.includes('POST /api/chat/cancel'));
       await page.locator('input[autocomplete="username"]').fill('alice');
       await page.locator('input[autocomplete="current-password"]').fill('example-password');
+      const passwordFocus=await page.locator('input[autocomplete="current-password"]').evaluate(el=>getComputedStyle(el));
+      assert.equal(passwordFocus.outlineStyle,'none','Native password input must not draw an inner focus outline');
+      assert.equal(passwordFocus.borderLeftWidth,'0px','Password input must not draw the left separator line');
+      assert.equal(passwordFocus.borderRightWidth,'0px','Password input must not draw the right separator line');
       await page.getByRole('button',{name:'登录',exact:true}).click();
       await page.locator('.da-home-ask-row').waitFor();
       assert.equal(await page.evaluate(()=>document.documentElement.dataset.dataaskTheme),'light','A different user must not inherit admin theme');

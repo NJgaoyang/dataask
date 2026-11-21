@@ -1372,6 +1372,24 @@ onBeforeUnmount(() => {
 <template>
   <div class="app-shell" :data-theme="isDesktop ? theme : undefined" :class="{ 'consumer-pc': isDesktop, 'consumer-home': isDesktop && desktopSection==='ask' && !messages.length && !busy && !desktopFeedback, 'analysis-panel-open': isDesktop && desktopSection==='ask' && analysisPanelOpen }">
     <div v-if="!loggedIn" class="login-screen">
+      <svg v-if="isDesktop" class="login-background-waves" viewBox="0 0 1647 216" preserveAspectRatio="none" aria-hidden="true">
+        <defs>
+          <linearGradient id="login-wave-strong" x1="0" y1="0" x2="1" y2="0">
+            <stop offset="0%" stop-color="#3f8df1"/>
+            <stop offset="33%" stop-color="#86c4ff"/>
+            <stop offset="63%" stop-color="#dceeff"/>
+            <stop offset="100%" stop-color="#3890f2"/>
+          </linearGradient>
+          <linearGradient id="login-wave-soft" x1="0" y1="0" x2="1" y2="0">
+            <stop offset="0%" stop-color="#eef7ff"/>
+            <stop offset="48%" stop-color="#dcecff"/>
+            <stop offset="100%" stop-color="#86c8ff"/>
+          </linearGradient>
+        </defs>
+        <path d="M0 34 C86 46 112 81 204 78 C382 70 456 147 665 173 C914 204 1098 180 1260 134 C1422 88 1519 46 1647 25 L1647 216 L0 216 Z" fill="url(#login-wave-strong)"/>
+        <path d="M0 62 C156 100 259 103 390 121 C580 147 747 204 970 182 C1169 162 1293 115 1428 114 C1513 113 1589 116 1647 115 L1647 216 L0 216 Z" fill="url(#login-wave-soft)" fill-opacity=".88"/>
+        <path d="M0 154 C219 121 335 140 493 173 C690 215 864 220 1034 194 C1227 165 1428 125 1647 125 L1647 216 L0 216 Z" fill="#f8fbff" fill-opacity=".94"/>
+      </svg>
       <aside v-if="isDesktop" class="login-brand">
         <div class="login-brand-top">
           <div class="login-brand-lockup">
@@ -1491,6 +1509,22 @@ onBeforeUnmount(() => {
         <h1>{{ isDesktop ? 'DataAsk' : 'DataAsk 数问' }}</h1>
         <p>{{ isDesktop ? '企业经营数据问答平台' : '面向企业管理者的智能经营数据助手' }}</p>
         <div class="login-card">
+          <svg v-if="isDesktop" class="login-card-corner" viewBox="0 0 520 190" preserveAspectRatio="none" aria-hidden="true">
+            <defs>
+              <linearGradient id="login-corner-outer" x1="0" y1="0" x2="1" y2="1">
+                <stop offset="0%" stop-color="#dceaff" stop-opacity=".42"/>
+                <stop offset="46%" stop-color="#a9ccff" stop-opacity=".72"/>
+                <stop offset="100%" stop-color="#6ea9fa" stop-opacity=".96"/>
+              </linearGradient>
+              <linearGradient id="login-corner-inner" x1="0" y1="0" x2="1" y2="1">
+                <stop offset="0%" stop-color="#f3f8ff" stop-opacity=".72"/>
+                <stop offset="64%" stop-color="#dbeaff" stop-opacity=".42"/>
+                <stop offset="100%" stop-color="#c1dcff" stop-opacity=".18"/>
+              </linearGradient>
+            </defs>
+            <path d="M322 0 H520 V118 C488 84 454 55 415 35 C384 19 354 8 322 0 Z" fill="url(#login-corner-outer)"/>
+            <path d="M365 0 H520 V160 C487 111 459 73 425 48 C404 32 384 18 365 0 Z" fill="url(#login-corner-inner)" stroke="rgba(255,255,255,.56)" stroke-width="1.4"/>
+          </svg>
           <div v-if="isDesktop" class="login-card-head">
             <h2><span class="login-welcome">欢迎登录</span><span class="login-product">DataAsk 数问</span></h2>
             <p>企业经营数据智能问答平台</p>
