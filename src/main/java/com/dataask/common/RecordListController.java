@@ -65,10 +65,15 @@ public class RecordListController {
         String pattern=ListPage.pattern(keyword);
         return query("d.id,d.metric_name AS metricName,d.aliases,d.definition," +
             "d.ads_table AS adsTable,d.ads_field AS adsField,d.time_field AS timeField,d.dimensions,d.notes," +
-            "COALESCE(src.name,'通用口径') AS sourceName",
+            "COALESCE(src.name,'通用口径') AS sourceName," +
+            "COALESCE(NULLIF(c.source_tables,''),d.ads_table) AS sourceTables," +
+            "COALESCE(NULLIF(c.source_fields,''),d.ads_field) AS sourceFields," +
+            "COALESCE(c.calculation_expression,'') AS calculationExpression," +
+            "COALESCE(c.join_rules,'') AS joinRules",
             "FROM da_metric_definitions d " +
             "LEFT JOIN da_metric_definition_sources assoc ON assoc.metric_id=d.id " +
             "LEFT JOIN da_datasources src ON src.id=assoc.data_source_id " +
+            "LEFT JOIN da_metric_calculations c ON c.metric_id=d.id " +
             "WHERE d.metric_name LIKE ? ESCAPE '!' OR d.definition LIKE ? ESCAPE '!'",
             "d.id DESC",List.of(pattern,pattern),page,pageSize);
     }
