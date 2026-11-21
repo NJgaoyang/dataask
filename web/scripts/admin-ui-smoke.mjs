@@ -65,6 +65,8 @@ async function mockBackend(route) {
     metrics={total:0,batches:[],definitions:[]};return ok({success:true});
   }
   if(path==='/api/admin/users/page')return ok({items:users,total:users.length});
+  if(path==='/api/admin/users/alice/city-permissions' && method==='GET')
+    return ok({username:'alice',role:'USER',allCities:false,scope:'CITY',availableCities:['西安市','杭州市'],selectedCities:['西安市','杭州市'],availableCount:2,selectedCount:2});
   if(path==='/api/admin/metrics/page')return ok({items:metrics.definitions,total:metrics.definitions.length});
   if(path==='/api/admin/metrics/batches/page')return ok({items:metrics.batches,total:metrics.batches.length});
   if(path==='/api/admin/datasources' && method==='GET')return ok({items:[{id:'source-1',name:'经营数据源',jdbcUrl:settings.starrocks.jdbcUrl,username:'readonly',schema:'ads',active:true}],total:1});
@@ -90,13 +92,14 @@ async function visible(locator,label){
   assert(await locator.first().isVisible(),label+' not visible');
 }
 async function clickTile(page,label) {
-  if(!await page.locator('.tb-admin-overview-grid').count()){
-    if(await page.locator('.tb-breadcrumb-admin').count())await page.locator('.tb-breadcrumb-admin').click();
-    else{await page.locator('.da-account-trigger').click();await page.getByRole('menuitem',{name:'系统管理'}).click()}
+  if(!await page.locator('.da-admin-workspace-popup:visible').count()){
+    await page.locator('.da-account-trigger').click();
+    await page.getByRole('menuitem',{name:'系统管理'}).click();
   }
-  await visible(page.locator('.tb-admin-overview-grid button').filter({hasText:label}),label+' tile');
-  await page.locator('.tb-admin-overview-grid button').filter({hasText:label}).click();
-  await visible(page.locator('.tb-header-breadcrumb strong').first(),label+' breadcrumb');
+  const item=page.locator('.da-admin-workspace-nav button').filter({hasText:label});
+  await visible(item,label+' navigation');
+  await item.click();
+  await visible(page.locator('.da-admin-workspace-heading strong'),label+' heading');
   assert.equal(await page.locator('.tb-admin-heading').count(),0,'Every admin page must omit the title banner');
 }
 async function requireCall(methodPath){
@@ -196,7 +199,7 @@ try {
   assert.equal(await chatModel.locator('#da-model-ai-body').isVisible(),false);
   assert.equal(await embeddingToggle.getAttribute('aria-expanded'),'true',
     'Collapsing one model must not collapse the other');
-  assert.equal(await page.locator('.tb-header-breadcrumb strong').first().innerText(),'模型配置');
+  assert.equal(await page.locator('.da-admin-workspace-heading strong').innerText(),'模型配置');
   assert.equal(await page.locator('.tb-admin-heading').count(),0);
 
   await clickTile(page,'ADS 表授权');
@@ -215,13 +218,17 @@ try {
   await page.locator('.tb-admin-metrics-page input[type=file]').setInputFiles({
     name:'demo-metrics.xlsx',mimeType:'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
     buffer:Buffer.from('mocked spreadsheet')});
-  await visible(page.locator('.metric-preview'),'Excel preview');
+  await visible(page.locator('.metric-preview-table'),'Excel preview');
   await page.getByRole('button',{name:/确认导入/}).click();
   await requireCall('POST /api/admin/metrics/import');
 
   await clickTile(page,'用户管理');
   const alice=page.locator('.da-list-table tbody tr').filter({hasText:'alice'});
   await visible(alice,'User listing');
+  await alice.getByRole('button',{name:'查看城市',exact:true}).click();
+  await visible(page.locator('.da-city-view-modal:visible'),'City permission viewer');
+  assert.match(await page.locator('.da-city-view-modal:visible').innerText(),/西安市/);
+  await page.locator('.da-city-view-modal:visible').getByRole('button',{name:'关闭',exact:true}).click();
   await alice.getByRole('button',{name:'编辑',exact:true}).click();
   await page.locator('.da-crud-modal:visible').getByLabel('姓名',{exact:true}).fill('Alice Zhang');
   await page.locator('.da-crud-modal:visible').getByRole('button',{name:'保存',exact:true}).click();
@@ -239,11 +246,9 @@ try {
   await page.getByRole('button',{name:/刷新状态/}).click();
 
   // Regression: an API failure must not block navigation into a module.
-  await page.locator('.tb-breadcrumb-admin').click();
-  await visible(page.locator('.tb-admin-overview-grid'),'Admin overview');
   await page.waitForTimeout(200);
   failNextAdminSettings = true;
-  await page.locator('.tb-admin-overview-grid button').filter({hasText:'数据源配置'}).click();
+  await page.locator('.da-admin-workspace-nav button').filter({hasText:'数据源配置'}).click();
   await visible(page.locator('.tb-admin-load-error'),'Configuration load error');
   await page.getByRole('button',{name:'重试加载'}).click();
   await page.locator('.tb-admin-load-error').waitFor({state:'hidden',timeout:10000});
