@@ -237,6 +237,49 @@ public class MetricDictionaryService {
                 rs.getString(5),rs.getString(6),rs.getString(7),rs.getString(8),rs.getString(9),rs.getInt(10)));
     }
 
+    /**
+     * Import suggested metrics as one batch; never overwrite existing manual
+     * definitions. A repeated parse of the same authorized table is idempotent.
+     */
+    @Transactional
+    public Map<String,Object> importAutoSuggestions(List<MetricEdit> candidates,String username) {
+        if(candidates==null || candidates.isEmpty())
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST,"没有可导入的指标草稿");
+        if(candidates.size()>1000)
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST,"最多解析 1000 个数值字段");
+        String batchId=UUID.randomUUID().toString();
+        int inserted=0,skipped=0;
+        Set<String> seen=new HashSet<>();
+        for(MetricEdit entry:candidates){
+            String table=clean(entry.adsTable()),field=clean(entry.adsField());
+            if(table.isEmpty()||field.isEmpty()||!seen.add(table+"\\u0000"+field)){
+                skipped++;
+                continue;
+            }
+            Integer existing=jdbc.queryForObject(
+                "SELECT COUNT(*) FROM da_metric_definitions WHERE ads_table=? AND ads_field=?",
+                Integer.class,table,field);
+            if(existing!=null && existing>0){
+                skipped++;
+                continue;
+            }
+            if(inserted==0){
+                jdbc.update("INSERT INTO da_metric_import_batches(id,source_file,uploaded_by,row_count) VALUES(?,?,?,0)",
+                    batchId,"自动解析指标",username);
+            }
+            jdbc.update("INSERT INTO da_metric_definitions " +
+                "(batch_id,metric_name,aliases,definition,ads_table,ads_field,time_field,dimensions,notes,sheet_name,excel_row) " +
+                "VALUES(?,?,?,?,?,?,?,?,?,?,?)",
+                batchId,clean(entry.metricName()),clean(entry.aliases()),clean(entry.definition()),
+                table,field,clean(entry.timeField()),clean(entry.dimensions()),clean(entry.notes()),
+                "自动解析",inserted+1);
+            inserted++;
+        }
+        if(inserted>0)jdbc.update("UPDATE da_metric_import_batches SET row_count=? WHERE id=?",inserted,batchId);
+        return Map.of("success",true,"count",inserted,"skipped",skipped,
+            "message","已生成 "+inserted+" 条指标草稿"+(skipped>0?"，跳过 "+skipped+" 条已有指标":""));
+    }
+
     public Map<String,Object> listImports() {
         var batches = jdbc.query(
             "SELECT id,source_file,uploaded_by,row_count,created_at FROM da_metric_import_batches " +
