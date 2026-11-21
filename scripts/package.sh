@@ -132,24 +132,21 @@ mkdir -p "$RELEASE_DIR"
 rm -f "$LATEST_ARCHIVE"
 tar -czf "$LATEST_ARCHIVE" -C "$RELEASE_DIR" "$APP_DIR"
 
-VERSIONED_ARCHIVE="$RELEASE_DIR/${APP_DIR}-${BUILD_SHA}.tar.gz"
-rm -f "$VERSIONED_ARCHIVE"
-cp "$LATEST_ARCHIVE" "$VERSIONED_ARCHIVE"
-
 LATEST_SHA256="$(sha256sum "$LATEST_ARCHIVE" | awk '{print $1}')"
 printf '%s  %s\n' "$LATEST_SHA256" "$(basename "$LATEST_ARCHIVE")" > "${LATEST_ARCHIVE}.sha256"
-printf '%s  %s\n' "$LATEST_SHA256" "$(basename "$VERSIONED_ARCHIVE")" > "${VERSIONED_ARCHIVE}.sha256"
 
 echo
 echo "===== 打包完成 ====="
-echo "固定包:    release/${APP_DIR}.tar.gz"
-echo "版本包:    release/${APP_DIR}-${BUILD_SHA}.tar.gz"
+echo "发布包:    release/${APP_DIR}.tar.gz"
 echo "SHA256:    $LATEST_SHA256"
 echo "Build SHA: $BUILD_SHA"
 echo "前端哈希:  $FRONTEND_HASH"
 echo
-echo "建议部署版本包，避免同名旧文件混淆："
-echo "  bash /opt/dataask/bin/upgrade.sh \"$VERSIONED_ARCHIVE\" /opt/dataask"
+echo "固定包名保持不变，可继续供下游流程使用："
+echo "  release/${APP_DIR}.tar.gz"
+echo
+echo "部署示例："
+echo "  bash /opt/dataask/bin/upgrade.sh \"$LATEST_ARCHIVE\" /opt/dataask"
 echo
 echo "部署后核对："
 echo "  curl -s http://127.0.0.1:8087/build-info.json"
