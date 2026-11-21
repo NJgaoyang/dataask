@@ -25,7 +25,7 @@ class SelfProfileTest {
             "display_name","Alice", "created_at","2026-11-10 09:00:00", "role","USER", "password_hash","never-return-this")));
         var profile = controller.profile(alice);
         assertThat(profile).containsEntry("username","alice").containsEntry("displayName","Alice")
-            .containsEntry("role","USER").containsEntry("roleName","USER").containsEntry("dataScope","ALL");
+            .containsEntry("role","USER").containsEntry("roleName","USER").containsEntry("dataScope","CITY");
         assertThat(profile).containsKeys("username","displayName","createdAt","role","roleName","permissions","dataScope");
         verify(jdbc).queryForList("SELECT display_name,created_at,role FROM da_users WHERE username=?","alice");
     }

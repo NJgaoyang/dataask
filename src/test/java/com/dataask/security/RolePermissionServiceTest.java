@@ -32,14 +32,16 @@ class RolePermissionServiceTest {
             .contains("PERM_SYSTEM_ADMIN").doesNotContain("SCOPE_CITY");
     }
 
-    @Test void customRoleUsesConfiguredPermissionsAndAllCityScope() {
+    @Test void customRoleUsesConfiguredPermissionsAndCityScope() {
         when(jdbc.queryForList("SELECT code,name FROM da_roles WHERE code=? AND enabled=1","FINANCE"))
             .thenReturn(List.of(Map.of("code","FINANCE","name","财务")));
         when(jdbc.queryForList(
             "SELECT permission_code FROM da_role_permissions WHERE role_code=? ORDER BY permission_code",
             String.class,"FINANCE")).thenReturn(List.of("CHARTS"));
         var access=service.accessForRole("FINANCE");
-        assertThat(access.cityScoped()).isFalse();
+        assertThat(access.cityScoped()).isTrue();
         assertThat(access.permissions()).containsExactly("CHARTS");
+        assertThat(service.authorities("FINANCE")).extracting(Object::toString)
+            .contains("SCOPE_CITY");
     }
 }

@@ -41,7 +41,7 @@ onMounted(load)
 <template>
   <div class="tb-admin-panel-card da-role-admin">
     <div class="da-role-toolbar">
-      <div><strong>角色与权限</strong><p>管理员拥有全部城市；只有“城市经理”按账号匹配管理城市。其他自定义角色默认可查看全城市数据。</p></div>
+      <div><strong>角色与权限</strong><p>管理员拥有全部城市；城市经理、普通用户及自定义角色都按账号匹配城市权限。</p></div>
       <button type="button" class="td-btn td-btn--primary" :disabled="busy" @click="createRole"><van-icon name="plus"/> 新建角色</button>
     </div>
     <p v-if="error&&!open" class="metric-error" role="alert">{{ error }}</p>
@@ -75,7 +75,7 @@ onMounted(load)
               <span><b>{{ item.name }}</b><small>{{ item.desc }}</small></span>
             </label>
           </div>
-          <p class="da-role-scope-note"><van-icon name="info-o"/> 数据范围由角色类型固定：CITY_MANAGER 为管理城市，其余角色为全部城市。</p>
+          <p class="da-role-scope-note"><van-icon name="info-o"/> 数据范围固定：仅 ADMIN 为全部城市，其余角色都按用户城市权限过滤。</p>
         </div>
         <p v-if="error" class="metric-error" role="alert">{{ error }}</p>
         <footer><span/><button type="button" class="td-btn" :disabled="busy" @click="close">取消</button><button type="submit" class="td-btn td-btn--primary" :disabled="busy">{{ busy?'保存中…':'保存' }}</button></footer>

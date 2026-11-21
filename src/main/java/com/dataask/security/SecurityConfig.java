@@ -233,7 +233,7 @@ class AuthController {
         AuditContext.set("username", (String) user.get("username"));
         String role=(String)user.get("role");
         RolePermissionService.Access access=roles==null
-            ? new RolePermissionService.Access(role,role,"CITY_MANAGER".equals(role),
+            ? new RolePermissionService.Access(role,role,!"ADMIN".equals(role),
                 "ADMIN".equals(role)?RolePermissionService.ALL_PERMISSIONS:Set.of(RolePermissionService.ASK,RolePermissionService.CHARTS))
             : roles.accessForRole(role);
         AuditContext.set("role", role);
@@ -289,7 +289,7 @@ class AuthController {
         var user = users.getFirst();
         String role=Objects.toString(user.get("role"),"USER");
         RolePermissionService.Access access=roles==null
-            ? new RolePermissionService.Access(role,role,"CITY_MANAGER".equals(role),
+            ? new RolePermissionService.Access(role,role,!"ADMIN".equals(role),
                 "ADMIN".equals(role)?RolePermissionService.ALL_PERMISSIONS:Set.of(RolePermissionService.ASK,RolePermissionService.CHARTS))
             : roles.accessForRole(role);
         return Map.of("username", auth.getName(), "role", role,"roleName",access.name(),

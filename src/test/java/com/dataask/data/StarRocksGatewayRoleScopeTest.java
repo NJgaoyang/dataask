@@ -39,4 +39,13 @@ class StarRocksGatewayRoleScopeTest {
         assertThat(gateway.cityPermissionFingerprint("13800138000")).isEqualTo("city-hash");
         assertThat(gateway.managedCities("13800138000")).containsExactly("杭州市","武汉市");
     }
+
+    @Test void ordinaryUserAlsoUsesCityPermissionScope() {
+        SecurityContextHolder.getContext().setAuthentication(new UsernamePasswordAuthenticationToken(
+            "13900139000",null,List.of(new SimpleGrantedAuthority("ROLE_USER"),
+                new SimpleGrantedAuthority("SCOPE_CITY"))));
+        when(cities.fingerprint("13900139000")).thenReturn("user-city-hash");
+        assertThat(gateway.cityPermissionFingerprint("13900139000")).isEqualTo("user-city-hash");
+        verify(cities).fingerprint("13900139000");
+    }
 }

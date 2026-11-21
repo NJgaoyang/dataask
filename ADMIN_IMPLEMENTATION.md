@@ -98,11 +98,17 @@ DataAsk 使用“角色功能权限 + 数据范围”两层控制：
 
 - `ADMIN`：系统内置管理员，固定拥有 `ASK`、`CHARTS`、`SYSTEM_ADMIN`，数据范围为全部城市。
 - `CITY_MANAGER`：系统内置城市经理，拥有问数和图表能力，查询数据时必须读取 `ads.ads_user_city_permission`，使用登录账号匹配 `username_en` 并按授权城市过滤。
-- `USER`：系统内置普通用户，默认拥有问数和图表能力，数据范围为全部城市。
-- 自定义角色：管理员可创建角色并选择 `ASK`、`CHARTS`、`SYSTEM_ADMIN`；自定义角色不启用城市过滤。
+- `USER`：系统内置普通用户，默认拥有问数和图表能力，按账号城市权限过滤。
+- 自定义角色：管理员可创建角色并选择 `ASK`、`CHARTS`、`SYSTEM_ADMIN`；除 `ADMIN` 外，自定义角色同样按账号城市权限过滤。
 
 角色存储于 `da_roles`，功能权限存储于 `da_role_permissions`。用户继续通过 `da_users.role` 绑定一个角色。
 
-每次请求 JWT 只用于确认用户和角色声明，实际功能权限都会从 MySQL 重新读取，因此角色权限调整无需等待旧 token 过期即可生效。只有 `CITY_MANAGER` 会获得 `SCOPE_CITY` authority；StarRocks 查询层只在存在该 authority 时注入城市 `IN (...)` 条件。
+每次请求 JWT 只用于确认用户和角色声明，实际功能权限都会从 MySQL 重新读取，因此角色权限调整无需等待旧 token 过期即可生效。除 `ADMIN` 外的角色都会获得 `SCOPE_CITY` authority；StarRocks 查询层只在存在该 authority 时注入城市 `IN (...)` 条件。
 
 系统内置角色不可删除或改名；管理员权限固定。自定义角色仍有用户绑定时不能删除。
+
+### 城市权限选择
+
+除 ADMIN 外，所有角色都启用城市数据范围。城市基础授权只来自 ads.ads_user_city_permission，使用登录账号匹配 username_en，读取 is_del=0 的 DISTINCT city_name。
+
+用户管理页会展示该账号当前所有 ADS 城市，首次默认全部选中。管理员可取消部分城市。DataAsk 不复制 ADS 授权，而只在 da_user_city_exclusions 中保存被取消的城市。因此 ADS 后续新增城市会自动成为默认选中状态，ADS 删除的城市也会自动从有效权限中消失。管理员角色不读取城市权限表。

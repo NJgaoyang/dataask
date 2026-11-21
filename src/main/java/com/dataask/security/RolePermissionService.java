@@ -34,7 +34,7 @@ public class RolePermissionService {
             "SELECT permission_code FROM da_role_permissions WHERE role_code=? ORDER BY permission_code",
             String.class,code));
         permissions.retainAll(ALL_PERMISSIONS);
-        return new Access(code,name,"CITY_MANAGER".equals(code),Collections.unmodifiableSet(permissions));
+        return new Access(code,name,!"ADMIN".equals(code),Collections.unmodifiableSet(permissions));
     }
 
     public Access accessForUser(String username){

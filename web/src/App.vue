@@ -2178,7 +2178,7 @@ onBeforeUnmount(() => {
               </div>
               <p v-if="cityPermissionError" role="alert">读取失败：{{ cityPermissionError }}</p>
               <p v-else-if="cityPermissionScope!=='CITY'">当前角色不做城市过滤，可查看全部城市数据。</p>
-              <p v-else-if="!cityPermissions.length">当前城市经理账号暂无授权城市</p>
+              <p v-else-if="!cityPermissions.length">当前账号暂无授权城市</p>
               <div v-else class="da-profile-city-list">
                 <span v-for="city in cityPermissions" :key="city">{{ city }}</span>
               </div>

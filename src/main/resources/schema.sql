@@ -59,6 +59,14 @@ CREATE TABLE IF NOT EXISTS da_users (
  created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
+CREATE TABLE IF NOT EXISTS da_user_city_exclusions (
+ username VARCHAR(64) NOT NULL,
+ city_name VARCHAR(255) NOT NULL,
+ created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+ PRIMARY KEY(username,city_name),
+ INDEX idx_da_city_exclusion_user(username)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
 -- Independent audit history: no cascading FK to users, messages or charts.
 -- DATETIME(3) values are written/read explicitly as UTC; UI filters use Asia/Shanghai.
 CREATE TABLE IF NOT EXISTS da_operation_audit (

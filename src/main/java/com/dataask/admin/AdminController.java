@@ -196,8 +196,8 @@ public class AdminController {
             result.add(Map.of("code",code,"name",Objects.toString(row.get("name"),code),
                 "builtIn",((Number)row.get("built_in")).intValue()!=0,
                 "enabled",((Number)row.get("enabled")).intValue()!=0,
-                "cityScoped","CITY_MANAGER".equals(code),
-                "dataScope","CITY_MANAGER".equals(code)?"CITY":"ALL",
+                "cityScoped",!"ADMIN".equals(code),
+                "dataScope","ADMIN".equals(code)?"ALL":"CITY",
                 "permissions",permissions,"userCount",((Number)row.get("user_count")).longValue()));
         }
         return result;
