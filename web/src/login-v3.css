@@ -107,29 +107,36 @@
     box-shadow:0 22px 58px rgba(66,91,133,.09),-14px 0 48px rgba(128,177,244,.035);backdrop-filter:blur(16px);overflow:hidden;
   }
   .consumer-pc .login-card::before,
-  .consumer-pc .login-card::after{content:"";position:absolute;pointer-events:none;border-radius:50%;z-index:0}
+  .consumer-pc .login-card::after{
+    content:"";position:absolute;pointer-events:none;z-index:0;
+  }
   .consumer-pc .login-card::before{
-    width:23vw;height:23vw;right:-11.4vw;top:-12.1vw;
+    top:-1px;right:-1px;width:38%;height:31%;
+    border-bottom-left-radius:96% 100%;
     background:linear-gradient(145deg,
-      rgba(72,143,247,.62) 0%,
-      rgba(139,188,255,.34) 38%,
-      rgba(211,231,255,.16) 62%,
-      transparent 76%);
-    border:1px solid rgba(255,255,255,.78);
+      rgba(217,232,255,.34) 0%,
+      rgba(163,202,255,.58) 45%,
+      rgba(104,163,250,.88) 100%);
+    box-shadow:inset 1px 0 0 rgba(255,255,255,.42);
   }
   .consumer-pc .login-card::after{
-    width:19vw;height:19vw;right:-9.7vw;top:-8.0vw;
-    border:1px solid rgba(147,190,250,.26);
-    background:linear-gradient(145deg,rgba(183,214,255,.18),rgba(255,255,255,.05) 68%);
+    top:-1px;right:7.2%;width:35%;height:33%;
+    border-bottom-left-radius:100% 100%;
+    border-left:1px solid rgba(255,255,255,.54);
+    border-bottom:1px solid rgba(255,255,255,.40);
+    background:linear-gradient(145deg,
+      rgba(233,242,255,.22) 0%,
+      rgba(195,219,254,.20) 56%,
+      rgba(157,196,251,.08) 100%);
   }
   .consumer-pc .login-card>*{position:relative;z-index:2}
   .consumer-pc .login-card-head{margin:0 0 4.15vh}
-  .consumer-pc .login-card-head h2{margin:0;line-height:1.16;letter-spacing:-.7px}
+  .consumer-pc .login-card-head h2{margin:0;line-height:1.12;letter-spacing:-.8px}
   .consumer-pc .login-card-head h2 span{display:block}
-  .consumer-pc .login-welcome{color:#172846;font-size:clamp(30px,2.18vw,41px);font-weight:760}
-  .consumer-pc .login-product{margin-top:4px;color:#0b69e8;font-size:clamp(31px,2.25vw,43px);font-weight:760}
+  .consumer-pc .login-welcome{color:#172846;font-size:clamp(31px,2.22vw,42px);font-weight:780}
+  .consumer-pc .login-product{margin-top:5px;color:#0a68e8;font-size:clamp(32px,2.34vw,44px);font-weight:780}
   .consumer-pc .login-card-head p{
-    margin:13px 0 0;color:#657a98;font-size:clamp(14px,1vw,18px);line-height:1.45;
+    margin:14px 0 0;color:#5f7391;font-size:clamp(14px,1.01vw,18px);line-height:1.43;
   }
   .consumer-pc .login-label{
     display:block;margin:0 0 9px;color:#273958;font-size:clamp(12px,.84vw,15px);font-weight:650;
