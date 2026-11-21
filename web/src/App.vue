@@ -348,6 +348,7 @@ async function deleteSavedChart(chart) {
     showSuccessToast('已取消收藏')
   } catch(e) { showFailToast(errorText(e)) }
 }
+const chartView = ref('mine')
 const chartSearch = ref('')
 const chartSearchDraft = ref('')
 const chartTypeFilter = ref('ALL')
@@ -1941,37 +1942,50 @@ onBeforeUnmount(() => {
         </template>
         <template v-else>
         <div class="tb-chart-workspace">
-          <form class="tb-chart-toolbar td-filter-bar" role="search" @submit.prevent="applyChartFilters">
+          <div class="tb-chart-topline">
+            <div class="tb-chart-tabs" role="tablist" aria-label="图表范围">
+              <button type="button" role="tab" :aria-selected="chartView==='mine'"
+                :class="{active:chartView==='mine'}" @click="chartView='mine'">我收藏的</button>
+              <button type="button" role="tab" :aria-selected="chartView==='shared'"
+                :class="{active:chartView==='shared'}" @click="chartView='shared'">共享给我的</button>
+            </div>
+            <button type="button" class="tb-chart-refresh" aria-label="刷新图表列表"
+              @click="chartListRefresh++"><van-icon name="replay"/> 刷新</button>
+          </div>
+
+          <form class="tb-chart-toolbar" role="search" @submit.prevent="applyChartFilters">
             <label class="tb-chart-search">
-              <van-icon name="search" size="17"/>
+              <van-icon name="search" size="16"/>
               <input v-model="chartSearchDraft" placeholder="搜索图表名称或问数问题" aria-label="搜索图表"/>
             </label>
-            <label class="tb-chart-select-label">
-              <span>类型</span>
-              <select v-model="chartTypeDraft" aria-label="图表类型筛选">
-                <option value="ALL">全部类型</option>
-                <option v-for="type in chartTypeOptions" :key="type" :value="type">{{ chartTypeLabel(type) }}</option>
-              </select>
-            </label>
-            <label class="tb-chart-select-label">
-              <span>排序</span>
-              <select v-model="chartSortDraft" aria-label="更新时间排序">
-                <option value="recent">最近更新</option>
-                <option value="oldest">最早更新</option>
-              </select>
-            </label>
-            <div class="td-filter-actions">
-              <button type="submit" class="td-btn td-btn--primary"><van-icon name="search"/> 查询</button>
-              <button type="button" class="td-btn" @click="resetChartFilters">重置</button>
-            </div>
+            <select v-model="chartTypeDraft" class="tb-chart-filter-select" aria-label="图表类型筛选">
+              <option value="ALL">全部类型</option>
+              <option v-for="type in chartTypeOptions" :key="type" :value="type">{{ chartTypeLabel(type) }}</option>
+            </select>
+            <select v-model="chartSortDraft" class="tb-chart-filter-select" aria-label="更新时间排序">
+              <option value="recent">最近更新</option>
+              <option value="oldest">最早更新</option>
+            </select>
+            <button type="submit" class="tb-chart-query">查询</button>
+            <button type="button" class="tb-chart-reset" @click="resetChartFilters">重置</button>
           </form>
-          <section class="tb-chart-section" v-for="view in ['mine','shared']" :key="view">
-            <div class="tb-chart-section-title"><h2>{{ view==='mine'?'我收藏的图表':'共享给我的图表' }}</h2></div>
-            <RecordList :api="api" endpoint="/mini/charts/page" :params="{view,keyword:chartSearch,type:chartTypeFilter,sort:chartSortOrder}" :searchable="false" :refresh="chartListRefresh" :label="view==='mine'?'我的图表':'共享图表'" :columns="[{key:'title',label:'图表名称'},{key:'question',label:'自然语言问题'},{key:'chartType',label:'图表类型'},...(view==='shared'?[{key:'ownerUsername',label:'共享来源'}]:[]),{key:'updatedAt',label:'更新时间'}]">
-              <template #title="{row}"><button type="button" class="tb-chart-name-link" @click="revisitChart(row)">{{ row.title }}</button></template>
-              <template #chartType="{row}">{{ chartTypeLabel(row.chartType) }}</template>
-              <template #updatedAt="{row}">{{ sessionTimeLabel(row.updatedAt) }}</template>
-              <template #actions="{row}"><button type="button" class="tb-chart-open" @click="revisitChart(row)">查看 <van-icon name="arrow"/></button></template>
+
+          <section class="tb-chart-list-shell">
+            <RecordList :api="api" endpoint="/mini/charts/page"
+              :params="{view:chartView,keyword:chartSearch,type:chartTypeFilter,sort:chartSortOrder}"
+              :searchable="false" :refresh="chartListRefresh"
+              :label="chartView==='mine'?'我收藏的图表':'共享给我的图表'"
+              :columns="[{key:'title',label:'图表名称'},{key:'question',label:'自然语言问题'},{key:'chartType',label:'图表类型'},...(chartView==='shared'?[{key:'ownerUsername',label:'共享来源'}]:[]),{key:'updatedAt',label:'更新时间'}]">
+              <template #title="{row}">
+                <button type="button" class="tb-chart-name-link" @click="revisitChart(row)">{{ row.title }}</button>
+              </template>
+              <template #question="{row}"><span class="tb-chart-question">{{ row.question || '—' }}</span></template>
+              <template #chartType="{row}"><span class="tb-chart-type">{{ chartTypeLabel(row.chartType) }}</span></template>
+              <template #ownerUsername="{row}"><span class="tb-chart-owner">{{ row.ownerUsername || '—' }}</span></template>
+              <template #updatedAt="{row}"><span class="tb-chart-date">{{ sessionTimeLabel(row.updatedAt) }}</span></template>
+              <template #actions="{row}">
+                <button type="button" class="tb-chart-open" @click="revisitChart(row)">查看</button>
+              </template>
             </RecordList>
           </section>
         </div>

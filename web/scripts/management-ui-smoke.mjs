@@ -124,6 +124,8 @@ try{
   await history.getByText('共 62 条',{exact:true}).waitFor();assert.equal(await history.locator('tbody tr').count(),2);await snap(page,'history-after-delete');
   await page.locator('.desktop-main-nav button').filter({hasText:'我的图表'}).click();const mine=page.getByRole('region',{name:'我的图表',exact:true});
   const chartPage=await page.locator('.tb-charts-page').boundingBox();
+  assert.equal(await page.locator('.tb-chart-tabs button').count(),2,'Charts workspace has mine/shared tabs');
+  await page.locator('.tb-chart-tabs button').filter({hasText:'共享给我的'}).click();
   const workspace=await page.locator('.tb-chart-workspace').boundingBox();
   assert(chartPage && workspace && Math.abs(chartPage.x-workspace.x)<2 &&
     Math.abs(chartPage.width-workspace.width)<18,'Chart workspace must have no outer gutters');await mine.getByText('共 24 条',{exact:true}).waitFor();await mine.getByRole('button',{name:'下一页',exact:true}).click();await mine.getByText('第 2 / 3 页',{exact:true}).waitFor();assert.equal(await mine.locator('tbody tr').first().locator('td').first().innerText(),'11');await snap(page,'charts-page-2');

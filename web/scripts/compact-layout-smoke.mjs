@@ -82,6 +82,8 @@ try {
     assert(box && box.width<=Math.min(980,width-216),'Default Smart Q&A input stays centered and bounded');
     await page.locator('.desktop-main-nav button').filter({hasText:'我的图表'}).click();
     await capture(page,width,'charts','.tb-chart-workspace');
+    assert.equal(await page.locator('.tb-chart-section').count(),0,'Charts page uses one lightweight list instead of stacked sections');
+    assert.equal(await page.locator('.tb-chart-tabs button').count(),2,'Charts page switches mine/shared with tabs');
     const workspace=await page.locator('.tb-chart-workspace').boundingBox();
     assert(workspace.width<=width-216+2,'Chart workspace fills the content frame');
     assert.equal(await page.locator('.tb-page-heading').count(),0);

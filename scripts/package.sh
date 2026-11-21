@@ -78,7 +78,7 @@ mkdir -p "$ROOT/src/main/resources/static"
 cp -R "$ROOT/web/dist/." "$ROOT/src/main/resources/static/"
 
 cat > "$ROOT/src/main/resources/static/build-info.json" <<EOF
-{"buildSha":"$BUILD_SHA","builtAt":"$BUILT_AT","frontendHash":"$FRONTEND_HASH","uiLayout":"pc-platform-v2","uiRevision":"workbuddy-smart-qa-v2","modelManagement":"web"}
+{"buildSha":"$BUILD_SHA","builtAt":"$BUILT_AT","frontendHash":"$FRONTEND_HASH","uiLayout":"pc-platform-v2","uiRevision":"workbuddy-smart-qa-v3","modelManagement":"web"}
 EOF
 
 echo "build-info.json:"
