@@ -67,6 +67,24 @@ try {
     await page.locator('.da-home-question-box').waitFor();
     await page.locator('.da-ask-hero').waitFor();
     assert.equal(await page.locator('.da-empty-ask-home').count(),1,'Authenticated New task must render the WorkBuddy-style landing page');
+    const landingGeometry = await page.evaluate(() => {
+      const conversation=document.querySelector('.conversation');
+      const field=document.querySelector('.da-home-question-box textarea');
+      if (!conversation || !field) return null;
+      const main=conversation.getBoundingClientRect();
+      const input=field.getBoundingClientRect();
+      const style=getComputedStyle(conversation);
+      const visibleAtPoint=document.elementFromPoint(input.left+input.width/2,input.top+Math.min(18,input.height/2));
+      return { mainHeight:main.height, mainBottom:main.bottom, inputTop:input.top, inputBottom:input.bottom,
+        overflowY:style.overflowY, inputHit:visibleAtPoint===field };
+    });
+    assert(landingGeometry && landingGeometry.mainHeight>280,
+      'New-task content container must have visible height (legacy CSS used height:0)');
+    assert(landingGeometry.inputTop<landingGeometry.mainBottom && landingGeometry.inputBottom>0,
+      'New-task input must not be clipped by its parent container');
+    assert(landingGeometry.overflowY!=='hidden' && landingGeometry.inputHit,
+      'New-task input must actually be visible and clickable');
+    await page.getByRole('textbox',{name:'输入经营数据问题'}).click();
     assert.equal(await page.locator('.da-ask-hero p').count(),0,'Smart Q&A home keeps only the task title');
     assert.equal(await page.locator('.da-suggestions-label small').count(),0,'Common questions heading has no helper copy');
     assert.equal(await page.locator('.da-suggestion-grid button').count(),8,'Smart Q&A home exposes eight compact quick questions');
@@ -225,6 +243,9 @@ try {
       await page.locator('.da-analysis-panel').waitFor();
       assert.equal(await page.locator('.da-analysis-steps').count(),0);
       await page.locator('.desktop-main-nav button').filter({hasText:'新建任务'}).click();
+      assert((await page.locator('.conversation').boundingBox())?.height>280,
+        'Clicking New task after a conversation must restore the visible landing page');
+      await page.getByRole('textbox',{name:'输入经营数据问题'}).click();
       assert.equal(await page.locator('.conversation .welcome').count(),0,
         'PC question page must not render the redundant welcome banner');
       const composer = await page.locator('.da-home-question-box').boundingBox();

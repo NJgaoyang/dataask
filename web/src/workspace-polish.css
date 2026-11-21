@@ -212,37 +212,17 @@
     background:#fff1f0!important;
   }
 
-  /* Give the empty Q&A page a little more product identity without becoming decorative. */
-  .consumer-pc.consumer-home .composer{
-    background:
-      radial-gradient(circle at 50% 4%,rgba(80,137,219,.07),transparent 32%),
-      linear-gradient(180deg,#f6f8fb 0%,#f3f5f8 100%);
-  }
-  .consumer-pc.consumer-home .da-ask-hero h1{
-    font-size:24px;
-    line-height:32px;
-    letter-spacing:-.3px;
-  }
-  .consumer-pc.consumer-home .da-ask-hero p{
-    color:#7a8799;
-  }
-  .consumer-pc.consumer-home .composer-row{
-    border-color:#d8dde6;
+  /* The new-task landing page lives inside .conversation, never inside .composer.
+     Do not override its grid sizing or visibility: those belong to pc-design-system.css. */
+  .consumer-pc.consumer-home .da-home-question-box{
     box-shadow:0 8px 28px rgba(31,39,51,.05);
   }
-  .consumer-pc.consumer-home .da-suggestion-grid button{
-    border-color:#e1e5eb;
-    box-shadow:0 1px 2px rgba(31,39,51,.025);
-  }
   .consumer-pc.consumer-home .da-suggestion-grid button:hover:not(:disabled){
-    border-color:#c8d6ea;
+    border-color:var(--da-primary-border);
     box-shadow:0 6px 16px rgba(31,39,51,.06);
     transform:translateY(-1px);
   }
 
-  .consumer-pc[data-theme="dark"].consumer-home .composer{
-    background:linear-gradient(180deg,#191d23 0%,#171a1f 100%);
-  }
   .consumer-pc[data-theme="dark"] .desktop-sidebar{
     background:#1a1e24;
     border-right-color:#30363f;
