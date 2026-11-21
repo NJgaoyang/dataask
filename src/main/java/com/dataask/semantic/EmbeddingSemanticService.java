@@ -153,7 +153,7 @@ public class EmbeddingSemanticService {
             "SELECT table_name FROM da_allowed_tables WHERE enabled=1",
             (rs,n)->rs.getString(1)));
         if (allowed.isEmpty()) throw new ResponseStatusException(
-            HttpStatus.BAD_REQUEST,"请先在 ADS 表管理中授权至少一张表");
+            HttpStatus.BAD_REQUEST,"请先在表权限管理中授权至少一张表");
         List<Document> documents=new ArrayList<>();
         List<StarRocksGateway.TableMeta> tables=starrocks.discover();
         for (StarRocksGateway.TableMeta table : tables) {
@@ -170,8 +170,11 @@ public class EmbeddingSemanticService {
         }
 
         List<Map<String,Object>> metricRows=jdbc.queryForList(
-            "SELECT id,metric_name,aliases,definition,ads_table,ads_field,dimensions " +
-            "FROM da_metric_definitions ORDER BY id DESC LIMIT 100");
+            "SELECT d.id,d.metric_name,d.aliases,d.definition,d.ads_table,d.ads_field,d.dimensions " +
+            "FROM da_metric_definitions d " +
+            "LEFT JOIN da_metric_definition_sources src ON src.metric_id=d.id " +
+            "WHERE src.data_source_id IS NULL OR src.data_source_id=? " +
+            "ORDER BY d.id DESC LIMIT 100",settings.activeSourceId());
         for (Map<String,Object> row : metricRows) {
             String table=Objects.toString(row.get("ads_table"),"").trim();
             if(!table.isEmpty() && allowed.stream().noneMatch(t ->
@@ -209,6 +212,23 @@ public class EmbeddingSemanticService {
             "message","已重建 "+output.size()+" 条 ADS / 指标向量索引");
     }
 
+    /** Honor active-source permissions even for vectors left by an older index build. */
+    Set<String> allowedMetricIds(Set<String> allowedTables) {
+        Set<String> result=new HashSet<>();
+        jdbc.query("SELECT d.id,d.ads_table FROM da_metric_definitions d " +
+            "LEFT JOIN da_metric_definition_sources src ON src.metric_id=d.id " +
+            "WHERE src.data_source_id IS NULL OR src.data_source_id=?",
+            (org.springframework.jdbc.core.RowCallbackHandler) rs -> {
+                String table=Objects.toString(rs.getString(2),"").trim();
+                if(table.isEmpty() || allowedTables.stream().anyMatch(t ->
+                    t.equalsIgnoreCase(table) || t.toLowerCase(Locale.ROOT)
+                        .endsWith("."+table.toLowerCase(Locale.ROOT)))) {
+                    result.add(rs.getString(1));
+                }
+            },settings.activeSourceId());
+        return result;
+    }
+
     public String hints(String question, Set<String> allowedTables) {
         RuntimeConfigService.EmbeddingConfig cfg=settings.embedding();
         if (!cfg.configured()) return "";
@@ -217,6 +237,7 @@ public class EmbeddingSemanticService {
             Integer.class,cfg.model());
         if (count==null || count==0) return "";
         try {
+            Set<String> permittedMetrics=allowedMetricIds(allowedTables);
             double[] query=embed(cfg,List.of(question))[0];
             List<Match> scored=new ArrayList<>();
             jdbc.query("SELECT source_type,source_key,content,vector_json " +
@@ -224,6 +245,8 @@ public class EmbeddingSemanticService {
                 (org.springframework.jdbc.core.RowCallbackHandler) rs -> {
                     String type=rs.getString(1),source=rs.getString(2),content=rs.getString(3);
                     if ("ADS_TABLE".equals(type) && !allowedTables.contains(source)) return;
+                    if ("METRIC".equals(type) && !permittedMetrics.contains(source)) return;
+                    if (!"ADS_TABLE".equals(type) && !"METRIC".equals(type)) return;
                     JsonNode values;
                     try {
                         values=mapper.readTree(rs.getString(4));
