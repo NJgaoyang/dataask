@@ -5,22 +5,22 @@
     position:relative;display:block;grid-column:1/-1;grid-row:1/-1;
     width:100vw;height:100dvh;min-height:100dvh;padding:0;margin:0;overflow:hidden;
     background:
-      radial-gradient(ellipse 42% 54% at 55% 42%,rgba(86,151,255,.30) 0%,rgba(150,198,255,.14) 46%,transparent 76%),
-      radial-gradient(ellipse 37% 46% at 76% 28%,rgba(175,210,255,.24),transparent 74%),
-      radial-gradient(ellipse 31% 42% at 28% 43%,rgba(255,255,255,.78),transparent 78%),
-      linear-gradient(118deg,#fbfdff 0%,#f3f8ff 37%,#edf5ff 58%,#f8fbff 82%,#fbfcff 100%);
+      radial-gradient(ellipse 38% 48% at 50% 41%,rgba(108,169,255,.26) 0%,rgba(167,207,255,.12) 48%,transparent 76%),
+      radial-gradient(ellipse 28% 36% at 78% 24%,rgba(173,210,255,.19),transparent 74%),
+      radial-gradient(ellipse 38% 46% at 20% 34%,rgba(255,255,255,.94),transparent 76%),
+      linear-gradient(112deg,#fbfdff 0%,#f5f9ff 28%,#edf5ff 54%,#f6faff 78%,#fbfdff 100%);
     isolation:isolate;
   }
   .consumer-pc .login-screen::before,
   .consumer-pc .login-screen::after{content:"";position:absolute;z-index:0;pointer-events:none}
   .consumer-pc .login-screen::before{
-    left:-11vw;bottom:-23.5vh;width:124vw;height:38vh;border-radius:50% 50% 0 0/67% 67% 0 0;
-    background:linear-gradient(92deg,#2c7af2 0%,#72bfff 22%,#ecf7ff 48%,#fbfdff 67%,#80c3ff 88%,#3185ef 100%);
-    transform:rotate(1.7deg);opacity:.92;
+    left:-10vw;bottom:-24vh;width:122vw;height:37vh;border-radius:50% 50% 0 0/69% 69% 0 0;
+    background:linear-gradient(92deg,#2d7cf3 0%,#75bbff 19%,#d8edff 44%,#f8fcff 63%,#8ac7ff 83%,#2f83f0 100%);
+    transform:rotate(1.25deg);opacity:.95;
   }
   .consumer-pc .login-screen::after{
-    left:-8vw;bottom:-27vh;width:118vw;height:36vh;border-radius:50% 50% 0 0/60% 60% 0 0;
-    background:rgba(248,252,255,.94);transform:rotate(-2.6deg);
+    left:-6vw;bottom:-23.5vh;width:112vw;height:32vh;border-radius:50% 50% 0 0/57% 57% 0 0;
+    background:rgba(249,252,255,.97);transform:rotate(-3.2deg);
   }
 
   /* Left brand layer: positions are normalized from the approved reference image. */
@@ -77,20 +77,28 @@
 
   /* Exact approved 3D illustration asset, cropped from the supplied reference. */
   .consumer-pc .login-brand-visual{
-    position:absolute;z-index:3;left:35.9vw;top:18.6vh;width:28.35vw;height:59.6vh;
+    position:absolute;z-index:3;left:36.55vw;top:21.35vh;width:26.15vw;height:53.4vh;
     transform:none;pointer-events:none;overflow:visible;
   }
   .consumer-pc .login-brand-visual::before{
-    content:"";position:absolute;z-index:-1;left:-10%;right:-20%;top:7%;bottom:5%;
-    border-radius:50%;background:radial-gradient(ellipse at center,rgba(119,174,255,.24),rgba(197,224,255,.10) 46%,transparent 74%);
-    filter:blur(15px);
+    content:"";position:absolute;z-index:-1;left:-16%;right:-22%;top:-5%;bottom:-8%;
+    border-radius:50%;background:radial-gradient(ellipse at center,rgba(116,174,255,.24),rgba(203,228,255,.09) 52%,transparent 76%);
+    filter:blur(24px);
   }
   .consumer-pc .login-brand-hero{
     display:block;width:100%;height:100%;object-fit:contain;object-position:center;
     user-select:none;-webkit-user-drag:none;
-    filter:drop-shadow(0 24px 42px rgba(67,116,190,.10));
-    -webkit-mask-image:radial-gradient(ellipse 98% 99% at 50% 49%,#000 87%,transparent 100%);
-    mask-image:radial-gradient(ellipse 98% 99% at 50% 49%,#000 87%,transparent 100%);
+    filter:drop-shadow(0 20px 38px rgba(67,116,190,.09));
+    opacity:.97;
+    mix-blend-mode:multiply;
+    -webkit-mask-image:
+      linear-gradient(to right,transparent 0%,rgba(0,0,0,.65) 7%,#000 14%,#000 86%,rgba(0,0,0,.65) 93%,transparent 100%),
+      linear-gradient(to bottom,transparent 0%,rgba(0,0,0,.70) 7%,#000 14%,#000 87%,rgba(0,0,0,.68) 94%,transparent 100%);
+    -webkit-mask-composite:source-in;
+    mask-image:
+      linear-gradient(to right,transparent 0%,rgba(0,0,0,.65) 7%,#000 14%,#000 86%,rgba(0,0,0,.65) 93%,transparent 100%),
+      linear-gradient(to bottom,transparent 0%,rgba(0,0,0,.70) 7%,#000 14%,#000 87%,rgba(0,0,0,.68) 94%,transparent 100%);
+    mask-composite:intersect;
   }
 
   /* Right panel/card positions calibrated to target: x≈1093, y≈151, w≈522, h≈578 on 1692×930. */
@@ -101,21 +109,21 @@
   .consumer-pc .login-main>h1,
   .consumer-pc .login-main>p:not(.login-copyright){display:none}
   .consumer-pc .login-card{
-    position:absolute;z-index:5;right:3.85vw;top:16.1vh;
-    width:31.45vw;height:62.35vh;max-width:none;min-width:0;margin:0;
-    padding:6.05vh 3.35vw 4.7vh;
+    position:absolute;z-index:5;right:4.05vw;top:16.15vh;
+    width:30.75vw;height:62.1vh;max-width:none;min-width:0;margin:0;
+    padding:6.0vh 3.25vw 4.65vh;
     border:1px solid rgba(216,226,240,.96);border-radius:26px;background:rgba(255,255,255,.91);
-    box-shadow:0 24px 68px rgba(66,91,133,.105),-22px 0 60px rgba(120,173,245,.045);backdrop-filter:blur(18px);overflow:hidden;
+    box-shadow:0 22px 58px rgba(66,91,133,.09),-14px 0 48px rgba(128,177,244,.035);backdrop-filter:blur(16px);overflow:hidden;
   }
   .consumer-pc .login-card::before,
   .consumer-pc .login-card::after{content:"";position:absolute;pointer-events:none;border-radius:50%;z-index:0}
   .consumer-pc .login-card::before{
-    width:24vw;height:24vw;right:-12.5vw;top:-12.8vw;
-    background:linear-gradient(145deg,rgba(115,172,255,.43),rgba(212,231,255,.12) 58%,transparent 72%);
+    width:23vw;height:23vw;right:-11.4vw;top:-12.1vw;
+    background:linear-gradient(145deg,rgba(112,170,255,.37),rgba(214,232,255,.10) 58%,transparent 73%);
     border:1px solid rgba(255,255,255,.72);
   }
   .consumer-pc .login-card::after{
-    width:20vw;height:20vw;right:-10.6vw;top:-8.5vw;
+    width:19vw;height:19vw;right:-9.7vw;top:-8.0vw;
     border:1px solid rgba(255,255,255,.66);background:rgba(255,255,255,.10);
   }
   .consumer-pc .login-card>*{position:relative;z-index:2}
@@ -145,6 +153,13 @@
     height:calc(5.8vh - 2px);color:#1e2d47;font-size:clamp(14px,.98vw,18px);
   }
   .consumer-pc .login-card .van-field__control::placeholder{color:#a7b4c7}
+  .consumer-pc .login-card input:-webkit-autofill,
+  .consumer-pc .login-card input:-webkit-autofill:hover,
+  .consumer-pc .login-card input:-webkit-autofill:focus{
+    -webkit-text-fill-color:#1e2d47!important;
+    -webkit-box-shadow:0 0 0 1000px rgba(255,255,255,.96) inset!important;
+    transition:background-color 9999s ease-out 0s;
+  }
   .consumer-pc .login-password-toggle{width:34px;height:34px;color:#6f83a0}
   .consumer-pc .login-card .van-button{
     margin-top:4.35vh;height:6.15vh;min-height:52px;border:0;border-radius:9px;
@@ -185,23 +200,23 @@
     .consumer-pc .login-brand-points{margin-top:30px;width:36vw}
     .consumer-pc .login-brand-points li{padding-right:9px}
     .consumer-pc .login-brand-points li:not(:last-child)::after{right:5px}
-    .consumer-pc .login-brand-visual{left:36.2vw;width:28vw}
-    .consumer-pc .login-card{right:3.25vw;width:32.5vw}
+    .consumer-pc .login-brand-visual{left:36.6vw;top:20.5vh;width:26.5vw;height:54.5vh}
+    .consumer-pc .login-card{right:3.45vw;width:31.9vw}
   }
   @media(max-width:1180px){
-    .consumer-pc .login-brand-visual{opacity:.88;left:37.5vw}
+    .consumer-pc .login-brand-visual{opacity:.96;left:37.2vw;top:20.5vh;width:27vw}
     .consumer-pc .login-brand-points{grid-template-columns:repeat(2,1fr);row-gap:16px;width:31vw}
     .consumer-pc .login-brand-points li:nth-child(2)::after{display:none}
     .consumer-pc .login-brand-points li:nth-child(1)::after,
     .consumer-pc .login-brand-points li:nth-child(3)::after{height:56px}
-    .consumer-pc .login-card{right:2.6vw;width:35.5vw}
+    .consumer-pc .login-card{right:2.8vw;width:35vw}
   }
   @media(max-height:760px){
     .consumer-pc .login-brand-copy{top:16.5vh}
     .consumer-pc .login-brand-copy>strong{margin-top:14px;font-size:clamp(35px,3vw,47px)}
     .consumer-pc .login-brand-copy>p{margin-top:17px;line-height:1.55}
     .consumer-pc .login-brand-points{margin-top:18px}
-    .consumer-pc .login-brand-visual{top:18vh;height:57vh}
+    .consumer-pc .login-brand-visual{top:18.8vh;height:56vh}
     .consumer-pc .login-card{top:12.5vh;height:69vh;padding-top:5vh}
     .consumer-pc .login-card-head{margin-bottom:2.8vh}
     .consumer-pc .login-label-password{margin-top:2vh}
