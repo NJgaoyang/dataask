@@ -122,6 +122,12 @@ try {
   await page.goto(base,{waitUntil:'networkidle'});
 
   await clickTile(page,'数据源配置');
+  await visible(page.locator('.da-admin-workspace-popup:visible'),'System management workspace');
+  await visible(page.locator('.da-admin-workspace-sidebar'),'System management navigation');
+  await visible(page.locator('.da-admin-workspace-editor'),'System management editor');
+  const workspaceBox=await page.locator('.da-admin-workspace-popup:visible').boundingBox();
+  assert(workspaceBox && workspaceBox.width>1000 && workspaceBox.height>650,
+    'System management must open as a large desktop workspace');
   await page.getByRole('button',{name:'新增数据源',exact:true}).click();
   await page.locator('.da-crud-modal:visible').getByLabel('名称',{exact:true}).fill('测试数据源');
   await page.locator('.da-crud-modal:visible').getByLabel('JDBC 地址').fill('jdbc:mysql://127.0.0.1:9030/ads');

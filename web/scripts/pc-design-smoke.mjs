@@ -194,6 +194,8 @@ try {
         await page.locator('.topbar').evaluate(el=>getComputedStyle(el).backgroundColor));
       await snap(page,'1440-admin-source-dark');
       await page.locator('.da-crud-modal:visible').getByRole('button',{name:'取消',exact:true}).click();
+      await page.getByRole('button',{name:'返回 DataAsk',exact:true}).click();
+      await page.locator('.da-admin-workspace-popup').waitFor({state:'hidden'});
       // Old records must not fabricate semantic results or past durations.
       await page.locator('.da-sidebar-session-open').first().click();
       assert.equal(await page.locator('.da-analysis-panel').count(),0);

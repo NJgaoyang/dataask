@@ -380,7 +380,26 @@ function isRedundantSummary(msg) {
 
 const desktopSection = ref('ask')
 const adminExpanded = ref(false)
+const adminWorkspaceOpen = ref(false)
+const adminReturnSection = ref('ask')
 const desktopAdminSections = ['admin-overview','admin-source','admin-model','admin-tables','admin-metrics','admin-users','admin-roles','admin-status','admin-audit']
+const adminNavigationGroups = [
+  { label:'管理', items:[
+    {section:'admin-overview',label:'概览',icon:'setting-o'},
+    {section:'admin-source',label:'数据源配置',icon:'cluster-o'},
+    {section:'admin-model',label:'模型配置',icon:'chat-o'},
+    {section:'admin-tables',label:'ADS 表授权',icon:'records-o'},
+    {section:'admin-metrics',label:'指标口径',icon:'description'}
+  ]},
+  { label:'权限', items:[
+    {section:'admin-users',label:'用户管理',icon:'friends-o'},
+    {section:'admin-roles',label:'角色权限',icon:'shield-o'}
+  ]},
+  { label:'运维', items:[
+    {section:'admin-status',label:'配置状态',icon:'chart-trending-o'},
+    {section:'admin-audit',label:'审计日志',icon:'shield-o'}
+  ]}
+]
 const adminSectionBusy = ref(false)
 const modelConfigVisible = ref(false)
 const modelCenterRef = ref(null)
@@ -1078,28 +1097,24 @@ async function loadAdminSectionData(section) {
   }
 }
 async function openAdmin() {
-  // Model/data-source management is a desktop-only experience.
   closeAccountMenu()
-  if (!isDesktop.value) return
-  if (!requireAdmin()) return
-  if (isDesktop.value) {
-    adminVisible.value = false
-    switchDesktopSection('admin-overview')
-    await loadAdminSectionData('admin-overview')
-    return
-  }
-  adminVisible.value = true
-  try {
-    await refreshAdminStatus()
-    users.value = (await api.get('/admin/users')).data
-    await Promise.all([reloadTables(),reloadMetrics(),reloadSemanticStatus()])
-  } catch(e) { showFailToast('读取系统管理失败：'+errorText(e)) }
+  if (!isDesktop.value || !requireAdmin()) return
+  if (!desktopIsAdminSection.value) adminReturnSection.value = desktopSection.value
+  adminVisible.value = false
+  adminWorkspaceOpen.value = true
+  switchDesktopSection('admin-overview')
+  await loadAdminSectionData('admin-overview')
+}
+function closeAdminWorkspace() {
+  adminWorkspaceOpen.value = false
+  adminExpanded.value = false
+  const target = ['ask','charts','history'].includes(adminReturnSection.value) ? adminReturnSection.value : 'ask'
+  if (desktopIsAdminSection.value) switchDesktopSection(target)
 }
 function toggleAdminNavigation() {
   if (!canSystemAdmin.value) return
-  if (!adminExpanded.value) { openAdmin(); return }
-  adminExpanded.value = false
-  if (desktopIsAdminSection.value) switchDesktopSection('ask')
+  if (adminWorkspaceOpen.value) { closeAdminWorkspace(); return }
+  openAdmin()
 }
 async function refreshAdminOverview() {
   if (!requireAdmin()) return
@@ -1109,6 +1124,7 @@ async function refreshAdminOverview() {
 async function openAdminSection(section) {
   if (section === 'admin-embedding') section = 'admin-model' // old navigation alias
   if (!requireAdmin() || !desktopAdminSections.includes(section)) return
+  adminWorkspaceOpen.value = true
   if (section === 'admin-source') configKind.value = 'starrocks'
   configTestMessage.value = ''
   configVisible.value = false
@@ -1659,7 +1675,7 @@ onBeforeUnmount(() => {
       <header class="topbar">
         <div v-if="isDesktop" class="tb-header-breadcrumb">
           <span>DataAsk</span><van-icon name="arrow" size="11"/>
-          <template v-if="desktopIsAdminSection && desktopSection!=='admin-overview'">
+          <template v-if="desktopIsAdminSection && desktopSection!=='admin-overview' && !adminWorkspaceOpen">
             <button type="button" class="tb-breadcrumb-admin" @click="openAdminSection('admin-overview')">系统管理</button>
             <van-icon name="arrow" size="11"/>
           </template>
@@ -1677,7 +1693,7 @@ onBeforeUnmount(() => {
         </div>
         <div v-if="isDesktop" class="da-topbar-utilities">
           <div class="da-topbar-operations">
-            <template v-if="canSystemAdmin && desktopIsAdminSection">
+            <template v-if="canSystemAdmin && desktopIsAdminSection && !adminWorkspaceOpen">
               <button v-if="desktopSection==='admin-model'" type="button" class="td-btn"
                 :disabled="adminSectionBusy || !modelCenterRef" @click="modelCenterRef?.load()">
                 <van-icon name="replay"/> 刷新配置</button>
@@ -1712,8 +1728,55 @@ onBeforeUnmount(() => {
           <button title="新对话" @click="newConversation"><van-icon name="add-o" size="21"/></button>
         </div>
       </header>
-      <main v-if="isDesktop && canSystemAdmin && desktopIsAdminSection" class="tb-page-body tb-admin-page"
-        :class="{'tb-admin-model-full':desktopSection==='admin-model'}">
+      <van-popup v-if="isDesktop && canSystemAdmin" v-model:show="adminWorkspaceOpen"
+        position="center" :close-on-click-overlay="false" :close-on-popstate="false"
+        class="da-admin-workspace-popup">
+        <section class="da-admin-workspace" aria-label="系统管理工作区">
+          <aside class="da-admin-workspace-sidebar" aria-label="系统管理导航">
+            <div class="da-admin-workspace-brand">
+              <div class="brand-icon" aria-hidden="true"><svg class="brand-glyph" viewBox="0 0 36 36"><rect x="1.5" y="1.5" width="33" height="33" rx="10" fill="#2f6bff"/><path d="M10 8.5h8.2c4.8 0 8 3.5 8 8s-3.2 8-8 8H10z" fill="#fff"/><path d="M13 12h5c2.4 0 4 1.6 4 4.5s-1.6 4.5-4 4.5h-5z" fill="#2f6bff"/><path d="M7 27l5-5 4 3 7-8" fill="none" stroke="#b9d6ff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></div>
+              <div><strong>DataAsk</strong><small>系统管理</small></div>
+            </div>
+            <nav class="da-admin-workspace-nav">
+              <section v-for="group in adminNavigationGroups" :key="group.label">
+                <small class="da-admin-workspace-group">{{ group.label }}</small>
+                <button v-for="item in group.items" :key="item.section" type="button"
+                  :class="{active:desktopSection===item.section}"
+                  :aria-current="desktopSection===item.section?'page':undefined"
+                  @click="openAdminSection(item.section)">
+                  <van-icon :name="item.icon"/><span>{{ item.label }}</span>
+                </button>
+              </section>
+            </nav>
+            <button type="button" class="da-admin-workspace-return" @click="closeAdminWorkspace">
+              <van-icon name="arrow-left"/><span>返回 DataAsk</span>
+            </button>
+          </aside>
+          <div class="da-admin-workspace-pane">
+            <header class="da-admin-workspace-header">
+              <div class="da-admin-workspace-heading">
+                <button v-if="desktopSection!=='admin-overview'" type="button" class="tb-breadcrumb-admin"
+                  @click="openAdminSection('admin-overview')">系统管理</button>
+                <van-icon v-if="desktopSection!=='admin-overview'" name="arrow" size="11"/>
+                <strong>{{ desktopSectionTitle }}</strong>
+              </div>
+              <div class="da-admin-workspace-actions da-topbar-operations">
+                <button v-if="desktopSection==='admin-model'" type="button" class="td-btn"
+                  :disabled="adminSectionBusy || !modelCenterRef" @click="modelCenterRef?.load()">
+                  <van-icon name="replay"/> 刷新配置</button>
+                <button v-if="desktopSection==='admin-status'" type="button" class="td-btn"
+                  :disabled="adminSectionBusy" @click="refreshAdminOverview"><van-icon name="replay"/> 刷新状态</button>
+                <template v-if="desktopSection==='admin-tables'">
+                  <button type="button" class="td-btn" :disabled="adminSectionBusy"
+                    @click="loadAdminSectionData('admin-tables')"><van-icon name="replay"/> 刷新表列表</button>
+                  <button type="button" class="td-btn" @click="openAdminSection('admin-source')"><van-icon name="cluster-o"/> 数据源配置</button>
+                </template>
+                <button type="button" class="da-admin-workspace-close" title="关闭系统管理"
+                  aria-label="关闭系统管理" @click="closeAdminWorkspace"><van-icon name="cross"/></button>
+              </div>
+            </header>
+            <main class="tb-admin-page da-admin-workspace-editor"
+              :class="{'tb-admin-model-full':desktopSection==='admin-model'}">
         <div v-if="unreadableConfigParts.length && !adminSectionBusy" class="tb-admin-credential-warning" role="alert">
           <van-icon name="warning-o" size="18"/>
           <span>以下已保存凭证无法解密：{{ unreadableConfigParts.join('、') }}。
@@ -1851,6 +1914,9 @@ onBeforeUnmount(() => {
         <AdminUsers v-else-if="desktopSection==='admin-users'" :api="api"/>
         <AdminRoles v-else-if="desktopSection==='admin-roles'" :api="api"/>
       </main>
+          </div>
+        </section>
+      </van-popup>
       <main v-if="isDesktop && desktopSection==='charts'" class="tb-page-body tb-content-page tb-charts-page">
         <template v-if="activeChart">
           <div class="da-chart-detail">

@@ -106,9 +106,13 @@ try {
       await capture(page,width,label==="用户管理"?'users':label==='审计日志'?'audit':'source',label==='审计日志'?'.audit-panel':label==='用户管理'?'.tb-admin-users-page':'.tb-admin-source-page');
     }
     if(width===1440) {
+      await page.getByRole('button',{name:'返回 DataAsk',exact:true}).click();await page.locator('.da-admin-workspace-popup').waitFor({state:'hidden'});
       await page.locator('.da-account-trigger').click();await page.getByRole('menuitem',{name:'个性化',exact:true}).click();
-      await page.getByRole('button',{name:/深色.*黑色界面/}).click();
+      await page.getByRole('button',{name:'深色',exact:true}).click();
       await page.locator('.da-preferences-popup .van-popup__close-icon').click();await page.locator('.da-preferences-popup').waitFor({state:'hidden'});
+      await page.locator('.da-account-trigger').click();await page.getByRole('menuitem',{name:'系统管理'}).click();
+      await page.locator('.tb-admin-overview-grid button').filter({hasText:'数据源配置'}).click();
+      await page.locator('.tb-admin-loading').waitFor({state:'hidden'});
       await capture(page,width,'source-dark','.tb-admin-source-page');
     }
     await ctx.close();
