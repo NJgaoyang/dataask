@@ -15,6 +15,10 @@ public class CityRowGuard {
     private static final List<String> CITY_COLUMNS =
         List.of("city_name", "city_name_std", "city", "city_std", "manage_city", "managed_city");
     private static final Pattern SELECT_WORD=Pattern.compile("(?i)\\bselect\\b");
+    // StarRocks accepts quoted and Unicode identifiers; reject unsafe characters
+    // without restricting the AI to ASCII-only aliases.
+    private static final Pattern SAFE_IDENTIFIER =
+        Pattern.compile("[\\p{L}\\p{N}_$][\\p{L}\\p{N}_$ .-]{0,127}");
 
     public String scope(String sql,List<StarRocksGateway.TableMeta> metadata,
                         List<String> cities,String schema){
@@ -59,15 +63,35 @@ public class CityRowGuard {
         }
         if(cityField==null)throw forbidden("表 "+full+" 无城市字段，无法验证行权限");
         String alias=table.getAlias()==null?table.getName():table.getAlias().getName();
-        if(alias==null||!alias.matches("[A-Za-z_][A-Za-z0-9_]*"))throw forbidden("表别名不合法");
-        String tick=Character.toString(96);
+        String safeAlias=quoteIdentifier(alias);
+        String safeCityField=quoteIdentifier(cityField);
         for(String city:cities) {
             if(city==null || !city.matches("[\\p{L}\\p{N}\\p{Zs}·（）()\\-]{1,120}"))
                 throw forbidden("城市授权值包含不支持的字符");
         }
         String permitted=String.join(",",cities.stream().map(city->"'"+city+"'").toList());
-        constraints.add(tick+alias+tick+"."+tick+cityField+tick+" IN ("+permitted+")");
+        constraints.add(safeAlias+"."+safeCityField+" IN ("+permitted+")");
     }
+
+    /**
+     * Normalize an AST-validated SQL identifier for the injected city predicate.
+     * JSqlParser may preserve backticks/quotes in Alias.getName()/Table.getName().
+     * Quote again for StarRocks, but never interpolate raw text into the predicate.
+     */
+    private static String quoteIdentifier(String value) {
+        if(value==null)throw forbidden("表别名不合法");
+        String name=value.strip();
+        if(name.length()>=2 &&
+            ((name.startsWith("`")&&name.endsWith("`")) ||
+             (name.startsWith("\"")&&name.endsWith("\"")))) {
+            String quote=name.substring(0,1);
+            name=name.substring(1,name.length()-1).replace(quote+quote,quote);
+        }
+        if(!SAFE_IDENTIFIER.matcher(name).matches())
+            throw forbidden("表别名不合法");
+        return "`"+name.replace("`","``")+"`";
+    }
+
     private static ResponseStatusException forbidden(String message){
         return new ResponseStatusException(HttpStatus.FORBIDDEN,message);
     }

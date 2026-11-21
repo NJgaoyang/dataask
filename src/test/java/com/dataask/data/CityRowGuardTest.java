@@ -30,6 +30,30 @@ class CityRowGuardTest {
         assertThat(sql).contains("city_name_std","北京市");
         assertThat(sql.split(" IN ",-1).length).isGreaterThanOrEqualTo(3);
     }
+    @Test void acceptsChineseAliasesAndKeepsCityPermissions() {
+        String sql=guard.scope(
+            "SELECT 城市订单.city_name_std, SUM(城市订单.orders) FROM ads.city_orders AS 城市订单 " +
+                "WHERE 城市订单.orders>0 GROUP BY 城市订单.city_name_std",
+            metadata,List.of("南京市"),"ads");
+        assertThat(sql).contains("`城市订单`.`city_name_std` IN ('南京市')");
+        assertThat(sql).contains("GROUP BY");
+    }
+    @Test void acceptsBacktickQuotedAliasAndTableWithoutAlias() {
+        String quoted=guard.scope(
+            "SELECT `订单明细`.orders FROM ads.city_orders AS `订单明细`",
+            metadata,List.of("南京市"),"ads");
+        assertThat(quoted).contains("`订单明细`.`city_name_std` IN ('南京市')");
+        String unaliased=guard.scope(
+            "SELECT city_name_std, orders FROM `ads`.`city_orders`",
+            metadata,List.of("南京市"),"ads");
+        assertThat(unaliased).contains("`city_orders`.`city_name_std` IN ('南京市')");
+    }
+    @Test void acceptsBacktickQuotedAliasWithHyphenButKeepsItQuoted() {
+        String sql=guard.scope(
+            "SELECT `订单-统计`.orders FROM ads.city_orders AS `订单-统计`",
+            metadata,List.of("南京市"),"ads");
+        assertThat(sql).contains("`订单-统计`.`city_name_std` IN ('南京市')");
+    }
     @Test void deniesUnknownCityLineageAndNestedSelects() {
         assertThatThrownBy(()->guard.scope("SELECT amount FROM ads.global_total",
             metadata,List.of("北京市"),"ads")).isInstanceOf(ResponseStatusException.class);
