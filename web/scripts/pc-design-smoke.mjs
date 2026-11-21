@@ -233,11 +233,12 @@ try {
       const loginCardBox=await page.locator('.login-card').boundingBox();
       assert(loginCardBox && loginCardBox.width>=400 && loginCardBox.width<=500,'Login card should match the approved visual proportions');
       assert.equal(await page.locator('.login-brand-hero').count(),1,'Desktop login uses the approved analytics illustration asset');
+      assert.equal(await page.locator('.login-topbar').count(),0,'Login page must not show the internal-system security banner');
       const hero=await page.locator('.login-brand-hero').boundingBox();
       const card=await page.locator('.login-card').boundingBox();
       const viewport=page.viewportSize();
       assert(hero && card && viewport);
-      assert(Math.abs(hero.x/viewport.width-0.3755)<0.035,'Hero horizontal position follows the reference');
+      assert(Math.abs(hero.x/viewport.width-0.359)<0.035,'Hero horizontal position follows the integrated reference');
       assert(Math.abs(card.x/viewport.width-0.646)<0.04,'Login card horizontal position follows the reference');
       assert(Math.abs(card.y/viewport.height-0.162)<0.04,'Login card vertical position follows the reference');
       assert.equal(await page.evaluate(()=>document.documentElement.dataset.dataaskTheme),undefined);

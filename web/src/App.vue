@@ -1395,7 +1395,6 @@ onBeforeUnmount(() => {
         </div>
       </aside>
       <main class="login-main">
-        <div v-if="isDesktop" class="login-topbar"><span class="login-status-dot"></span>内部系统 · 安全登录</div>
         <div class="login-logo" aria-hidden="true"><svg class="brand-glyph" viewBox="0 0 36 36"><rect x="1.5" y="1.5" width="33" height="33" rx="10" fill="#2f6bff"/><path d="M10 8.5h8.2c4.8 0 8 3.5 8 8s-3.2 8-8 8H10z" fill="#fff"/><path d="M13 12h5c2.4 0 4 1.6 4 4.5s-1.6 4.5-4 4.5h-5z" fill="#2f6bff"/><path d="M7 27l5-5 4 3 7-8" fill="none" stroke="#b9d6ff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></div>
         <h1>{{ isDesktop ? 'DataAsk' : 'DataAsk 数问' }}</h1>
         <p>{{ isDesktop ? '企业经营数据问答平台' : '面向企业管理者的智能经营数据助手' }}</p>

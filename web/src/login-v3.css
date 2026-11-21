@@ -5,8 +5,9 @@
     position:relative;display:block;grid-column:1/-1;grid-row:1/-1;
     width:100vw;height:100dvh;min-height:100dvh;padding:0;margin:0;overflow:hidden;
     background:
-      radial-gradient(ellipse 34% 46% at 52% 40%,rgba(89,153,255,.26) 0%,rgba(150,198,255,.11) 45%,transparent 72%),
-      radial-gradient(ellipse 30% 38% at 82% 16%,rgba(169,204,255,.18),transparent 72%),
+      radial-gradient(ellipse 42% 54% at 55% 42%,rgba(86,151,255,.30) 0%,rgba(150,198,255,.14) 46%,transparent 76%),
+      radial-gradient(ellipse 37% 46% at 76% 28%,rgba(175,210,255,.24),transparent 74%),
+      radial-gradient(ellipse 31% 42% at 28% 43%,rgba(255,255,255,.78),transparent 78%),
       linear-gradient(118deg,#fbfdff 0%,#f3f8ff 37%,#edf5ff 58%,#f8fbff 82%,#fbfcff 100%);
     isolation:isolate;
   }
@@ -38,7 +39,7 @@
     color:#142441;font-size:clamp(22px,1.55vw,30px);font-weight:700;letter-spacing:-.5px;
   }
   .consumer-pc .login-brand-copy{
-    position:absolute;z-index:4;left:5.4vw;top:18.25vh;width:31.5vw;max-width:none;transform:none;
+    position:absolute;z-index:4;left:5.45vw;top:18.45vh;width:32.7vw;max-width:none;transform:none;
   }
   .consumer-pc .login-brand-eyebrow{
     display:inline-flex;align-items:center;justify-content:center;height:38px;padding:0 17px;
@@ -54,7 +55,7 @@
     margin:38px 0 0;color:#526987;font-size:clamp(15px,1.04vw,19px);line-height:1.78;font-weight:400;
   }
   .consumer-pc .login-brand-points{
-    list-style:none;margin:47px 0 0;padding:0;width:32.4vw;max-width:none;border:0;background:transparent;
+    list-style:none;margin:47px 0 0;padding:0;width:34.9vw;max-width:none;border:0;background:transparent;
     display:grid;grid-template-columns:repeat(4,1fr);gap:0;backdrop-filter:none;
   }
   .consumer-pc .login-brand-points li{
@@ -76,37 +77,35 @@
 
   /* Exact approved 3D illustration asset, cropped from the supplied reference. */
   .consumer-pc .login-brand-visual{
-    position:absolute;z-index:3;left:37.55vw;top:20.3vh;width:25.25vw;height:55.4vh;
+    position:absolute;z-index:3;left:35.9vw;top:18.6vh;width:28.35vw;height:59.6vh;
     transform:none;pointer-events:none;overflow:visible;
+  }
+  .consumer-pc .login-brand-visual::before{
+    content:"";position:absolute;z-index:-1;left:-10%;right:-20%;top:7%;bottom:5%;
+    border-radius:50%;background:radial-gradient(ellipse at center,rgba(119,174,255,.24),rgba(197,224,255,.10) 46%,transparent 74%);
+    filter:blur(15px);
   }
   .consumer-pc .login-brand-hero{
     display:block;width:100%;height:100%;object-fit:contain;object-position:center;
     user-select:none;-webkit-user-drag:none;
-    filter:drop-shadow(0 22px 35px rgba(67,116,190,.08));
-    -webkit-mask-image:radial-gradient(ellipse 94% 96% at 50% 49%,#000 84%,transparent 100%);
-    mask-image:radial-gradient(ellipse 94% 96% at 50% 49%,#000 84%,transparent 100%);
+    filter:drop-shadow(0 24px 42px rgba(67,116,190,.10));
+    -webkit-mask-image:radial-gradient(ellipse 98% 99% at 50% 49%,#000 87%,transparent 100%);
+    mask-image:radial-gradient(ellipse 98% 99% at 50% 49%,#000 87%,transparent 100%);
   }
 
   /* Right panel/card positions calibrated to target: x≈1093, y≈151, w≈522, h≈578 on 1692×930. */
   .consumer-pc .login-main{
     position:absolute;z-index:4;inset:0;display:block;min-width:0;padding:0;background:transparent;
   }
-  .consumer-pc .login-topbar{
-    position:absolute;z-index:8;top:5.25vh;right:6.25vw;display:flex;align-items:center;gap:9px;
-    color:#687b96;font-size:clamp(12px,.82vw,14px);font-weight:400;
-  }
-  .consumer-pc .login-status-dot{
-    width:8px;height:8px;border-radius:50%;background:#20a66a;box-shadow:0 0 0 4px rgba(32,166,106,.10);
-  }
   .consumer-pc .login-main>.login-logo,
   .consumer-pc .login-main>h1,
   .consumer-pc .login-main>p:not(.login-copyright){display:none}
   .consumer-pc .login-card{
-    position:absolute;z-index:5;right:4.55vw;top:16.2vh;
-    width:30.85vw;height:62.25vh;max-width:none;min-width:0;margin:0;
-    padding:6.05vh 3.45vw 4.7vh;
+    position:absolute;z-index:5;right:3.85vw;top:16.1vh;
+    width:31.45vw;height:62.35vh;max-width:none;min-width:0;margin:0;
+    padding:6.05vh 3.35vw 4.7vh;
     border:1px solid rgba(216,226,240,.96);border-radius:26px;background:rgba(255,255,255,.91);
-    box-shadow:0 20px 60px rgba(66,91,133,.10);backdrop-filter:blur(16px);overflow:hidden;
+    box-shadow:0 24px 68px rgba(66,91,133,.105),-22px 0 60px rgba(120,173,245,.045);backdrop-filter:blur(18px);overflow:hidden;
   }
   .consumer-pc .login-card::before,
   .consumer-pc .login-card::after{content:"";position:absolute;pointer-events:none;border-radius:50%;z-index:0}
@@ -156,7 +155,7 @@
   .consumer-pc .login-card .van-button:hover{filter:brightness(.98)}
   .consumer-pc .login-footnote{display:none}
   .consumer-pc .login-copyright{
-    position:absolute;z-index:5;left:0;right:0;bottom:8.7vh;margin:0;text-align:center;
+    position:absolute;z-index:5;left:0;right:0;bottom:7.4vh;margin:0;text-align:center;
     color:#7d8ea8;font-size:clamp(11px,.72vw,13px);letter-spacing:.01em;pointer-events:none;
   }
 
@@ -180,22 +179,22 @@
   .consumer-pc[data-theme="dark"] .login-password-toggle{color:#7286a4}
 
   @media(max-width:1360px){
-    .consumer-pc .login-brand-copy{width:31vw}
+    .consumer-pc .login-brand-copy{width:32.5vw}
     .consumer-pc .login-brand-copy>strong{font-size:clamp(42px,3.25vw,52px)}
     .consumer-pc .login-brand-copy>p{margin-top:25px;font-size:14px}
-    .consumer-pc .login-brand-points{margin-top:30px;width:34vw}
+    .consumer-pc .login-brand-points{margin-top:30px;width:36vw}
     .consumer-pc .login-brand-points li{padding-right:9px}
     .consumer-pc .login-brand-points li:not(:last-child)::after{right:5px}
-    .consumer-pc .login-brand-visual{left:38vw;width:25vw}
-    .consumer-pc .login-card{right:3.8vw;width:32vw}
+    .consumer-pc .login-brand-visual{left:36.2vw;width:28vw}
+    .consumer-pc .login-card{right:3.25vw;width:32.5vw}
   }
   @media(max-width:1180px){
-    .consumer-pc .login-brand-visual{opacity:.78;left:39.5vw}
+    .consumer-pc .login-brand-visual{opacity:.88;left:37.5vw}
     .consumer-pc .login-brand-points{grid-template-columns:repeat(2,1fr);row-gap:16px;width:31vw}
     .consumer-pc .login-brand-points li:nth-child(2)::after{display:none}
     .consumer-pc .login-brand-points li:nth-child(1)::after,
     .consumer-pc .login-brand-points li:nth-child(3)::after{height:56px}
-    .consumer-pc .login-card{right:3vw;width:35vw}
+    .consumer-pc .login-card{right:2.6vw;width:35.5vw}
   }
   @media(max-height:760px){
     .consumer-pc .login-brand-copy{top:16.5vh}
