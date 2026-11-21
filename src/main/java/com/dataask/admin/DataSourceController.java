@@ -139,6 +139,11 @@ public class DataSourceController {
         lock();
         existing(id);
         if (id.equals(settings.activeSourceId())) throw bad("当前启用的数据源不能删除，请先切换数据源");
+        Long metrics=jdbc.queryForObject(
+            "SELECT COUNT(*) FROM da_metric_definition_sources WHERE data_source_id=?",Long.class,id);
+        if(metrics!=null && metrics>0)
+            throw new ResponseStatusException(HttpStatus.CONFLICT,
+                "该数据源仍有关联的自动解析指标，请先在指标口径中删除这些指标");
         jdbc.update("DELETE FROM da_source_table_permissions WHERE data_source_id=?",id);
         jdbc.update("DELETE FROM da_datasources WHERE id=?",id);
         AuditContext.set("target","数据源："+id);

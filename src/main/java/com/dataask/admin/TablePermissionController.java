@@ -161,6 +161,10 @@ public class TablePermissionController {
     @PostMapping
     @Transactional
     public Map<String,Object> change(@Valid @RequestBody GrantRequest request){
+        // Serialize grants with data-source activation so a concurrent switch cannot
+        // apply a grant to the wrong active runtime allowlist.
+        jdbc.update("INSERT IGNORE INTO da_app_settings(setting_key,setting_value) VALUES('sr.activeSource','')");
+        jdbc.queryForList("SELECT setting_key FROM da_app_settings WHERE setting_key='sr.activeSource' FOR UPDATE");
         StoredSource selected=source(request.sourceId());
         boolean exists=discover(selected).stream().anyMatch(x->x.qualifiedName().equals(request.tableName()));
         if(!exists)throw new ResponseStatusException(HttpStatus.BAD_REQUEST,"所选数据源中不存在该表");
