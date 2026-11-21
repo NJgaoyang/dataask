@@ -48,10 +48,23 @@ async function mockBackend(route) {
   }
   if(path==='/api/admin/semantic/status') return ok({count:2,indexedModel:'text-embedding-v3',configured:true});
   if(path==='/api/admin/semantic/rebuild' && method==='POST') return ok({message:'语义索引已重建'});
-  if(path==='/api/admin/tables' && method==='GET') return ok(tables);
-  if(path==='/api/admin/table-allow' && method==='POST') {
-    const body=req.postDataJSON();tables=tables.map(t=>t.name===body.tableName?{...t,enabled:body.enabled}:t);return ok({success:true});
+  if(path==='/api/admin/table-permissions/sources' && method==='GET')
+    return ok([{id:'00000000-0000-0000-0000-000000000001',name:'经营数据源',schema:'ads',active:true}]);
+  if(path==='/api/admin/table-permissions' && method==='GET')return ok(tables);
+  if(path==='/api/admin/table-permissions' && method==='POST') {
+    const body=req.postDataJSON();
+    tables=tables.map(t=>t.name===body.tableName?{...t,enabled:body.enabled}:t);
+    return ok({success:true});
   }
+  if(path==='/api/admin/table-permissions/auto-parse' && method==='GET')
+    return ok({sourceId:'00000000-0000-0000-0000-000000000001',sourceName:'经营数据源',schema:'ads',count:1,
+      withoutPrimaryKey:0,notices:[],metrics:[{metricName:'销售额',definition:'SUM(amount)',adsTable:'ads.sales',
+        adsField:'amount',dimensions:'city_id',timeField:'',notes:'待确认'}]});
+  if(path==='/api/admin/table-permissions/auto-parse/confirm' && method==='POST')
+    return ok({success:true,count:1,skipped:0,message:'已生成 1 条指标草稿'});
+  if(path==='/api/admin/roles' && method==='GET')
+    return ok([{code:'ADMIN',name:'管理员',builtIn:true,enabled:true,cityScoped:false,
+      permissions:['ASK','CHARTS','SYSTEM_ADMIN'],userCount:1}]);
   if(path==='/api/admin/metrics' && method==='GET') return ok(metrics);
   if(path==='/api/admin/metrics/preview' && method==='POST')
     return ok({filename:'demo-metrics.xlsx',count:1,samples:[{metricName:'营业额',definition:'销售净额',adsTable:'ads.sales'}],notices:[]});
@@ -202,14 +215,16 @@ try {
   assert.equal(await page.locator('.da-admin-workspace-heading strong').innerText(),'模型配置');
   assert.equal(await page.locator('.tb-admin-heading').count(),0);
 
-  await clickTile(page,'ADS 表授权');
-  await visible(page.locator('.admin-table'),'ADS tables');
-  const tableSwitch=page.locator('.admin-table .van-switch').first();
+  await clickTile(page,'表权限');
+  await visible(page.locator('.da-tables-row'),'Table permission listing');
+  assert.equal(await page.locator('.columns-list').count(),0,'Table permissions must not show fields');
+  const tableSwitch=page.locator('.da-tables-row .van-switch').first();
   await tableSwitch.click();
-  await requireCall('POST /api/admin/table-allow');
-  // Restore the authorization so subsequent tests retain their original grants.
+  await requireCall('POST /api/admin/table-permissions');
+  // Restore original grant before parsing.
+  await page.waitForTimeout(80);
   await tableSwitch.click();
-  for(let i=0;i<80 && calls.filter(x=>x==='POST /api/admin/table-allow').length<2;i++)
+  for(let i=0;i<80 && calls.filter(x=>x==='POST /api/admin/table-permissions').length<2;i++)
     await new Promise(resolve=>setTimeout(resolve,40));
   assert.equal(tables.filter(t=>t.enabled).length,2,'Restoring table permission failed');
 
@@ -221,6 +236,15 @@ try {
   await visible(page.locator('.metric-preview-table'),'Excel preview');
   await page.getByRole('button',{name:/确认导入/}).click();
   await requireCall('POST /api/admin/metrics/import');
+  await page.locator('.tb-admin-metrics-page').getByRole('button',{name:'一键解析'}).click();
+  await visible(page.locator('.da-metric-auto-parse:visible'),'Metric parsing preview');
+  assert.match(await page.locator('.da-metric-auto-parse:visible').innerText(),/city_id/);
+  await page.locator('.da-metric-auto-parse:visible').getByRole('button',{name:'确认生成指标'}).click();
+  await requireCall('POST /api/admin/table-permissions/auto-parse/confirm');
+
+  await clickTile(page,'角色权限');
+  await visible(page.locator('.da-role-row'),'Role listing');
+  assert.equal(await page.locator('.da-role-admin .metric-error').count(),0,'Roles must load without a server-error banner');
 
   await clickTile(page,'用户管理');
   const alice=page.locator('.da-list-table tbody tr').filter({hasText:'alice'});
