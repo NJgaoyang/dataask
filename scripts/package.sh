@@ -26,11 +26,11 @@ command -v mvn >/dev/null 2>&1 || fail "未找到 Maven"
 MAVEN_LINE="$(mvn -version 2>/dev/null | head -1)"
 echo "Maven: $MAVEN_LINE"
 
-command -v node >/dev/null 2>&1 || fail "未找到 Node.js 22"
+command -v node >/dev/null 2>&1 || fail "未找到 Node.js 22+"
 NODE_VERSION="$(node -p 'process.versions.node')"
 NODE_MAJOR="${NODE_VERSION%%.*}"
 echo "Node: v$NODE_VERSION"
-[ "$NODE_MAJOR" = "22" ] || fail "需要 Node.js 22.x，当前为 v$NODE_VERSION"
+[ "$NODE_MAJOR" -ge 22 ] || fail "需要 Node.js 22 及以上版本，当前为 v$NODE_VERSION"
 
 command -v npm >/dev/null 2>&1 || fail "未找到 npm"
 command -v sha256sum >/dev/null 2>&1 || fail "未找到 sha256sum"
