@@ -10,6 +10,7 @@ import org.springframework.mock.web.MockMultipartFile;
 import org.springframework.web.server.ResponseStatusException;
 
 import java.io.ByteArrayOutputStream;
+import java.util.Map;
 
 import static org.assertj.core.api.Assertions.*;
 import static org.mockito.Mockito.mock;
@@ -36,6 +37,24 @@ class MetricDictionaryServiceTest {
                 "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
                 output.toByteArray());
         }
+    }
+
+    @Test void autoParseSkipsExistingOrDuplicateFieldsWithoutReplacingManualDefinitions() {
+        var jdbc=new JdbcTemplate(com.dataask.audit.AuditTestDatabase.create());
+        var live=new MetricDictionaryService(jdbc);
+        var amount=new MetricDictionaryService.MetricEdit("销售额","","草稿建议",
+            "ads.sales","amount","","city_id","主键维度");
+        var amountTwice=new MetricDictionaryService.MetricEdit("销售额重复","","草稿建议",
+            "ads.sales","amount","","city_id","主键维度");
+        Map<String,Object> first=live.importAutoSuggestions(
+            java.util.List.of(amount,amountTwice),"admin");
+        assertThat(first.get("count")).isEqualTo(1);
+        assertThat(first.get("skipped")).isEqualTo(1);
+        Map<String,Object> second=live.importAutoSuggestions(java.util.List.of(amount),"admin");
+        assertThat(second.get("count")).isEqualTo(0);
+        assertThat(jdbc.queryForObject(
+            "SELECT COUNT(*) FROM da_metric_definitions WHERE ads_table=? AND ads_field=?",
+            Integer.class,"ads.sales","amount")).isEqualTo(1);
     }
 
     @Test void previewsChineseMetricHeaders() throws Exception {
