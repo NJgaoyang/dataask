@@ -183,23 +183,28 @@ public class AdminController {
 
     @GetMapping("/roles")
     List<Map<String,Object>> roles() {
+        // Avoid a role/user aggregation join: older deployments can have a different
+        // da_users index/collation, and the role list must be resilient to orphaned users.
+        Map<String,Long> userCounts=new HashMap<>();
+        jdbc.query("SELECT role,COUNT(*) FROM da_users GROUP BY role",rs -> {
+            userCounts.put(rs.getString(1),rs.getLong(2));
+        });
+        Map<String,Set<String>> grants=new HashMap<>();
+        jdbc.query("SELECT role_code,permission_code FROM da_role_permissions ORDER BY role_code,permission_code",
+            rs -> grants.computeIfAbsent(rs.getString(1),unused -> new LinkedHashSet<>())
+                .add(rs.getString(2)));
         List<Map<String,Object>> result=new ArrayList<>();
-        for(Map<String,Object> row:jdbc.queryForList(
-            "SELECT r.code,r.name,r.built_in,r.enabled,COUNT(u.username) user_count " +
-            "FROM da_roles r LEFT JOIN da_users u ON u.role=r.code GROUP BY r.code,r.name,r.built_in,r.enabled ORDER BY r.built_in DESC,r.code")) {
-            String code=Objects.toString(row.get("code"),"");
+        jdbc.query("SELECT code,name,built_in,enabled FROM da_roles ORDER BY built_in DESC,code",rs -> {
+            String code=rs.getString(1);
             Set<String> permissions="ADMIN".equals(code)
                 ? com.dataask.security.RolePermissionService.ALL_PERMISSIONS
-                : new LinkedHashSet<>(jdbc.query(
-                    "SELECT permission_code FROM da_role_permissions WHERE role_code=? ORDER BY permission_code",
-                    (rs,n)->rs.getString(1),code));
-            result.add(Map.of("code",code,"name",Objects.toString(row.get("name"),code),
-                "builtIn",((Number)row.get("built_in")).intValue()!=0,
-                "enabled",((Number)row.get("enabled")).intValue()!=0,
+                : grants.getOrDefault(code,Set.of());
+            result.add(Map.of("code",code,"name",Objects.toString(rs.getString(2),code),
+                "builtIn",rs.getBoolean(3),"enabled",rs.getBoolean(4),
                 "cityScoped",!"ADMIN".equals(code),
                 "dataScope","ADMIN".equals(code)?"ALL":"CITY",
-                "permissions",permissions,"userCount",((Number)row.get("user_count")).longValue()));
-        }
+                "permissions",permissions,"userCount",userCounts.getOrDefault(code,0L)));
+        });
         return result;
     }
 
