@@ -233,19 +233,26 @@ public class MetricDictionaryService {
             candidate.toLowerCase(Locale.ROOT).endsWith("."+table.toLowerCase(Locale.ROOT))));
     }
 
-    private void saveCalculation(long id,MetricCalculation calculation) {
+    private void validateCalculation(MetricCalculation calculation) {
         if(calculation==null)return;
         String tables=clean(calculation.sourceTables());
-        String fields=clean(calculation.sourceFields());
-        String expression=clean(calculation.calculationExpression());
-        String joins=clean(calculation.joinRules());
-        if(tables.length()>4000 || fields.length()>4000 ||
-           expression.length()>8000 || joins.length()>5000)
+        if(tables.length()>4000 || clean(calculation.sourceFields()).length()>4000 ||
+           clean(calculation.calculationExpression()).length()>8000 ||
+           clean(calculation.joinRules()).length()>5000)
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST,"指标计算定义内容过长");
         for(String table:metricTables(tables,""))
             if(!table.matches("(?i)[a-z_][a-z0-9_]*\\.[a-z_][a-z0-9_]*"))
                 throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
                     "来源表必须填写 schema.table 格式，如 ads.sales_di");
+    }
+
+    private void saveCalculation(long id,MetricCalculation calculation) {
+        if(calculation==null)return;
+        validateCalculation(calculation);
+        String tables=clean(calculation.sourceTables());
+        String fields=clean(calculation.sourceFields());
+        String expression=clean(calculation.calculationExpression());
+        String joins=clean(calculation.joinRules());
         if(tables.isEmpty()&&fields.isEmpty()&&expression.isEmpty()&&joins.isEmpty()){
             jdbc.update("DELETE FROM da_metric_calculations WHERE metric_id=?",id);
             return;
@@ -265,6 +272,7 @@ public class MetricDictionaryService {
 
     @Transactional
     public void createMetric(MetricEdit input,String username,MetricCalculation calculation) {
+        validateCalculation(calculation);
         String batchId=UUID.randomUUID().toString();
         jdbc.update("INSERT INTO da_metric_import_batches(id,source_file,uploaded_by,row_count) VALUES(?,?,?,1)",
             batchId,"手工维护",username);
@@ -288,6 +296,7 @@ public class MetricDictionaryService {
 
     @Transactional
     public void updateMetric(long id,MetricEdit input,MetricCalculation calculation) {
+        validateCalculation(calculation);
         if(id<=0) throw new ResponseStatusException(HttpStatus.BAD_REQUEST,"指标 ID 无效");
         int updated=jdbc.update("UPDATE da_metric_definitions SET metric_name=?,aliases=?,definition=?,ads_table=?," +
             "ads_field=?,time_field=?,dimensions=?,notes=? WHERE id=?",
