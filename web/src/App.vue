@@ -441,7 +441,9 @@ const messages = ref([])
 const sessionId = ref('')
 let conversationVersion = 0
 const composerHeight = ref(148)
+const sidebarWidth = ref(216)
 let composerPointerDrag = null
+let sidebarPointerDrag = null
 function boundedComposerHeight(px) { return Math.max(94, Math.min(Math.round(window.innerHeight * 0.52), 430, Math.round(px))) }
 function adjustComposerHeight(delta) {
   composerHeight.value = boundedComposerHeight(composerHeight.value + delta)
@@ -466,6 +468,35 @@ function beginComposerDrag(e) {
   document.addEventListener('pointermove', moveComposerPointer)
   document.addEventListener('pointerup', finishComposerPointer)
   document.addEventListener('pointercancel', finishComposerPointer)
+}
+function boundedSidebarWidth(px) {
+  return Math.max(176, Math.min(360, Math.round(px)))
+}
+function adjustSidebarWidth(delta) {
+  sidebarWidth.value = boundedSidebarWidth(sidebarWidth.value + delta)
+  localStorage.setItem('dataask_sidebar_width', String(sidebarWidth.value))
+}
+function moveSidebarPointer(e) {
+  if (!sidebarPointerDrag || e.pointerId !== sidebarPointerDrag.id) return
+  sidebarWidth.value = boundedSidebarWidth(sidebarPointerDrag.width + e.clientX - sidebarPointerDrag.x)
+}
+function finishSidebarPointer() {
+  if (!sidebarPointerDrag) return
+  sidebarPointerDrag = null
+  document.documentElement.classList.remove('da-sidebar-resizing')
+  document.removeEventListener('pointermove', moveSidebarPointer)
+  document.removeEventListener('pointerup', finishSidebarPointer)
+  document.removeEventListener('pointercancel', finishSidebarPointer)
+  localStorage.setItem('dataask_sidebar_width', String(sidebarWidth.value))
+}
+function beginSidebarDrag(e) {
+  if (!isDesktop.value) return
+  e.preventDefault()
+  sidebarPointerDrag = { id:e.pointerId, x:e.clientX, width:sidebarWidth.value }
+  document.documentElement.classList.add('da-sidebar-resizing')
+  document.addEventListener('pointermove', moveSidebarPointer)
+  document.addEventListener('pointerup', finishSidebarPointer)
+  document.addEventListener('pointercancel', finishSidebarPointer)
 }
 const historyVisible = ref(false)
 const sessions = ref([])
@@ -1419,6 +1450,8 @@ function pretty(v) {
 onMounted(() => {
   const storedHeight = Number(localStorage.getItem('dataask_composer_height'))
   if (Number.isFinite(storedHeight) && storedHeight > 0) composerHeight.value = boundedComposerHeight(storedHeight)
+  const storedSidebarWidth = Number(localStorage.getItem('dataask_sidebar_width'))
+  if (Number.isFinite(storedSidebarWidth) && storedSidebarWidth > 0) sidebarWidth.value = boundedSidebarWidth(storedSidebarWidth)
   desktopMedia = window.matchMedia('(min-width: 1024px)')
   const update = () => { isDesktop.value = desktopMedia.matches }
   update()
@@ -1448,11 +1481,14 @@ onBeforeUnmount(() => {
   window.removeEventListener('focus', refreshSharedHistory)
   document.removeEventListener('visibilitychange', refreshSharedHistory)
   finishComposerPointer()
+  finishSidebarPointer()
 })
 </script>
 
 <template>
-  <div class="app-shell" :data-theme="isDesktop ? theme : undefined" :class="{ 'consumer-pc': isDesktop, 'consumer-home': isDesktop && desktopSection==='ask' && !messages.length && !busy && !desktopFeedback, 'analysis-panel-open': isDesktop && desktopSection==='ask' && analysisPanelOpen }">
+  <div class="app-shell" :data-theme="isDesktop ? theme : undefined"
+    :style="isDesktop ? { '--da-sidebar-w': sidebarWidth + 'px' } : undefined"
+    :class="{ 'consumer-pc': isDesktop, 'consumer-home': isDesktop && desktopSection==='ask' && !messages.length && !busy && !desktopFeedback, 'analysis-panel-open': isDesktop && desktopSection==='ask' && analysisPanelOpen }">
     <div v-if="!loggedIn" class="login-screen">
       <svg v-if="isDesktop" class="login-background-waves" viewBox="0 0 1647 216" preserveAspectRatio="none" aria-hidden="true">
         <defs>
@@ -1675,6 +1711,13 @@ onBeforeUnmount(() => {
             <button type="button" role="menuitem" aria-label="退出登录" class="da-logout-action" @click="desktopLogout"><van-icon name="sign" aria-hidden="true"/> 退出登录</button>
           </div>
         </div>
+        <div v-if="isDesktop" class="da-sidebar-resizer" role="separator"
+          aria-label="调整左侧导航宽度" aria-orientation="vertical"
+          :aria-valuenow="sidebarWidth" aria-valuemin="176" aria-valuemax="360"
+          tabindex="0"
+          @pointerdown="beginSidebarDrag"
+          @keydown.left.prevent="adjustSidebarWidth(-12)"
+          @keydown.right.prevent="adjustSidebarWidth(12)"></div>
       </aside>
       <header class="topbar">
         <div v-if="isDesktop" class="tb-header-breadcrumb">

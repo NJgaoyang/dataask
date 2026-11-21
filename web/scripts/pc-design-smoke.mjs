@@ -79,7 +79,20 @@ try {
     assert.match(await askNav.getAttribute('class'),/active/,'Authenticated desktop exposes New task as the default Q&A entry');
     assert.equal(await page.getByRole('button',{name:'查看全部会话'}).count(),0,'Recent section should contain recent questions only');
     const rail = await page.locator('.desktop-sidebar').boundingBox();
-    assert(Math.abs(rail.width - 216)<2,'Sidebar keeps the fixed enterprise rail width');
+    assert(Math.abs(rail.width - 216)<2,'Sidebar keeps the 216px default width');
+    const resizeEdge=page.locator('.da-sidebar-resizer');
+    const resizeBox=await resizeEdge.boundingBox();
+    assert(resizeBox && resizeBox.width<=10,'Sidebar resize edge stays visually unobtrusive');
+    await page.mouse.move(resizeBox.x+resizeBox.width/2,resizeBox.y+180);
+    await page.mouse.down();
+    await page.mouse.move(resizeBox.x+56,resizeBox.y+180,{steps:4});
+    await page.mouse.up();
+    const resizedRail=await page.locator('.desktop-sidebar').boundingBox();
+    assert(resizedRail.width>250 && resizedRail.width<=360,'Sidebar can be widened by dragging its edge');
+    await resizeEdge.focus();
+    await page.keyboard.press('ArrowLeft');
+    assert((await page.locator('.desktop-sidebar').boundingBox()).width<resizedRail.width,
+      'Sidebar width can also be adjusted without a visible drag handle');
     const account = await page.locator('.da-account-trigger').boundingBox();
     assert(account.x < 232 && account.y > height - 150,'Account must remain at bottom-left');
     await snap(page,`${width}-ask-home`);

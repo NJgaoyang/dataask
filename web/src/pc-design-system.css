@@ -115,9 +115,22 @@
 
   /* ---------- 3. Sidebar ---------- */
   .consumer-pc .desktop-sidebar{
-    grid-area:sidebar;display:flex;flex-direction:column;min-width:0;min-height:0;
+    position:relative;grid-area:sidebar;display:flex;flex-direction:column;min-width:0;min-height:0;
     background:var(--da-surface);border-right:1px solid var(--da-border);padding:0 var(--da-sp-3) var(--da-sp-3);
   }
+  .consumer-pc .da-sidebar-resizer{
+    position:absolute;z-index:20;top:0;right:-4px;bottom:0;width:8px;
+    border:0;outline:0;background:transparent;cursor:col-resize;touch-action:none;
+  }
+  .consumer-pc .da-sidebar-resizer::after{
+    content:"";position:absolute;top:0;bottom:0;left:3px;width:2px;
+    background:transparent;transition:background .12s;
+  }
+  .consumer-pc .da-sidebar-resizer:hover::after,
+  .consumer-pc .da-sidebar-resizer:focus-visible::after{background:var(--da-primary)}
+  html.da-sidebar-resizing,html.da-sidebar-resizing *{cursor:col-resize!important;user-select:none!important}
+  html.da-sidebar-resizing .consumer-pc .da-sidebar-resizer::after{background:var(--da-primary)}
+
   .consumer-pc .sidebar-brand{display:flex;align-items:center;gap:10px;height:var(--da-topbar-h);padding:0 var(--da-sp-2);flex-shrink:0}
   .consumer-pc .sidebar-brand .brand-icon{height:28px;width:28px;border-radius:var(--da-radius-md);background:transparent;color:#fff;font-size:13px;font-weight:700;display:flex;align-items:center;justify-content:center;flex-shrink:0;overflow:hidden}
   .consumer-pc .sidebar-brand .brand-glyph{height:100%;width:100%;display:block}
