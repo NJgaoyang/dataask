@@ -1391,7 +1391,99 @@ onBeforeUnmount(() => {
           </ul>
         </div>
         <div class="login-brand-visual" aria-hidden="true">
-          <img class="login-brand-hero" src="/login-hero.webp" alt="" draggable="false"/>
+          <svg class="login-brand-hero" viewBox="0 0 560 620" role="img" focusable="false" aria-hidden="true">
+            <defs>
+              <linearGradient id="hero-blue" x1="0" y1="0" x2="1" y2="1">
+                <stop offset="0%" stop-color="#79b7ff"/>
+                <stop offset="52%" stop-color="#438ef8"/>
+                <stop offset="100%" stop-color="#1f6fe7"/>
+              </linearGradient>
+              <linearGradient id="hero-blue-soft" x1="0" y1="0" x2="1" y2="1">
+                <stop offset="0%" stop-color="#e8f3ff" stop-opacity=".96"/>
+                <stop offset="100%" stop-color="#b9d9ff" stop-opacity=".78"/>
+              </linearGradient>
+              <linearGradient id="hero-glass" x1="0" y1="0" x2="0" y2="1">
+                <stop offset="0%" stop-color="#ffffff" stop-opacity=".96"/>
+                <stop offset="100%" stop-color="#eef6ff" stop-opacity=".78"/>
+              </linearGradient>
+              <linearGradient id="hero-base" x1="0" y1="0" x2="1" y2="1">
+                <stop offset="0%" stop-color="#fafdff"/>
+                <stop offset="38%" stop-color="#dbeaff"/>
+                <stop offset="72%" stop-color="#76adff"/>
+                <stop offset="100%" stop-color="#2f78e8"/>
+              </linearGradient>
+              <radialGradient id="hero-glow" cx="50%" cy="50%" r="50%">
+                <stop offset="0%" stop-color="#6ca9ff" stop-opacity=".26"/>
+                <stop offset="65%" stop-color="#b9d9ff" stop-opacity=".10"/>
+                <stop offset="100%" stop-color="#dcecff" stop-opacity="0"/>
+              </radialGradient>
+              <filter id="hero-shadow" x="-35%" y="-35%" width="170%" height="190%">
+                <feDropShadow dx="0" dy="22" stdDeviation="18" flood-color="#4a85d8" flood-opacity=".20"/>
+              </filter>
+              <filter id="hero-soft-shadow" x="-40%" y="-40%" width="180%" height="180%">
+                <feGaussianBlur stdDeviation="10"/>
+              </filter>
+            </defs>
+
+            <ellipse cx="304" cy="335" rx="236" ry="222" fill="url(#hero-glow)"/>
+            <ellipse cx="294" cy="540" rx="206" ry="42" fill="#7baeff" opacity=".16" filter="url(#hero-soft-shadow)"/>
+
+            <g filter="url(#hero-shadow)">
+              <ellipse cx="294" cy="515" rx="184" ry="47" fill="url(#hero-base)" opacity=".94"/>
+              <ellipse cx="294" cy="493" rx="156" ry="39" fill="#f8fcff" stroke="#d4e5ff" stroke-width="3"/>
+              <ellipse cx="294" cy="485" rx="134" ry="31" fill="#d9e9ff" opacity=".95"/>
+              <path d="M164 487 C165 525 423 530 430 489 L430 514 C422 552 169 549 164 509 Z" fill="url(#hero-blue)" opacity=".91"/>
+              <ellipse cx="294" cy="482" rx="126" ry="26" fill="#ffffff" opacity=".86"/>
+            </g>
+
+            <g transform="translate(125 92) rotate(-7 170 190)" filter="url(#hero-shadow)">
+              <rect x="34" y="27" width="314" height="350" rx="27" fill="url(#hero-glass)" stroke="#c7ddff" stroke-width="3"/>
+              <rect x="34" y="27" width="314" height="57" rx="27" fill="url(#hero-blue)"/>
+              <path d="M34 62h314v22H34z" fill="url(#hero-blue)"/>
+              <circle cx="62" cy="55" r="5.5" fill="#fff" opacity=".9"/>
+              <circle cx="80" cy="55" r="5.5" fill="#fff" opacity=".82"/>
+              <circle cx="98" cy="55" r="5.5" fill="#fff" opacity=".72"/>
+
+              <rect x="65" y="101" width="248" height="61" rx="16" fill="#fff" opacity=".92"/>
+              <circle cx="88" cy="132" r="10" fill="#2f7bea"/>
+              <text x="108" y="139" fill="#596d8c" font-size="19" font-weight="600"
+                font-family="Arial,'Microsoft YaHei',sans-serif">昨日营业额是多少？</text>
+
+              <g transform="translate(55 188)">
+                <rect width="268" height="143" rx="20" fill="#fff" opacity=".89"/>
+                <g transform="translate(26 35)">
+                  <rect x="0" y="48" width="24" height="43" rx="5" fill="#8fc1ff"/>
+                  <rect x="36" y="33" width="24" height="58" rx="5" fill="#70adff"/>
+                  <rect x="72" y="20" width="24" height="71" rx="5" fill="#559cff"/>
+                  <rect x="108" y="5" width="24" height="86" rx="5" fill="#3888f5"/>
+                  <rect x="144" y="29" width="24" height="62" rx="5" fill="#1f75ea"/>
+                </g>
+                <g transform="translate(197 67)">
+                  <circle cx="25" cy="25" r="31" fill="none" stroke="#cfe3ff" stroke-width="14"/>
+                  <path d="M25 -6 A31 31 0 0 1 54 35" fill="none" stroke="#1d74e8" stroke-width="14" stroke-linecap="round"/>
+                  <path d="M54 35 A31 31 0 0 1 5 49" fill="none" stroke="#6bb4ff" stroke-width="14" stroke-linecap="round"/>
+                </g>
+              </g>
+            </g>
+
+            <g transform="translate(383 82)" filter="url(#hero-shadow)">
+              <path d="M0 27c0-15 12-27 27-27h78c15 0 27 12 27 27v44c0 15-12 27-27 27H70l-25 18 4-18H27C12 98 0 86 0 71z" fill="url(#hero-blue)"/>
+              <circle cx="39" cy="49" r="7" fill="#fff"/>
+              <circle cx="65" cy="49" r="7" fill="#fff"/>
+              <circle cx="91" cy="49" r="7" fill="#fff"/>
+            </g>
+
+            <g transform="translate(418 430)" filter="url(#hero-shadow)">
+              <ellipse cx="44" cy="13" rx="44" ry="13" fill="#f8fdff" stroke="#b9d7ff" stroke-width="2"/>
+              <path d="M0 13v24c0 8 20 15 44 15s44-7 44-15V13" fill="url(#hero-blue-soft)" stroke="#b9d7ff" stroke-width="2"/>
+              <ellipse cx="44" cy="37" rx="44" ry="13" fill="#eff7ff" stroke="#8ebdff" stroke-width="2"/>
+              <path d="M0 37v23c0 8 20 15 44 15s44-7 44-15V37" fill="url(#hero-blue)" opacity=".88"/>
+              <ellipse cx="44" cy="60" rx="44" ry="13" fill="#5da0fb" opacity=".96"/>
+            </g>
+
+            <path d="M92 335 C24 352 24 418 101 438" fill="none" stroke="#78b2ff" stroke-width="2.5" opacity=".5"/>
+            <path d="M450 269 C548 289 551 362 467 385" fill="none" stroke="#78b2ff" stroke-width="2.5" opacity=".5"/>
+          </svg>
         </div>
       </aside>
       <main class="login-main">

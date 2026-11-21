@@ -232,11 +232,10 @@ try {
       assert.match(loginGrid,/px .*px/,'Desktop login should keep a two-column layout');
       const loginCardBox=await page.locator('.login-card').boundingBox();
       assert(loginCardBox && loginCardBox.width>=400 && loginCardBox.width<=500,'Login card should match the approved visual proportions');
-      assert.equal(await page.locator('.login-brand-hero').count(),1,'Desktop login uses the approved analytics illustration asset');
+      assert.equal(await page.locator('svg.login-brand-hero').count(),1,'Desktop login uses a transparent inline SVG analytics scene');
       assert.equal(await page.locator('.login-topbar').count(),0,'Login page must not show the internal-system security banner');
-      const heroStyle=await page.locator('.login-brand-hero').evaluate(el=>getComputedStyle(el));
-      assert.equal(heroStyle.mixBlendMode,'multiply','Hero background must blend into the page scene');
-      assert(heroStyle.maskImage!=='none' || heroStyle.webkitMaskImage!=='none','Hero edges must use a fade mask');
+      assert.equal(await page.locator('.login-brand-hero image').count(),0,'The hero must not contain a raster rectangle');
+      assert((await page.locator('.login-brand-hero defs').count())===1,'The SVG hero keeps gradients and shadows inside the transparent scene');
       const hero=await page.locator('.login-brand-hero').boundingBox();
       const card=await page.locator('.login-card').boundingBox();
       const viewport=page.viewportSize();
