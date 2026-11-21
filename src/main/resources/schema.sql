@@ -11,6 +11,34 @@ CREATE TABLE IF NOT EXISTS da_datasources (
  INDEX idx_da_datasource_updated (updated_at,id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
+CREATE TABLE IF NOT EXISTS da_roles (
+ code VARCHAR(16) NOT NULL PRIMARY KEY,
+ name VARCHAR(80) NOT NULL,
+ built_in TINYINT(1) NOT NULL DEFAULT 0,
+ enabled TINYINT(1) NOT NULL DEFAULT 1,
+ created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+ updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+CREATE TABLE IF NOT EXISTS da_role_permissions (
+ role_code VARCHAR(16) NOT NULL,
+ permission_code VARCHAR(64) NOT NULL,
+ created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+ PRIMARY KEY(role_code,permission_code),
+ INDEX idx_da_role_permission(permission_code)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+INSERT INTO da_roles(code,name,built_in,enabled) VALUES
+ ('ADMIN','管理员',1,1),
+ ('CITY_MANAGER','城市经理',1,1),
+ ('USER','普通用户',1,1)
+ON DUPLICATE KEY UPDATE built_in=VALUES(built_in),enabled=VALUES(enabled);
+
+INSERT IGNORE INTO da_role_permissions(role_code,permission_code) VALUES
+ ('ADMIN','ASK'),('ADMIN','CHARTS'),('ADMIN','SYSTEM_ADMIN'),
+ ('CITY_MANAGER','ASK'),('CITY_MANAGER','CHARTS'),
+ ('USER','ASK'),('USER','CHARTS');
+
 CREATE TABLE IF NOT EXISTS da_users (
  id BIGINT NOT NULL AUTO_INCREMENT PRIMARY KEY,
  username VARCHAR(64) NOT NULL UNIQUE,

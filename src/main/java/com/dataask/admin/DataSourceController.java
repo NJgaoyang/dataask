@@ -15,7 +15,7 @@ import java.util.*;
 
 @RestController
 @RequestMapping("/api/admin/datasources")
-@PreAuthorize("hasRole('ADMIN')")
+@PreAuthorize("hasAuthority('PERM_SYSTEM_ADMIN')")
 public class DataSourceController {
     private final JdbcTemplate jdbc;
     private final RuntimeConfigService settings;

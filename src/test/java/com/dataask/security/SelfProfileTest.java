@@ -22,15 +22,16 @@ class SelfProfileTest {
 
     @Test void profileReadsOnlyTheAuthenticatedUserAndNeverReturnsCredentials() {
         when(jdbc.queryForList(anyString(),eq("alice"))).thenReturn(List.of(Map.of(
-            "display_name","Alice", "created_at","2026-11-10 09:00:00", "password_hash","never-return-this")));
+            "display_name","Alice", "created_at","2026-11-10 09:00:00", "role","USER", "password_hash","never-return-this")));
         var profile = controller.profile(alice);
-        assertThat(profile).containsEntry("username","alice").containsEntry("displayName","Alice").containsEntry("role","USER");
-        assertThat(profile).containsOnlyKeys("username","displayName","createdAt","role");
-        verify(jdbc).queryForList("SELECT display_name,created_at FROM da_users WHERE username=?","alice");
+        assertThat(profile).containsEntry("username","alice").containsEntry("displayName","Alice")
+            .containsEntry("role","USER").containsEntry("roleName","USER").containsEntry("dataScope","ALL");
+        assertThat(profile).containsKeys("username","displayName","createdAt","role","roleName","permissions","dataScope");
+        verify(jdbc).queryForList("SELECT display_name,created_at,role FROM da_users WHERE username=?","alice");
     }
 
     @Test void displayNameUpdatesOnlyTheAuthenticatedAccountWithoutChangingRoleOrPassword() {
-        when(jdbc.queryForList(anyString(),eq("alice"))).thenReturn(List.of(Map.of("display_name","Alice")));
+        when(jdbc.queryForList(anyString(),eq("alice"))).thenReturn(List.of(Map.of("display_name","Alice","created_at","2026-11-10","role","USER")));
         assertThat(controller.updateProfile(new AuthController.UpdateProfileRequest("  Alice Zhang  "),alice))
             .containsEntry("displayName","Alice Zhang").containsEntry("username","alice");
         verify(jdbc).update("UPDATE da_users SET display_name=? WHERE username=?","Alice Zhang","alice");

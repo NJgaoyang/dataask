@@ -20,16 +20,17 @@ class CityPermissionBootstrapTest {
         CityPermissionService permissions=mock(CityPermissionService.class);
         String phone="13800138000";
         when(jdbc.queryForMap("SELECT username,display_name,role FROM da_users WHERE username=?",phone))
-            .thenReturn(Map.of("username",phone,"display_name","城市经理","role","USER"));
+            .thenReturn(Map.of("username",phone,"display_name","城市经理","role","CITY_MANAGER"));
         when(permissions.cities(phone)).thenReturn(List.of("上海市","杭州市"));
         var controller=new MiniappController(jdbc,mock(ChatController.class),
             new ObjectMapper(),mock(SqlGuard.class),mock(StarRocksGateway.class),permissions);
         var auth=new UsernamePasswordAuthenticationToken(phone,null,
-            List.of(new SimpleGrantedAuthority("ROLE_USER")));
+            List.of(new SimpleGrantedAuthority("ROLE_CITY_MANAGER"),new SimpleGrantedAuthority("SCOPE_CITY")));
         @SuppressWarnings("unchecked")
         Map<String,Object> user=(Map<String,Object>)controller.bootstrap(auth).get("user");
         assertThat(user.get("cities")).isEqualTo(List.of("上海市","杭州市"));
         assertThat(user.get("cityPermissionCount")).isEqualTo(2);
+        assertThat(user.get("dataScope")).isEqualTo("CITY");
         verify(permissions).cities(phone);
     }
 }

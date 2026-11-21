@@ -28,7 +28,7 @@ import java.util.*;
 
 @RestController
 @RequestMapping("/api/admin")
-@PreAuthorize("hasRole('ADMIN')")
+@PreAuthorize("hasAuthority('PERM_SYSTEM_ADMIN')")
 public class AdminController {
     private final StarRocksGateway starrocks;
     private final RuntimeConfigService settings;
@@ -162,11 +162,120 @@ public class AdminController {
         return Map.of("success",true);
     }
 
+
+    private boolean validRole(String role) {
+        if(role==null || !role.matches("[A-Z][A-Z0-9_]{1,15}")) return false;
+        if(Set.of("ADMIN","USER","CITY_MANAGER").contains(role)) return true;
+        Integer count=jdbc.queryForObject("SELECT COUNT(*) FROM da_roles WHERE code=? AND enabled=1",Integer.class,role);
+        return count!=null && count>0;
+    }
+
+    private static Set<String> normalizedPermissions(Collection<String> input) {
+        LinkedHashSet<String> result=new LinkedHashSet<>();
+        if(input!=null) for(String value:input) {
+            String code=value==null?"":value.strip().toUpperCase(Locale.ROOT);
+            if(!com.dataask.security.RolePermissionService.ALL_PERMISSIONS.contains(code))
+                throw new ResponseStatusException(HttpStatus.BAD_REQUEST,"包含不支持的权限："+code);
+            result.add(code);
+        }
+        return result;
+    }
+
+    @GetMapping("/roles")
+    List<Map<String,Object>> roles() {
+        List<Map<String,Object>> result=new ArrayList<>();
+        for(Map<String,Object> row:jdbc.queryForList(
+            "SELECT r.code,r.name,r.built_in,r.enabled,COUNT(u.username) user_count " +
+            "FROM da_roles r LEFT JOIN da_users u ON u.role=r.code GROUP BY r.code,r.name,r.built_in,r.enabled ORDER BY r.built_in DESC,r.code")) {
+            String code=Objects.toString(row.get("code"),"");
+            Set<String> permissions="ADMIN".equals(code)
+                ? com.dataask.security.RolePermissionService.ALL_PERMISSIONS
+                : new LinkedHashSet<>(jdbc.query(
+                    "SELECT permission_code FROM da_role_permissions WHERE role_code=? ORDER BY permission_code",
+                    (rs,n)->rs.getString(1),code));
+            result.add(Map.of("code",code,"name",Objects.toString(row.get("name"),code),
+                "builtIn",((Number)row.get("built_in")).intValue()!=0,
+                "enabled",((Number)row.get("enabled")).intValue()!=0,
+                "cityScoped","CITY_MANAGER".equals(code),
+                "dataScope","CITY_MANAGER".equals(code)?"CITY":"ALL",
+                "permissions",permissions,"userCount",((Number)row.get("user_count")).longValue()));
+        }
+        return result;
+    }
+
+    record RoleRequest(@NotBlank @Size(max=16) String code,@NotBlank @Size(max=80) String name,
+                       Set<String> permissions) {}
+    record RoleEditRequest(@NotBlank @Size(max=80) String name,Set<String> permissions) {}
+
+    @PostMapping("/roles")
+    @Transactional
+    Map<String,Object> createRole(@Valid @RequestBody RoleRequest input) {
+        String code=input.code().strip().toUpperCase(Locale.ROOT);
+        String name=input.name().strip();
+        if(!code.matches("[A-Z][A-Z0-9_]{2,15}") || Set.of("ADMIN","USER","CITY_MANAGER").contains(code))
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST,"角色编码需为3至16位大写字母、数字或下划线，且不能使用系统角色编码");
+        Set<String> permissions=normalizedPermissions(input.permissions());
+        if(permissions.isEmpty())
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST,"角色至少需要一个功能权限");
+        try {
+            jdbc.update("INSERT INTO da_roles(code,name,built_in,enabled) VALUES(?,?,0,1)",code,name);
+        } catch(DuplicateKeyException e) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST,"角色编码已存在");
+        }
+        for(String permission:permissions)
+            jdbc.update("INSERT INTO da_role_permissions(role_code,permission_code) VALUES(?,?)",code,permission);
+        AuditContext.set("target","角色："+code);
+        AuditContext.set("detail","新建角色："+name+"；权限："+String.join(",",permissions));
+        return Map.of("success",true,"code",code);
+    }
+
+    @PutMapping("/roles/{code}")
+    @Transactional
+    Map<String,Object> updateRole(@PathVariable String code,@Valid @RequestBody RoleEditRequest input) {
+        code=code.strip().toUpperCase(Locale.ROOT);
+        if("ADMIN".equals(code))
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST,"管理员为系统内置角色，权限固定为全部");
+        List<Map<String,Object>> roleRows=jdbc.queryForList("SELECT name,built_in FROM da_roles WHERE code=?",code);
+        if(roleRows.isEmpty()) throw new ResponseStatusException(HttpStatus.NOT_FOUND,"角色不存在");
+        if(((Number)roleRows.getFirst().get("built_in")).intValue()!=0)
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST,"系统内置角色不能修改");
+        String name=input.name().strip();
+        Set<String> permissions=normalizedPermissions(input.permissions());
+        if(permissions.isEmpty())
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST,"角色至少需要一个功能权限");
+        jdbc.update("UPDATE da_roles SET name=? WHERE code=?",name,code);
+        jdbc.update("DELETE FROM da_role_permissions WHERE role_code=?",code);
+        for(String permission:permissions)
+            jdbc.update("INSERT INTO da_role_permissions(role_code,permission_code) VALUES(?,?)",code,permission);
+        AuditContext.set("target","角色："+code);
+        AuditContext.set("detail","角色名称："+name+"；权限："+String.join(",",permissions));
+        return Map.of("success",true);
+    }
+
+    @DeleteMapping("/roles/{code}")
+    @Transactional
+    Map<String,Object> deleteRole(@PathVariable String code) {
+        code=code.strip().toUpperCase(Locale.ROOT);
+        List<Map<String,Object>> rows=jdbc.queryForList("SELECT built_in FROM da_roles WHERE code=? FOR UPDATE",code);
+        if(rows.isEmpty()) throw new ResponseStatusException(HttpStatus.NOT_FOUND,"角色不存在");
+        if(((Number)rows.getFirst().get("built_in")).intValue()!=0)
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST,"系统内置角色不能删除");
+        Integer users=jdbc.queryForObject("SELECT COUNT(*) FROM da_users WHERE role=?",Integer.class,code);
+        if(users!=null && users>0)
+            throw new ResponseStatusException(HttpStatus.CONFLICT,"该角色仍有用户，不能删除");
+        jdbc.update("DELETE FROM da_role_permissions WHERE role_code=?",code);
+        jdbc.update("DELETE FROM da_roles WHERE code=?",code);
+        AuditContext.set("target","角色："+code);
+        AuditContext.set("detail","删除自定义角色");
+        return Map.of("success",true);
+    }
+
     @GetMapping("/users")
     List<Map<String,Object>> users() {
-        return jdbc.query("SELECT username,display_name,role,created_at FROM da_users ORDER BY id",
+        return jdbc.query("SELECT u.username,u.display_name,u.role,COALESCE(r.name,u.role),u.created_at " +
+                "FROM da_users u LEFT JOIN da_roles r ON r.code=u.role ORDER BY u.id",
             (rs,n)->Map.of("username",rs.getString(1),"displayName",rs.getString(2),
-                "role",rs.getString(3),"createdAt",rs.getTimestamp(4).toString()));
+                "role",rs.getString(3),"roleName",rs.getString(4),"createdAt",rs.getTimestamp(5).toString()));
     }
 
     record UserRequest(@NotBlank String username,@NotBlank @Size(max=80) String displayName,
@@ -178,8 +287,8 @@ public class AdminController {
         AuditContext.set("detail","显示名称："+input.displayName()+"；角色："+input.role());
         if(!input.username().matches("[A-Za-z0-9_-]{3,64}"))
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST,"账号仅允许3~64位字母、数字、下划线和横线");
-        if(!Set.of("ADMIN","USER").contains(input.role()))
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST,"角色只能是 ADMIN 或 USER");
+        if(!validRole(input.role()))
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST,"角色不存在或已停用");
         if(input.password()==null || input.password().length()<10)
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST,"密码至少10位");
         try{
@@ -206,8 +315,8 @@ public class AdminController {
         AuditContext.set("detail","显示名称："+input.displayName()+"；角色："+input.role());
         if (!username.matches("[A-Za-z0-9_-]{3,64}"))
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "账号格式不正确");
-        if (!Set.of("ADMIN","USER").contains(input.role()))
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "角色只能是 ADMIN 或 USER");
+        if (!validRole(input.role()))
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "角色不存在或已停用");
         String displayName = input.displayName().trim();
         if (displayName.isBlank() || displayName.length()>80)
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "姓名需要1至80个字符");
@@ -218,8 +327,8 @@ public class AdminController {
             throw new ResponseStatusException(HttpStatus.NOT_FOUND, "用户不存在");
         String previousRole=(String) row.getFirst().get("role");
         if (operator.getName().equals(username) && !previousRole.equals(input.role()))
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "不能修改自己的管理员角色");
-        if ("ADMIN".equals(previousRole) && "USER".equals(input.role())) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "不能修改自己的角色");
+        if ("ADMIN".equals(previousRole) && !"ADMIN".equals(input.role())) {
             // Lock all admin rows to serialize simultaneous demotion attempts.
             List<Map<String,Object>> administrators = jdbc.queryForList(
                 "SELECT username FROM da_users WHERE role='ADMIN' ORDER BY username FOR UPDATE");

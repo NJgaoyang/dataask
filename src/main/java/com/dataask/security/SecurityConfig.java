@@ -45,6 +45,8 @@ import java.time.Instant;
 import java.util.Base64;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
+import java.util.Set;
 
 @Configuration
 @EnableWebSecurity
@@ -60,7 +62,11 @@ public class SecurityConfig {
             .authorizeHttpRequests(a -> a
                 .requestMatchers(org.springframework.http.HttpMethod.POST, "/api/auth/login").permitAll()
                 .requestMatchers("/api/health").permitAll()
-                .requestMatchers("/api/admin/**").hasRole("ADMIN")
+                .requestMatchers("/api/admin/**").hasAuthority("PERM_SYSTEM_ADMIN")
+                .requestMatchers("/api/chat/**").hasAuthority("PERM_ASK")
+                .requestMatchers("/api/mini/charts", "/api/mini/charts/**").hasAuthority("PERM_CHARTS")
+                .requestMatchers("/api/mini/sessions/**").hasAuthority("PERM_ASK")
+                .requestMatchers("/api/mini/bootstrap").authenticated()
                 .requestMatchers("/api/**").authenticated()
                 .anyRequest().permitAll())
             .exceptionHandling(e -> e.authenticationEntryPoint(
@@ -126,7 +132,7 @@ class JwtTokens {
             String username = payload.path("sub").asText("");
             String role = payload.path("role").asText("");
             String pwd = payload.path("pwd").asText("");
-            if (username.isBlank() || pwd.isBlank() || !(role.equals("USER") || role.equals("ADMIN"))
+            if (username.isBlank() || pwd.isBlank() || !role.matches("[A-Z][A-Z0-9_]{1,15}")
                 || payload.path("exp").asLong(0) <= Instant.now().getEpochSecond()) return null;
             return new Identity(username, role, pwd);
         } catch (Exception e) { return null; }
@@ -153,7 +159,10 @@ class JwtTokens {
 class JwtFilter extends OncePerRequestFilter {
     private final JwtTokens tokens;
     private final JdbcTemplate jdbc;
-    JwtFilter(JwtTokens tokens, JdbcTemplate jdbc) { this.tokens = tokens; this.jdbc = jdbc; }
+    private final RolePermissionService roles;
+    JwtFilter(JwtTokens tokens, JdbcTemplate jdbc, RolePermissionService roles) {
+        this.tokens = tokens; this.jdbc = jdbc; this.roles = roles;
+    }
 
     @Override
     protected void doFilterInternal(HttpServletRequest request, HttpServletResponse response, FilterChain chain)
@@ -167,9 +176,13 @@ class JwtFilter extends OncePerRequestFilter {
                 if (!users.isEmpty() && id.role().equals(users.getFirst().get("role"))
                     && id.passwordStamp().equals(JwtTokens.passwordStamp(
                         (String) users.getFirst().get("password_hash")))) {
-                    Authentication principal = new UsernamePasswordAuthenticationToken(
-                        id.username(), null, List.of(new SimpleGrantedAuthority("ROLE_" + id.role())));
-                    org.springframework.security.core.context.SecurityContextHolder.getContext().setAuthentication(principal);
+                    try {
+                        Authentication principal = new UsernamePasswordAuthenticationToken(
+                            id.username(), null, roles.authorities(id.role()));
+                        org.springframework.security.core.context.SecurityContextHolder.getContext().setAuthentication(principal);
+                    } catch (ResponseStatusException ignored) {
+                        // Disabled/deleted roles invalidate existing JWTs immediately.
+                    }
                 }
             }
         }
@@ -184,20 +197,28 @@ class AuthController {
     private final PasswordEncoder passwords;
     private final JwtTokens tokens;
     private final CityPermissionService cities;
+    private final RolePermissionService roles;
 
     @org.springframework.beans.factory.annotation.Autowired
     AuthController(JdbcTemplate jdbc, PasswordEncoder passwords, JwtTokens tokens,
+                   CityPermissionService cities, RolePermissionService roles) {
+        this.jdbc=jdbc;this.passwords=passwords;this.tokens=tokens;this.cities=cities;this.roles=roles;
+    }
+    AuthController(JdbcTemplate jdbc, PasswordEncoder passwords, JwtTokens tokens,
                    CityPermissionService cities) {
-        this.jdbc=jdbc;this.passwords=passwords;this.tokens=tokens;this.cities=cities;
+        this(jdbc,passwords,tokens,cities,null);
     }
     AuthController(JdbcTemplate jdbc, PasswordEncoder passwords, JwtTokens tokens) {
-        this(jdbc,passwords,tokens,null);
+        this(jdbc,passwords,tokens,null,null);
     }
 
     @GetMapping("/city-permissions")
     Map<String,Object> cityPermissions(Authentication auth) {
+        boolean cityScoped=auth.getAuthorities().stream().anyMatch(a->"SCOPE_CITY".equals(a.getAuthority()));
+        if(!cityScoped) return Map.of("cities",List.of(),"count",0,"scope","ALL","allCities",true,"source","role");
         List<String> allowed=cities==null?List.of():cities.cities(auth.getName());
-        return Map.of("cities",allowed,"count",allowed.size(),"source","ads.ads_user_city_permission");
+        return Map.of("cities",allowed,"count",allowed.size(),"scope","CITY","allCities",false,
+            "source","ads.ads_user_city_permission");
     }
     record LoginRequest(@NotBlank String username, @NotBlank String password) {}
 
@@ -210,10 +231,16 @@ class AuthController {
             throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "用户名或密码错误");
         Map<String, Object> user = users.getFirst();
         AuditContext.set("username", (String) user.get("username"));
-        AuditContext.set("role", (String) user.get("role"));
-        return Map.of("token", tokens.issue((String) user.get("username"), (String) user.get("role"),
+        String role=(String)user.get("role");
+        RolePermissionService.Access access=roles==null
+            ? new RolePermissionService.Access(role,role,"CITY_MANAGER".equals(role),
+                "ADMIN".equals(role)?RolePermissionService.ALL_PERMISSIONS:Set.of(RolePermissionService.ASK,RolePermissionService.CHARTS))
+            : roles.accessForRole(role);
+        AuditContext.set("role", role);
+        return Map.of("token", tokens.issue((String) user.get("username"), role,
                 (String) user.get("password_hash")),
-            "username", user.get("username"), "displayName", user.get("display_name"), "role", user.get("role"));
+            "username", user.get("username"), "displayName", user.get("display_name"), "role", role,
+            "roleName",access.name(),"permissions",access.permissions(),"dataScope",access.cityScoped()?"CITY":"ALL");
     }
 
     record ChangePasswordRequest(
@@ -250,18 +277,23 @@ class AuthController {
     }
 
     @GetMapping("/me")
-    Map<String, String> me(Authentication auth) {
+    Map<String,Object> me(Authentication auth) {
         return profile(auth);
     }
 
     @GetMapping("/profile")
-    Map<String,String> profile(Authentication auth) {
+    Map<String,Object> profile(Authentication auth) {
         List<Map<String,Object>> users = jdbc.queryForList(
-            "SELECT display_name,created_at FROM da_users WHERE username=?", auth.getName());
+            "SELECT display_name,created_at,role FROM da_users WHERE username=?", auth.getName());
         if (users.isEmpty()) throw new ResponseStatusException(HttpStatus.NOT_FOUND, "账号不存在");
-        boolean admin = auth.getAuthorities().stream().anyMatch(a -> "ROLE_ADMIN".equals(a.getAuthority()));
         var user = users.getFirst();
-        return Map.of("username", auth.getName(), "role", admin ? "ADMIN" : "USER",
+        String role=Objects.toString(user.get("role"),"USER");
+        RolePermissionService.Access access=roles==null
+            ? new RolePermissionService.Access(role,role,"CITY_MANAGER".equals(role),
+                "ADMIN".equals(role)?RolePermissionService.ALL_PERMISSIONS:Set.of(RolePermissionService.ASK,RolePermissionService.CHARTS))
+            : roles.accessForRole(role);
+        return Map.of("username", auth.getName(), "role", role,"roleName",access.name(),
+            "permissions",access.permissions(),"dataScope",access.cityScoped()?"CITY":"ALL",
             "displayName", java.util.Objects.toString(user.get("display_name"), auth.getName()),
             "createdAt", java.util.Objects.toString(user.get("created_at"), ""));
     }
@@ -269,7 +301,7 @@ class AuthController {
     record UpdateProfileRequest(@NotBlank String displayName) {}
 
     @PutMapping("/profile")
-    Map<String,String> updateProfile(@Valid @RequestBody UpdateProfileRequest input, Authentication auth) {
+    Map<String,Object> updateProfile(@Valid @RequestBody UpdateProfileRequest input, Authentication auth) {
         String name = input.displayName() == null ? "" : input.displayName().strip();
         if (name.isEmpty() || name.length() > 100 || name.chars().anyMatch(Character::isISOControl))
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "显示名称需为1到100个字符，且不能包含控制字符");

@@ -22,7 +22,7 @@ public class RecordListController {
         return p.result(jdbc.queryForList("SELECT "+fields+" "+from+" ORDER BY "+order+" LIMIT ? OFFSET ?",values.toArray()),total);
     }
     @GetMapping("/admin/users/page")
-    @PreAuthorize("hasRole('ADMIN')")
+    @PreAuthorize("hasAuthority('PERM_SYSTEM_ADMIN')")
     public Map<String,Object> users(@RequestParam(defaultValue="1") int page,@RequestParam(defaultValue="10") int pageSize,@RequestParam(defaultValue="") String keyword) {
         String pattern=ListPage.pattern(keyword);
         return query("username,display_name AS displayName,role,created_at AS createdAt","FROM da_users WHERE username LIKE ? ESCAPE '!' OR display_name LIKE ? ESCAPE '!'","id",List.of(pattern,pattern),page,pageSize);
@@ -60,13 +60,13 @@ public class RecordListController {
         return query("c.id,c.owner_username AS ownerUsername,c.question,c.title,c.chart_type AS chartType,c.updated_at AS updatedAt,c.created_at AS createdAt","FROM da_saved_charts c WHERE "+where,"c.updated_at "+(sort.equals("oldest") ? "ASC" : "DESC")+",c.id",args,page,pageSize);
     }
     @GetMapping("/admin/metrics/page")
-    @PreAuthorize("hasRole('ADMIN')")
+    @PreAuthorize("hasAuthority('PERM_SYSTEM_ADMIN')")
     public Map<String,Object> metrics(@RequestParam(defaultValue="1") int page,@RequestParam(defaultValue="10") int pageSize,@RequestParam(defaultValue="") String keyword) {
         String pattern=ListPage.pattern(keyword);
         return query("id,metric_name AS metricName,definition,ads_table AS adsTable,ads_field AS adsField","FROM da_metric_definitions WHERE metric_name LIKE ? ESCAPE '!' OR definition LIKE ? ESCAPE '!'","id DESC",List.of(pattern,pattern),page,pageSize);
     }
     @GetMapping("/admin/metrics/batches/page")
-    @PreAuthorize("hasRole('ADMIN')")
+    @PreAuthorize("hasAuthority('PERM_SYSTEM_ADMIN')")
     public Map<String,Object> batches(@RequestParam(defaultValue="1") int page,@RequestParam(defaultValue="10") int pageSize,@RequestParam(defaultValue="") String keyword) {
         return query("id,source_file AS filename,uploaded_by AS uploadedBy,row_count AS count,created_at AS createdAt","FROM da_metric_import_batches WHERE source_file LIKE ? ESCAPE '!'","created_at DESC,id DESC",List.of(ListPage.pattern(keyword)),page,pageSize);
     }

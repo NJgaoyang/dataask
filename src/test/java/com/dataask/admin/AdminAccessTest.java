@@ -40,9 +40,11 @@ class AdminAccessTest {
     }
 
     private void authenticate(String role) {
+        var authorities = "ADMIN".equals(role)
+            ? List.of(new SimpleGrantedAuthority("ROLE_ADMIN"),new SimpleGrantedAuthority("PERM_SYSTEM_ADMIN"))
+            : List.of(new SimpleGrantedAuthority("ROLE_" + role));
         SecurityContextHolder.getContext().setAuthentication(
-            new UsernamePasswordAuthenticationToken("test-user", null,
-                List.of(new SimpleGrantedAuthority("ROLE_" + role))));
+            new UsernamePasswordAuthenticationToken("test-user", null, authorities));
     }
 
     @AfterEach

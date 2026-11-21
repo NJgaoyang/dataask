@@ -75,12 +75,31 @@ class AdminUserManagementTest {
     }
 
     @Test
-    void rejectsInvalidRole() {
+    void rejectsUnknownCustomRole() {
+        when(jdbc.queryForObject(
+            eq("SELECT COUNT(*) FROM da_roles WHERE code=? AND enabled=1"),eq(Integer.class),eq("SUPERUSER")))
+            .thenReturn(0);
         ResponseStatusException error=assertThrows(ResponseStatusException.class,
             () -> controller.updateUser("alice",
                 new AdminController.UserEditRequest("Alice","SUPERUSER"),operator));
         assertEquals(HttpStatus.BAD_REQUEST,error.getStatusCode());
-        verifyNoInteractions(jdbc);
+        verify(jdbc).queryForObject("SELECT COUNT(*) FROM da_roles WHERE code=? AND enabled=1",Integer.class,"SUPERUSER");
+    }
+
+    @Test
+    void acceptsExistingCustomRole() {
+        when(jdbc.queryForObject(
+            eq("SELECT COUNT(*) FROM da_roles WHERE code=? AND enabled=1"),eq(Integer.class),eq("FINANCE")))
+            .thenReturn(1);
+        when(jdbc.queryForList(
+            eq("SELECT role FROM da_users WHERE username=? FOR UPDATE"),eq("alice")))
+            .thenReturn(List.of(Map.of("role","USER")));
+        when(jdbc.update(anyString(),eq("Alice"),eq("FINANCE"),eq("alice"))).thenReturn(1);
+        Map<String,Object> result=controller.updateUser("alice",
+            new AdminController.UserEditRequest("Alice","FINANCE"),operator);
+        assertEquals(true,result.get("success"));
+        verify(jdbc).update("UPDATE da_users SET display_name=?,role=? WHERE username=?",
+            "Alice","FINANCE","alice");
     }
 
     @Test

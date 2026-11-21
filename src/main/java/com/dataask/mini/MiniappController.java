@@ -70,10 +70,13 @@ public class MiniappController {
     public Map<String,Object> bootstrap(Authentication user) {
         Map<String,Object> account = jdbc.queryForMap(
             "SELECT username,display_name,role FROM da_users WHERE username=?", user.getName());
-        List<String> allowed=cities==null?List.of():cities.cities(user.getName());
+        boolean cityScoped=user.getAuthorities().stream().anyMatch(a->"SCOPE_CITY".equals(a.getAuthority()));
+        List<String> allowed=cityScoped && cities!=null ? cities.cities(user.getName()) : List.of();
         account=new LinkedHashMap<>(account);
         account.put("cities",allowed);
         account.put("cityPermissionCount",allowed.size());
+        account.put("dataScope",cityScoped?"CITY":"ALL");
+        account.put("allCities",!cityScoped);
         return Map.of("user", account, "suggestions", List.of(
             "昨日营业额是多少？", "近7天的订单量趋势如何？", "按城市看营业额TOP10",
             "本月新增用户数及环比？", "本周营业额趋势怎么样？", "昨天订单总数是多少？"));

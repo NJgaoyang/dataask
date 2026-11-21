@@ -32,7 +32,7 @@ class AuditSecurityTest {
     private String adminToken, userToken;
 
     @Configuration @EnableWebMvc @EnableTransactionManagement
-    @Import({SecurityConfig.class,JwtTokens.class,JwtFilter.class,AuthController.class,AuditService.class,AuditController.class,ClientAuditController.class,com.dataask.common.RecordListController.class,com.dataask.admin.DataSourceController.class,com.dataask.config.RuntimeConfigService.class})
+    @Import({SecurityConfig.class,JwtTokens.class,JwtFilter.class,AuthController.class,RolePermissionService.class,AuditService.class,AuditController.class,ClientAuditController.class,com.dataask.common.RecordListController.class,com.dataask.admin.DataSourceController.class,com.dataask.config.RuntimeConfigService.class})
     static class Config {
         @Bean DataSource dataSource() { return AuditTestDatabase.create(); }
         @Bean JdbcTemplate jdbcTemplate(DataSource ds) { return new JdbcTemplate(ds); }

@@ -90,3 +90,19 @@ WHERE setting_key IN ('ai.apiKey','embedding.apiKey','sr.password');
 - PC 系统管理子页面的「返回系统管理」按钮改为显眼的浅蓝按钮，高度至少 43px。
 
 `mvn test` 中加入已授权多表 JOIN 放行、未授权表 JOIN 拒绝及清除 API Key 时拒绝测试的回归检查。
+
+
+## 角色与数据权限
+
+DataAsk 使用“角色功能权限 + 数据范围”两层控制：
+
+- `ADMIN`：系统内置管理员，固定拥有 `ASK`、`CHARTS`、`SYSTEM_ADMIN`，数据范围为全部城市。
+- `CITY_MANAGER`：系统内置城市经理，拥有问数和图表能力，查询数据时必须读取 `ads.ads_user_city_permission`，使用登录账号匹配 `username_en` 并按授权城市过滤。
+- `USER`：系统内置普通用户，默认拥有问数和图表能力，数据范围为全部城市。
+- 自定义角色：管理员可创建角色并选择 `ASK`、`CHARTS`、`SYSTEM_ADMIN`；自定义角色不启用城市过滤。
+
+角色存储于 `da_roles`，功能权限存储于 `da_role_permissions`。用户继续通过 `da_users.role` 绑定一个角色。
+
+每次请求 JWT 只用于确认用户和角色声明，实际功能权限都会从 MySQL 重新读取，因此角色权限调整无需等待旧 token 过期即可生效。只有 `CITY_MANAGER` 会获得 `SCOPE_CITY` authority；StarRocks 查询层只在存在该 authority 时注入城市 `IN (...)` 条件。
+
+系统内置角色不可删除或改名；管理员权限固定。自定义角色仍有用户绑定时不能删除。

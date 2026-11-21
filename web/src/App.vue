@@ -8,6 +8,7 @@ import QueryExplanation from './components/QueryExplanation.vue'
 import AdminAuditLog from './components/AdminAuditLog.vue'
 import AdminDataSources from './components/AdminDataSources.vue'
 import AdminUsers from './components/AdminUsers.vue'
+import AdminRoles from './components/AdminRoles.vue'
 import ModelConfigCenter from './components/ModelConfigCenter.vue'
 import RecordList from './components/RecordList.vue'
 import ListPagination from './components/ListPagination.vue'
@@ -40,6 +41,8 @@ const loggedIn = ref(!!sessionStorage.getItem('dataask_token'))
 // Stored profile is display-only. Permissions are resolved from the authenticated server.
 const me = ref(JSON.parse(sessionStorage.getItem('dataask_user') || '{}'))
 const verifiedRole = ref('')
+const verifiedPermissions = ref([])
+const cityPermissionScope = ref('ALL')
 const loginForm = ref({ username: 'admin', password: '' })
 const loggingIn = ref(false)
 const showPassword = ref(false)
@@ -67,9 +70,11 @@ async function loadCityPermissions() {
     const {data}=await api.get('/auth/city-permissions')
     if(epoch!==authEpoch || token!==sessionStorage.getItem('dataask_token')) return
     cityPermissions.value=Array.isArray(data.cities) ? data.cities : []
+    cityPermissionScope.value=data.scope==='CITY'?'CITY':'ALL'
   } catch(e) {
     if(epoch!==authEpoch || token!==sessionStorage.getItem('dataask_token')) return
     cityPermissions.value=[]
+    cityPermissionScope.value='ALL'
     cityPermissionError.value=errorText(e)
   } finally {
     if(epoch===authEpoch) cityPermissionLoading.value=false
@@ -375,7 +380,7 @@ function isRedundantSummary(msg) {
 
 const desktopSection = ref('ask')
 const adminExpanded = ref(false)
-const desktopAdminSections = ['admin-overview','admin-source','admin-model','admin-tables','admin-metrics','admin-users','admin-status','admin-audit']
+const desktopAdminSections = ['admin-overview','admin-source','admin-model','admin-tables','admin-metrics','admin-users','admin-roles','admin-status','admin-audit']
 const adminSectionBusy = ref(false)
 const modelConfigVisible = ref(false)
 const modelCenterRef = ref(null)
@@ -402,7 +407,7 @@ const desktopSectionTitle = computed(() => ({
   ask:'智能问数',charts:'我的图表',history:'历史会话',
   'admin-overview':'系统管理','admin-source':'数据源配置','admin-model':'模型配置',
   'admin-tables':'ADS 表授权',
-  'admin-metrics':'指标口径','admin-users':'用户管理',
+  'admin-metrics':'指标口径','admin-users':'用户管理','admin-roles':'角色权限',
   'admin-status':'配置状态','admin-audit':'审计日志'
 })[desktopSection.value] || '智能问数')
 const desktopIsAdminSection = computed(() => desktopSection.value.startsWith('admin-'))
@@ -567,14 +572,29 @@ async function loadApprovedDatasets() {
   }
 }
 const isAdmin = computed(() => loggedIn.value && verifiedRole.value === 'ADMIN')
+function authPermissions(data) {
+  if (Array.isArray(data?.permissions)) return data.permissions.map(String)
+  return data?.role === 'ADMIN' ? ['ASK','CHARTS','SYSTEM_ADMIN'] : ['ASK','CHARTS']
+}
+const hasPermission = code => verifiedPermissions.value.includes(code) || isAdmin.value
+const canAsk = computed(() => loggedIn.value && hasPermission('ASK'))
+const canCharts = computed(() => loggedIn.value && hasPermission('CHARTS'))
+const canSystemAdmin = computed(() => loggedIn.value && hasPermission('SYSTEM_ADMIN'))
 function requireAdmin() {
-  if (isAdmin.value) return true
-  showFailToast('仅系统管理员可以管理模型、数据源和系统配置')
+  if (canSystemAdmin.value) return true
+  showFailToast('当前角色没有系统管理权限')
   return false
+}
+function defaultDesktopSection() {
+  if (hasPermission('ASK')) return 'ask'
+  if (hasPermission('CHARTS')) return 'charts'
+  if (hasPermission('SYSTEM_ADMIN')) return 'admin-overview'
+  return 'ask'
 }
 async function refreshAuthenticatedRole() {
   if (!sessionStorage.getItem('dataask_token')) {
     verifiedRole.value = ''
+    verifiedPermissions.value = []
     return
   }
   verifiedRole.value = ''
@@ -585,15 +605,19 @@ async function refreshAuthenticatedRole() {
     const { data } = await api.get('/auth/me')
     if (epoch !== authEpoch || token !== sessionStorage.getItem('dataask_token')) return
     const username = String(data.username || '')
-    const role = data.role === 'ADMIN' ? 'ADMIN' : 'USER'
-    // Do not trust a cached role, even when somebody alters sessionStorage manually.
+    const role = String(data.role || '')
+    const permissions = authPermissions(data)
+    // Do not trust a cached role or permissions, even when somebody alters sessionStorage manually.
     const displayName = data.displayName || (me.value.username === username ? (me.value.displayName || username) : username)
-    me.value = { username, displayName, role }
+    me.value = { username, displayName, role, roleName:data.roleName || role, permissions, dataScope:data.dataScope || 'ALL' }
     sessionStorage.setItem('dataask_user', JSON.stringify(me.value))
     verifiedRole.value = role
+    verifiedPermissions.value = permissions
+    cityPermissionScope.value = data.dataScope === 'CITY' ? 'CITY' : 'ALL'
   } catch (e) {
     if (epoch !== authEpoch || token !== sessionStorage.getItem('dataask_token')) return
     verifiedRole.value = ''
+    verifiedPermissions.value = []
     if (e.response?.status === 401) {
       sessionStorage.removeItem('dataask_token')
       sessionStorage.removeItem('dataask_user')
@@ -674,13 +698,21 @@ async function login() {
     const { data } = await api.post('/auth/login', loginForm.value)
     authEpoch++
     sessionStorage.setItem('dataask_token', data.token)
-    const user = { username: data.username, displayName: data.displayName, role: data.role }
+    const permissions = authPermissions(data)
+    const user = { username:data.username, displayName:data.displayName, role:data.role,
+      roleName:data.roleName || data.role, permissions, dataScope:data.dataScope || 'ALL' }
     sessionStorage.setItem('dataask_user', JSON.stringify(user))
-    verifiedRole.value = data.role === 'ADMIN' ? 'ADMIN' : 'USER'
+    verifiedRole.value = String(data.role || '')
+    verifiedPermissions.value = permissions
+    cityPermissionScope.value = data.dataScope === 'CITY' ? 'CITY' : 'ALL'
     me.value = user; loggedIn.value = true; loginForm.value.password = ''
     await loadCityPermissions()
-    await Promise.all([loadSessions(), loadApprovedDatasets(), loadSavedCharts()])
-    if (isDesktop.value) desktopSection.value = 'ask'
+    await Promise.all([
+      hasPermission('ASK') ? loadSessions() : Promise.resolve(),
+      hasPermission('ASK') ? loadApprovedDatasets() : Promise.resolve(),
+      hasPermission('CHARTS') ? loadSavedCharts() : Promise.resolve()
+    ])
+    if (isDesktop.value) desktopSection.value = defaultDesktopSection()
   } catch (e) { showFailToast(errorText(e)) }
   finally { loggingIn.value = false }
 }
@@ -693,6 +725,7 @@ function logout(record = true) {
   sessionStorage.removeItem('dataask_user')
   loggedIn.value = false
   verifiedRole.value = ''
+  verifiedPermissions.value = []
   configVisible.value = false
   accountMenuOpen.value = false
   recentSessionMenuId.value = ''
@@ -704,6 +737,7 @@ function logout(record = true) {
   profileError.value = ''
   profileForm.value = {displayName:'',createdAt:''}
   cityPermissions.value = []
+  cityPermissionScope.value = 'ALL'
   cityPermissionError.value = ''
   cityPermissionLoading.value = false
   changePasswordOpen.value = false
@@ -794,7 +828,10 @@ async function refreshSharedHistory() {
 }
 function switchDesktopSection(section) {
   const normal = ['ask','charts','history'].includes(section)
-  if (!normal && !(desktopAdminSections.includes(section) && isAdmin.value)) return
+  if (section==='ask' && !hasPermission('ASK')) return
+  if (section==='charts' && !hasPermission('CHARTS')) return
+  if (section==='history' && !hasPermission('ASK')) return
+  if (!normal && !(desktopAdminSections.includes(section) && canSystemAdmin.value)) return
   if (desktopSection.value !== section) recordClientEvent('PAGE_VIEW',section)
   if (isDesktop.value && busy.value && section !== 'ask') stopAsk()
   configVisible.value=false
@@ -1049,7 +1086,7 @@ async function openAdmin() {
   } catch(e) { showFailToast('读取系统管理失败：'+errorText(e)) }
 }
 function toggleAdminNavigation() {
-  if (!isAdmin.value) return
+  if (!canSystemAdmin.value) return
   if (!adminExpanded.value) { openAdmin(); return }
   adminExpanded.value = false
   if (desktopIsAdminSection.value) switchDesktopSection('ask')
@@ -1358,11 +1395,16 @@ onMounted(() => {
   window.addEventListener('focus', refreshSharedHistory)
   document.addEventListener('visibilitychange', refreshSharedHistory)
   if (loggedIn.value) {
-    refreshAuthenticatedRole()
     void (async () => {
-      await loadCityPermissions()
+      await refreshAuthenticatedRole()
       if (!loggedIn.value) return
-      await Promise.all([loadSessions(),loadApprovedDatasets(),loadSavedCharts()])
+      if (isDesktop.value) desktopSection.value = defaultDesktopSection()
+      await loadCityPermissions()
+      await Promise.all([
+        hasPermission('ASK') ? loadSessions() : Promise.resolve(),
+        hasPermission('ASK') ? loadApprovedDatasets() : Promise.resolve(),
+        hasPermission('CHARTS') ? loadSavedCharts() : Promise.resolve()
+      ])
     })()
   }
 })
@@ -1558,12 +1600,12 @@ onBeforeUnmount(() => {
           <div class="brand-icon" aria-hidden="true"><svg class="brand-glyph" viewBox="0 0 36 36"><rect x="1.5" y="1.5" width="33" height="33" rx="10" fill="#2f6bff"/><path d="M10 8.5h8.2c4.8 0 8 3.5 8 8s-3.2 8-8 8H10z" fill="#fff"/><path d="M13 12h5c2.4 0 4 1.6 4 4.5s-1.6 4.5-4 4.5h-5z" fill="#2f6bff"/><path d="M7 27l5-5 4 3 7-8" fill="none" stroke="#b9d6ff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></div>
           <div class="brand-title"><strong>DataAsk</strong></div>
         </div>
-        <button type="button" class="sidebar-new da-new-conversation" title="新建问数" @click="newConversation"><van-icon name="plus"/><span>新建问数</span></button>
+        <button v-if="canAsk" type="button" class="sidebar-new da-new-conversation" title="新建问数" @click="newConversation"><van-icon name="plus"/><span>新建问数</span></button>
         <nav class="desktop-main-nav" aria-label="分析导航">
-          <button type="button" title="智能问数" :class="{active:desktopSection==='ask'}" @click="switchDesktopSection('ask')"><van-icon name="chat-o"/><span>智能问数</span></button>
-          <button type="button" title="我的图表" :class="{active:desktopSection==='charts'}" @click="switchDesktopSection('charts')"><van-icon name="chart-trending-o"/><span>我的图表</span></button>
+          <button v-if="canAsk" type="button" title="智能问数" :class="{active:desktopSection==='ask'}" @click="switchDesktopSection('ask')"><van-icon name="chat-o"/><span>智能问数</span></button>
+          <button v-if="canCharts" type="button" title="我的图表" :class="{active:desktopSection==='charts'}" @click="switchDesktopSection('charts')"><van-icon name="chart-trending-o"/><span>我的图表</span></button>
         </nav>
-        <section v-if="sessions.length" class="da-sidebar-history" aria-label="最近会话">
+        <section v-if="canAsk && sessions.length" class="da-sidebar-history" aria-label="最近会话">
           <div class="da-sidebar-history-head">
             <span>最近</span>
             <button type="button" class="da-sidebar-history-all" aria-label="查看全部会话"
@@ -1598,7 +1640,7 @@ onBeforeUnmount(() => {
             <button type="button" role="menuitem" aria-label="个性化" @click="openPersonalization"><van-icon name="brush-o" aria-hidden="true"/> 个性化 <span class="da-menu-meta">{{ theme === 'dark' ? '深色' : '浅色' }}</span></button>
             <button type="button" role="menuitem" aria-label="个人资料" @click="openProfile"><van-icon name="user-o" aria-hidden="true"/> 个人资料</button>
             <button type="button" role="menuitem" aria-label="修改密码" @click="openPasswordChange"><van-icon name="lock" aria-hidden="true"/> 修改密码</button>
-            <button v-if="isAdmin" type="button" role="menuitem" aria-label="系统管理" @click="openAdmin"><van-icon name="setting-o" aria-hidden="true"/> 系统管理 <span class="da-menu-meta">管理员</span></button>
+            <button v-if="canSystemAdmin" type="button" role="menuitem" aria-label="系统管理" @click="openAdmin"><van-icon name="setting-o" aria-hidden="true"/> 系统管理 <span class="da-menu-meta">管理</span></button>
             <div class="da-account-menu-divider" role="separator"></div>
             <button type="button" role="menuitem" aria-label="退出登录" class="da-logout-action" @click="desktopLogout"><van-icon name="sign" aria-hidden="true"/> 退出登录</button>
           </div>
@@ -1625,7 +1667,7 @@ onBeforeUnmount(() => {
         </div>
         <div v-if="isDesktop" class="da-topbar-utilities">
           <div class="da-topbar-operations">
-            <template v-if="isAdmin && desktopIsAdminSection">
+            <template v-if="canSystemAdmin && desktopIsAdminSection">
               <button v-if="desktopSection==='admin-model'" type="button" class="td-btn"
                 :disabled="adminSectionBusy || !modelCenterRef" @click="modelCenterRef?.load()">
                 <van-icon name="replay"/> 刷新配置</button>
@@ -1660,7 +1702,7 @@ onBeforeUnmount(() => {
           <button title="新对话" @click="newConversation"><van-icon name="add-o" size="21"/></button>
         </div>
       </header>
-      <main v-if="isDesktop && isAdmin && desktopIsAdminSection" class="tb-page-body tb-admin-page"
+      <main v-if="isDesktop && canSystemAdmin && desktopIsAdminSection" class="tb-page-body tb-admin-page"
         :class="{'tb-admin-model-full':desktopSection==='admin-model'}">
         <div v-if="unreadableConfigParts.length && !adminSectionBusy" class="tb-admin-credential-warning" role="alert">
           <van-icon name="warning-o" size="18"/>
@@ -1702,6 +1744,11 @@ onBeforeUnmount(() => {
             <button type="button" @click="openAdminSection('admin-users')">
               <span class="tb-admin-overview-icon icon-users"><van-icon name="friends-o" size="21"/></span>
               <strong>用户管理</strong>
+              <van-icon name="arrow" class="tb-admin-overview-arrow"/>
+            </button>
+            <button type="button" @click="openAdminSection('admin-roles')">
+              <span class="tb-admin-overview-icon icon-users"><van-icon name="shield-o" size="21"/></span>
+              <strong>角色权限</strong><small>自定义角色与功能权限</small>
               <van-icon name="arrow" class="tb-admin-overview-arrow"/>
             </button>
             <button type="button" @click="openAdminSection('admin-status')">
@@ -1792,6 +1839,7 @@ onBeforeUnmount(() => {
           </section>
         </div>
         <AdminUsers v-else-if="desktopSection==='admin-users'" :api="api"/>
+        <AdminRoles v-else-if="desktopSection==='admin-roles'" :api="api"/>
       </main>
       <main v-if="isDesktop && desktopSection==='charts'" class="tb-page-body tb-content-page tb-charts-page">
         <template v-if="activeChart">
@@ -2120,16 +2168,17 @@ onBeforeUnmount(() => {
           <template v-else>
             <van-field :model-value="me.username" label="登录账号" readonly/>
             <van-field v-model="profileForm.displayName" label="显示名称" placeholder="请输入显示名称" maxlength="100" :disabled="profileSaving"/>
-            <van-field :model-value="isAdmin ? '系统管理员' : '普通用户'" label="账号角色" readonly/>
+            <van-field :model-value="me.roleName || me.role || '—'" label="账号角色" readonly/>
             <section class="da-profile-permissions" aria-label="城市数据权限">
               <div class="da-profile-permissions-title">
-                <strong>数据权限 · 管理城市（{{ cityPermissions.length }}）</strong>
+                <strong>{{ cityPermissionScope==='CITY' ? '数据权限 · 管理城市（'+cityPermissions.length+'）' : '数据权限 · 全部城市' }}</strong>
                 <button type="button" :disabled="cityPermissionLoading" @click="loadCityPermissions">
                   {{ cityPermissionLoading ? '读取中…' : '刷新' }}
                 </button>
               </div>
               <p v-if="cityPermissionError" role="alert">读取失败：{{ cityPermissionError }}</p>
-              <p v-else-if="!cityPermissions.length">当前账号暂无授权城市</p>
+              <p v-else-if="cityPermissionScope!=='CITY'">当前角色不做城市过滤，可查看全部城市数据。</p>
+              <p v-else-if="!cityPermissions.length">当前城市经理账号暂无授权城市</p>
               <div v-else class="da-profile-city-list">
                 <span v-for="city in cityPermissions" :key="city">{{ city }}</span>
               </div>
@@ -2232,7 +2281,7 @@ onBeforeUnmount(() => {
           <div class="drawer-bottom"><span>{{ me.displayName || me.username }}</span><button @click="logout">退出登录</button></div>
         </div>
       </van-popup>
-      <van-popup v-if="isAdmin && !isDesktop" v-model:show="adminVisible" :position="isDesktop ? 'center' : 'bottom'" round
+      <van-popup v-if="canSystemAdmin && !isDesktop" v-model:show="adminVisible" :position="isDesktop ? 'center' : 'bottom'" round
         :style="{ width: isDesktop ? 'min(920px, 92vw)' : '100%', height: isDesktop ? 'min(780px, 88vh)' : '88%' }">
         <div class="admin-panel">
           <div class="drawer-header"><b>系统管理</b><van-icon name="cross" @click="adminVisible=false"/></div>
@@ -2327,7 +2376,7 @@ onBeforeUnmount(() => {
           <p class="muted">AI 配置直接使用服务器 application.yml，不会在浏览器回显密钥；StarRocks 配置可通过上方入口测试和保存。</p>
         </div>
       </van-popup>
-      <van-popup v-if="isAdmin && !isDesktop" v-model:show="configVisible"
+      <van-popup v-if="canSystemAdmin && !isDesktop" v-model:show="configVisible"
         position="bottom" round :style="{width:'100%',height:'80%'}">
         <div class="config-panel">
           <div class="drawer-header"><b>StarRocks ADS 数据源</b><van-icon name="cross" @click="configVisible=false"/></div>
@@ -2347,7 +2396,7 @@ onBeforeUnmount(() => {
           </div>
         </div>
       </van-popup>
-      <van-popup v-if="isAdmin && !isDesktop" v-model:show="modelConfigVisible"
+      <van-popup v-if="canSystemAdmin && !isDesktop" v-model:show="modelConfigVisible"
         position="bottom" round :style="{width:'100%',height:'88%'}">
         <div class="config-panel da-mobile-model-center">
           <div class="drawer-header"><b>模型配置</b><div class="da-model-mobile-actions">

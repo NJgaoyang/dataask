@@ -19,7 +19,7 @@ import java.util.*;
 
 @RestController
 @RequestMapping("/api/admin/audit")
-@PreAuthorize("hasRole('ADMIN')")
+@PreAuthorize("hasAuthority('PERM_SYSTEM_ADMIN')")
 public class AuditController {
     private static final ZoneId ZONE = ZoneId.of("Asia/Shanghai");
     private final JdbcTemplate jdbc;

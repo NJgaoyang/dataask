@@ -27,16 +27,23 @@ public class StarRocksGateway {
         this.settings=settings;this.cityPermissions=null;this.cityRowGuard=null;
     }
     public String cityPermissionFingerprint(String username) {
-        return cityPermissions==null ? null : cityPermissions.fingerprint(username);
+        if(cityPermissions==null || !cityScoped()) return null;
+        return cityPermissions.fingerprint(username);
     }
     public List<String> managedCities(String username) {
-        return cityPermissions==null ? List.of() : cityPermissions.cities(username);
+        return cityPermissions==null || !cityScoped() ? List.of() : cityPermissions.cities(username);
+    }
+    private boolean cityScoped() {
+        Authentication auth=SecurityContextHolder.getContext().getAuthentication();
+        return auth!=null && auth.isAuthenticated() &&
+            auth.getAuthorities().stream().anyMatch(a->"SCOPE_CITY".equals(a.getAuthority()));
     }
     private String restrictedSql(String sql) {
         if(cityPermissions==null) return sql;
         Authentication auth=SecurityContextHolder.getContext().getAuthentication();
         if(auth==null || !auth.isAuthenticated())
-            throw new ResponseStatusException(HttpStatus.FORBIDDEN,"需要登录才能查询城市数据");
+            throw new ResponseStatusException(HttpStatus.FORBIDDEN,"需要登录才能查询经营数据");
+        if(!cityScoped()) return sql;
         return cityRowGuard.scope(sql,discover(),
             cityPermissions.requireCities(auth.getName()),settings.starRocks().schema());
     }

@@ -181,6 +181,8 @@ try {
       await page.locator('.da-account-trigger').click();
       await page.getByRole('menuitem',{name:'系统管理',exact:true}).click();
       await page.locator('.tb-admin-overview-grid').waitFor();
+      assert.equal(await page.locator('.tb-admin-overview-grid button').filter({hasText:'角色权限'}).count(),1,
+        'System management exposes role and permission administration');
       await snap(page,'1440-admin-dark');
       await page.locator('.tb-admin-overview-grid button').filter({hasText:'数据源配置'}).click();
       await page.getByRole('button',{name:'新增数据源',exact:true}).click();
