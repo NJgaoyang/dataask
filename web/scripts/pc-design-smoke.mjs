@@ -153,6 +153,14 @@ try {
     await page.locator('.desktop-answer-tools button').filter({hasText:'追加提问'}).click();
     assert.match(await page.locator('.da-followup-context').innerText(),/正在追加提问/);
     await page.getByRole('button',{name:'退出追加提问'}).click();
+      await page.locator('.desktop-main-nav button').filter({hasText:'我的图表'}).click();
+      assert.equal(await page.locator('.topbar').count(),0,'Chart list must not have a redundant global breadcrumb header');
+      const chartsMain = await page.locator('.tb-charts-page').boundingBox();
+      assert(chartsMain && chartsMain.y<=1,'Chart list must start directly at the top of its workspace');
+      await page.locator('.tb-chart-tabs').waitFor();
+      await page.locator('.desktop-main-nav button').filter({hasText:'新建任务'}).click();
+      assert.equal(await page.locator('.topbar').count(),0,'Returning to New task keeps the breadcrumb hidden');
+
     await page.getByRole('button',{name:'结果有帮助'}).click();
     assert.match(await page.getByRole('button',{name:'结果有帮助'}).getAttribute('class'),/active/);
     assert.equal(await page.locator('.da-sidebar-collapse,.da-scope-chip,.da-composer-scope').count(),0);

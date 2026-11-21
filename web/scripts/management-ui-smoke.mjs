@@ -74,7 +74,12 @@ try{
   assert.equal(await page.locator('.sidebar-new').count(),0,'Sidebar must not expose a separate new-question button');
   await page.locator('.desktop-main-nav button').filter({hasText:'新建任务'}).click();
   assert((await page.locator('.da-home-question-box').boundingBox()).height>=120,'Smart Q&A navigation returns to the landing page');
-  await tile(page,'数据源配置');const sourceList=page.getByRole('region',{name:'数据源',exact:true});
+  await tile(page,'数据源配置');
+  assert.equal(await page.locator('.da-admin-workspace-heading').innerText(),'数据源配置',
+    'System management shows only the active module, without repeated breadcrumb text');
+  assert.equal(await page.locator('.topbar').count(),0,'No duplicated global topbar behind system management');
+  assert.equal(await page.getByRole('button',{name:'关闭系统管理'}).count(),1,'System management keeps its close action');
+  const sourceList=page.getByRole('region',{name:'数据源',exact:true});
   await sourceList.waitFor();
   const sourceOuter=await page.locator('.tb-admin-page').boundingBox();
   const sourceCard=await page.locator('.tb-admin-source-page').boundingBox();

@@ -213,6 +213,14 @@ const showDesktopAskLanding = computed(() =>
   !busy.value &&
   !desktopFeedback.value
 )
+// The chart detail still needs its contextual actions; list/landing views do not need a breadcrumb bar.
+const hideDesktopTopbar = computed(() =>
+  isDesktop.value && (
+    showDesktopAskLanding.value ||
+    (desktopSection.value === 'charts' && !activeChart.value) ||
+    desktopIsAdminSection.value
+  )
+)
 const analysisPanelOpen = ref(false)
 const analysisMessage = ref(null)
 const analysisQuestion = ref('')
@@ -1498,7 +1506,7 @@ onBeforeUnmount(() => {
 <template>
   <div class="app-shell" :data-theme="isDesktop ? theme : undefined"
     :style="isDesktop ? { '--da-sidebar-w': sidebarWidth + 'px' } : undefined"
-    :class="{ 'consumer-pc': isDesktop, 'consumer-home': showDesktopAskLanding, 'analysis-panel-open': isDesktop && desktopSection==='ask' && analysisPanelOpen }">
+    :class="{ 'consumer-pc': isDesktop, 'consumer-home': showDesktopAskLanding, 'desktop-no-topbar': hideDesktopTopbar, 'analysis-panel-open': isDesktop && desktopSection==='ask' && analysisPanelOpen }">
     <div v-if="!loggedIn" class="login-screen">
       <svg v-if="isDesktop" class="login-background-waves" viewBox="0 0 1647 216" preserveAspectRatio="none" aria-hidden="true">
         <defs>
@@ -1729,7 +1737,7 @@ onBeforeUnmount(() => {
           @keydown.left.prevent="adjustSidebarWidth(-12)"
           @keydown.right.prevent="adjustSidebarWidth(12)"></div>
       </aside>
-      <header v-if="!showDesktopAskLanding" class="topbar">
+      <header v-if="!hideDesktopTopbar" class="topbar">
         <div v-if="isDesktop" class="tb-header-breadcrumb">
           <span>DataAsk</span><van-icon name="arrow" size="11"/>
           <template v-if="desktopIsAdminSection && desktopSection!=='admin-overview' && !adminWorkspaceOpen">
@@ -1812,7 +1820,6 @@ onBeforeUnmount(() => {
           <div class="da-admin-workspace-pane">
             <header class="da-admin-workspace-header">
               <div class="da-admin-workspace-heading">
-                <span>系统管理</span><van-icon name="arrow" size="11"/>
                 <strong>{{ desktopSectionTitle }}</strong>
               </div>
               <div class="da-admin-workspace-actions da-topbar-operations">

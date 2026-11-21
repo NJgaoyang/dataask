@@ -276,7 +276,8 @@
     width:min(var(--da-chat-max),calc(100% - 48px));max-width:var(--da-chat-max);margin-left:auto;margin-right:auto
   }
   /* The empty ask page is a dedicated landing state; once querying starts the shell switches to conversation + bottom composer. */
-  .app-shell.consumer-pc.consumer-home{
+  .app-shell.consumer-pc.consumer-home,
+  .app-shell.consumer-pc.desktop-no-topbar{
     grid-template-rows:minmax(0,1fr);
     grid-template-areas:"sidebar content";
   }
