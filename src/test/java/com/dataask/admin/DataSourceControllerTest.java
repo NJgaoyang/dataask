@@ -69,6 +69,28 @@ class DataSourceControllerTest {
         assertThatThrownBy(()->controller.delete(id)).isInstanceOf(ResponseStatusException.class);
         controller.delete(original);
     }
+    @Test void switchingBackRestoresOnlyTheOriginalSourcesTableGrants() {
+        controller.migrate();
+        String first=settings.activeSourceId();
+        String second=create("第二个数据源","password-2");
+        jdbc.update("INSERT INTO da_allowed_tables(table_name,enabled) VALUES('ads.sales',1)");
+        controller.activate(second);
+        assertThat(jdbc.queryForObject(
+            "SELECT enabled FROM da_allowed_tables WHERE table_name='ads.sales'",Integer.class)).isZero();
+        jdbc.update("INSERT INTO da_source_table_permissions(data_source_id,table_name,enabled) VALUES(?,?,1)",
+            second,"ads.other_sales");
+        controller.activate(first);
+        assertThat(jdbc.queryForObject(
+            "SELECT enabled FROM da_allowed_tables WHERE table_name='ads.sales'",Integer.class)).isEqualTo(1);
+        assertThat(jdbc.queryForObject(
+            "SELECT COUNT(*) FROM da_allowed_tables WHERE table_name='ads.other_sales' AND enabled=1",Long.class)).isZero();
+        controller.activate(second);
+        assertThat(jdbc.queryForObject(
+            "SELECT enabled FROM da_allowed_tables WHERE table_name='ads.other_sales'",Integer.class)).isEqualTo(1);
+        assertThat(jdbc.queryForObject(
+            "SELECT enabled FROM da_allowed_tables WHERE table_name='ads.sales'",Integer.class)).isZero();
+    }
+
     @Test void invalidOrDuplicateSourceAndMutatingActiveConnectionAreRejected() {
         controller.migrate();create("重复源","pwd");
         assertThatThrownBy(()->create("重复源","pwd")).isInstanceOf(ResponseStatusException.class);
