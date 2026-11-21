@@ -52,9 +52,22 @@ class MetricDictionaryServiceTest {
         assertThat(first.get("skipped")).isEqualTo(1);
         Map<String,Object> second=live.importAutoSuggestions(java.util.List.of(amount),"admin","00000000-0000-0000-0000-000000000001");
         assertThat(second.get("count")).isEqualTo(0);
+        var otherSource=new MetricDictionaryService.MetricEdit("另一数据源销售额","","待确认",
+            "ads.sales","amount","","city_id","另一数据源");
+        var third=live.importAutoSuggestions(java.util.List.of(otherSource),"admin",
+            "00000000-0000-0000-0000-000000000002");
+        assertThat(third.get("count")).isEqualTo(1);
         assertThat(jdbc.queryForObject(
             "SELECT COUNT(*) FROM da_metric_definitions WHERE ads_table=? AND ads_field=?",
-            Integer.class,"ads.sales","amount")).isEqualTo(1);
+            Integer.class,"ads.sales","amount")).isEqualTo(2);
+        jdbc.update("INSERT INTO da_app_settings(setting_key,setting_value) VALUES(?,?)",
+            "sr.activeSource","00000000-0000-0000-0000-000000000001");
+        String firstPrompt=live.promptForQuestion("销售额",java.util.Set.of("ads.sales"));
+        assertThat(firstPrompt).contains("销售额").doesNotContain("另一数据源销售额");
+        jdbc.update("UPDATE da_app_settings SET setting_value=? WHERE setting_key='sr.activeSource'",
+            "00000000-0000-0000-0000-000000000002");
+        String secondPrompt=live.promptForQuestion("另一数据源销售额",java.util.Set.of("ads.sales"));
+        assertThat(secondPrompt).contains("另一数据源销售额");
     }
 
     @Test void previewsChineseMetricHeaders() throws Exception {
