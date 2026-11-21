@@ -50,7 +50,7 @@ async function capture(page,width,name,contentSelector) {
   await page.locator(contentSelector).waitFor();
   await page.mouse.move(width-8,8);
   const frame=await page.locator(contentSelector).boundingBox();
-  assert(['ask','charts'].includes(name) ? frame.y>=0 && frame.y<80 : frame.y>=48 && frame.y<400,
+  assert(['ask','charts','admin'].includes(name) ? frame.y>=0 && frame.y<80 : frame.y>=48 && frame.y<400,
     `${name}: content starts at the correct position for its page state`);
   assert.equal(await page.locator('.ds-home-intro,.tb-page-heading,.tb-admin-heading,.da-chart-detail-heading').count(),0,
     `${name}: no duplicate title/description banner is rendered`);
@@ -64,10 +64,15 @@ async function capture(page,width,name,contentSelector) {
         ? getComputedStyle(document.querySelector('.tb-header-breadcrumb strong')).fontSize : null};
   });
   assert(Math.abs(metrics.rail-216)<2,`${width}: sidebar keeps the fixed enterprise rail width`);
-  assert(Math.abs(metrics.main-(width-metrics.rail))<2,`${width}: content fills remaining width`);
-  assert(Math.abs(metrics.railRight-metrics.mainX)<1,`${name}: main must touch the navigation divider`);
-  assert(!metrics.overflow&&!metrics.mainOverflow,`${name}: horizontal overflow is confined to internal tables`);
-  if(['ask','charts'].includes(name))assert.equal(metrics.headingFont,null,`${name}: no redundant breadcrumb`);
+  const inAdminWorkspace=['admin','users','audit','source','source-dark'].includes(name);
+  if(!inAdminWorkspace){
+    assert(Math.abs(metrics.main-(width-metrics.rail))<2,`${width}: content fills remaining width`);
+    assert(Math.abs(metrics.railRight-metrics.mainX)<1,`${name}: main must touch the navigation divider`);
+  }
+  assert(!metrics.overflow,`${name}: no horizontal viewport overflow`);
+  if(!inAdminWorkspace)assert(!metrics.mainOverflow,`${name}: horizontal overflow is confined to internal tables`);
+  if(['ask','charts'].includes(name)||inAdminWorkspace)
+    assert.equal(metrics.headingFont,null,`${name}: no redundant global breadcrumb`);
   else assert(parseFloat(metrics.headingFont)>=12 && parseFloat(metrics.headingFont)<=20,`${name}: readable breadcrumb size`);
   assert.doesNotMatch(metrics.text,/仅查询管理员|用自然语言提问，系统会|通用问法示例|查看已收藏或他人共享|记录所有用户的服务端|接入说明|敏感凭证不会显示明文|管理员可创建用户/);
   await page.screenshot({path:`${out}/${width}-${name}.png`,animations:'disabled'});
@@ -100,13 +105,14 @@ try {
     assert.equal(await page.locator('.da-chart-detail').count(),0,'Back button must work with the keyboard');
     assert.equal(await page.locator('.desktop-main-nav button').filter({hasText:'历史会话'}).count(),0,
       'History is not duplicated in the primary navigation');
-    await page.getByRole('button',{name:'查看全部会话'}).click();
-    await capture(page,width,'history','.da-record-list');
+    await page.locator('.da-sidebar-session-open').first().click();
+    await capture(page,width,'session','.conversation');
     await page.locator('.da-account-trigger').click();await page.getByRole('menuitem',{name:'系统管理'}).click();
-    await capture(page,width,'admin','.tb-admin-overview-grid');
+    await capture(page,width,'admin','.da-admin-workspace');
+    assert.equal(await page.locator('.da-admin-workspace-heading').innerText(),'数据源配置',
+      'Management workspace uses a concise module title');
     for(const label of ['用户管理','审计日志','数据源配置']) {
-      if(label!=='用户管理')await page.locator('.tb-breadcrumb-admin').click();
-      await page.locator('.tb-admin-overview-grid button').filter({hasText:label}).click();
+      await page.locator('.da-admin-workspace-nav button').filter({hasText:label}).click();
       await page.locator('.tb-admin-loading').waitFor({state:'hidden'});
       await capture(page,width,label==="用户管理"?'users':label==='审计日志'?'audit':'source',label==='审计日志'?'.audit-panel':label==='用户管理'?'.tb-admin-users-page':'.tb-admin-source-page');
     }
@@ -116,7 +122,7 @@ try {
       await page.getByRole('button',{name:'深色',exact:true}).click();
       await page.locator('.da-preferences-popup .van-popup__close-icon').click();await page.locator('.da-preferences-popup').waitFor({state:'hidden'});
       await page.locator('.da-account-trigger').click();await page.getByRole('menuitem',{name:'系统管理'}).click();
-      await page.locator('.tb-admin-overview-grid button').filter({hasText:'数据源配置'}).click();
+      await page.locator('.da-admin-workspace-nav button').filter({hasText:'数据源配置'}).click();
       await page.locator('.tb-admin-loading').waitFor({state:'hidden'});
       await capture(page,width,'source-dark','.tb-admin-source-page');
     }
@@ -136,7 +142,7 @@ try {
     await matchedPage.mouse.move(1432,8);
     await matchedPage.screenshot({path:`${out}/reference-density-detail.png`,animations:'disabled'});
     await matchedPage.locator('.da-account-trigger').click();await matchedPage.getByRole('menuitem',{name:'系统管理'}).click();
-    await matchedPage.locator('.tb-admin-overview-grid button').filter({hasText:'审计日志'}).click();
+    await matchedPage.locator('.da-admin-workspace-nav button').filter({hasText:'审计日志'}).click();
     await matchedPage.locator('.audit-querybar').waitFor();await matchedPage.mouse.move(1432,8);
     await matchedPage.screenshot({path:`${out}/reference-density-audit.png`,animations:'disabled'});await matched.close();
     const refs=[
