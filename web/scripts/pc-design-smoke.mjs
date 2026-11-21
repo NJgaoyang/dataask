@@ -233,8 +233,9 @@ try {
       const loginCardBox=await page.locator('.login-card').boundingBox();
       assert(loginCardBox && loginCardBox.width>=400 && loginCardBox.width<=500,'Login card should match the approved visual proportions');
       assert.equal(await page.locator('svg.login-brand-hero').count(),1,'Desktop login uses a transparent inline SVG analytics scene');
+      assert.equal(await page.locator('.login-background-waves').count(),1,'Desktop login uses vector wave paths instead of a background image');
       assert.equal(await page.locator('.login-topbar').count(),0,'Login page must not show the internal-system security banner');
-      assert.equal(await page.locator('.login-brand-hero image').count(),0,'The hero must not contain a raster rectangle');
+      assert.equal(await page.locator('.login-screen img,.login-brand-hero image').count(),0,'The login page must not contain raster image elements');
       assert((await page.locator('.login-brand-hero defs').count())===1,'The SVG hero keeps gradients and shadows inside the transparent scene');
       const hero=await page.locator('.login-brand-hero').boundingBox();
       const card=await page.locator('.login-card').boundingBox();
