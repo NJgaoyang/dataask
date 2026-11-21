@@ -159,6 +159,11 @@ public class AdminController {
         jdbc.update("INSERT INTO da_allowed_tables(table_name,enabled) VALUES(?,?) "+
             "ON DUPLICATE KEY UPDATE enabled=VALUES(enabled)",
             request.tableName(),request.enabled()?1:0);
+        String sourceId=settings.activeSourceId();
+        if(sourceId!=null && !sourceId.isBlank())
+            jdbc.update("INSERT INTO da_source_table_permissions(data_source_id,table_name,enabled) " +
+                "VALUES(?,?,?) ON DUPLICATE KEY UPDATE enabled=VALUES(enabled)",
+                sourceId,request.tableName(),request.enabled()?1:0);
         return Map.of("success",true);
     }
 
