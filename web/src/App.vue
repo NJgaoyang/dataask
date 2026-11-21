@@ -1372,28 +1372,6 @@ onBeforeUnmount(() => {
 <template>
   <div class="app-shell" :data-theme="isDesktop ? theme : undefined" :class="{ 'consumer-pc': isDesktop, 'consumer-home': isDesktop && desktopSection==='ask' && !messages.length && !busy && !desktopFeedback, 'analysis-panel-open': isDesktop && desktopSection==='ask' && analysisPanelOpen }">
     <div v-if="!loggedIn" class="login-screen">
-      <svg v-if="isDesktop" class="login-background-waves" viewBox="0 0 1692 930" preserveAspectRatio="none" aria-hidden="true">
-        <defs>
-          <linearGradient id="login-wave-blue" x1="0" y1="0" x2="1" y2=".1">
-            <stop offset="0%" stop-color="#2f7df1"/>
-            <stop offset="22%" stop-color="#76bdff"/>
-            <stop offset="48%" stop-color="#d7edff"/>
-            <stop offset="70%" stop-color="#f7fbff"/>
-            <stop offset="86%" stop-color="#8ecbff"/>
-            <stop offset="100%" stop-color="#3186ef"/>
-          </linearGradient>
-          <linearGradient id="login-wave-front" x1="0" y1=".3" x2="1" y2=".5">
-            <stop offset="0%" stop-color="#4d9af4"/>
-            <stop offset="30%" stop-color="#8bc8ff"/>
-            <stop offset="58%" stop-color="#dceeff"/>
-            <stop offset="77%" stop-color="#eef7ff"/>
-            <stop offset="100%" stop-color="#4a91f1"/>
-          </linearGradient>
-        </defs>
-        <path d="M0 755 C135 785 205 820 365 833 C590 852 760 889 998 870 C1228 852 1452 760 1692 744 L1692 930 L0 930 Z" fill="url(#login-wave-blue)"/>
-        <path d="M0 799 C180 776 355 794 552 846 C760 901 946 913 1164 868 C1372 825 1510 788 1692 802 L1692 930 L0 930 Z" fill="#f8fbff" fill-opacity=".97"/>
-        <path d="M0 861 C195 827 337 841 521 879 C749 926 988 925 1210 885 C1420 846 1543 831 1692 835 L1692 930 L0 930 Z" fill="url(#login-wave-front)" fill-opacity=".24"/>
-      </svg>
       <aside v-if="isDesktop" class="login-brand">
         <div class="login-brand-top">
           <div class="login-brand-lockup">

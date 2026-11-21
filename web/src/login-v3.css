@@ -1,489 +1,216 @@
-/* DataAsk desktop login — 1692×930 reference calibrated, image-free and responsive.
-   Desktop only. Mobile login keeps the existing Vant layout from style.css. */
+/* DataAsk desktop login v3 — coordinate-calibrated against the approved 1692×930 reference.
+   Only the desktop logged-out screen is affected. The mobile login and authenticated app stay unchanged. */
 @media (min-width:1024px){
   .consumer-pc .login-screen{
-    position:relative;
-    display:block;
-    grid-column:1/-1;
-    grid-row:1/-1;
-    width:100vw;
-    height:100dvh;
-    min-height:100dvh;
-    margin:0;
-    padding:0;
-    overflow:hidden;
-    isolation:isolate;
+    position:relative;display:block;grid-column:1/-1;grid-row:1/-1;
+    width:100vw;height:100dvh;min-height:100dvh;padding:0;margin:0;overflow:hidden;
     background:
-      radial-gradient(ellipse 36% 49% at 51% 38%,rgba(109,171,255,.24) 0%,rgba(176,212,255,.10) 50%,transparent 77%),
-      radial-gradient(ellipse 27% 38% at 77% 24%,rgba(168,207,255,.18),transparent 75%),
-      radial-gradient(ellipse 38% 46% at 17% 36%,rgba(255,255,255,.96),transparent 79%),
-      linear-gradient(111deg,#fbfdff 0%,#f7faff 26%,#eef6ff 54%,#f5f9ff 78%,#fbfdff 100%);
+      radial-gradient(ellipse 38% 48% at 50% 41%,rgba(108,169,255,.26) 0%,rgba(167,207,255,.12) 48%,transparent 76%),
+      radial-gradient(ellipse 28% 36% at 78% 24%,rgba(173,210,255,.19),transparent 74%),
+      radial-gradient(ellipse 38% 46% at 20% 34%,rgba(255,255,255,.94),transparent 76%),
+      linear-gradient(112deg,#fbfdff 0%,#f5f9ff 28%,#edf5ff 54%,#f6faff 78%,#fbfdff 100%);
+    isolation:isolate;
   }
+  .consumer-pc .login-screen::before,
+  .consumer-pc .login-screen::after{content:"";position:absolute;z-index:0;pointer-events:none}
   .consumer-pc .login-screen::before{
-    content:"";
-    position:absolute;
-    z-index:0;
-    left:24%;
-    top:13%;
-    width:54%;
-    height:66%;
-    pointer-events:none;
-    background:radial-gradient(ellipse at center,rgba(110,172,255,.17),rgba(183,217,255,.06) 58%,transparent 77%);
-    filter:blur(18px);
+    left:-10vw;bottom:-24vh;width:122vw;height:37vh;border-radius:50% 50% 0 0/69% 69% 0 0;
+    background:linear-gradient(92deg,#2d7cf3 0%,#75bbff 19%,#d8edff 44%,#f8fcff 63%,#8ac7ff 83%,#2f83f0 100%);
+    transform:rotate(1.25deg);opacity:.95;
   }
-  .consumer-pc .login-screen::after{display:none}
-
-  .consumer-pc .login-background-waves{
-    position:absolute;
-    z-index:1;
-    inset:0;
-    width:100%;
-    height:100%;
-    pointer-events:none;
-    overflow:visible;
+  .consumer-pc .login-screen::after{
+    left:-6vw;bottom:-23.5vh;width:112vw;height:32vh;border-radius:50% 50% 0 0/57% 57% 0 0;
+    background:rgba(249,252,255,.97);transform:rotate(-3.2deg);
   }
 
-  /* Brand block */
+  /* Left brand layer: positions are normalized from the approved reference image. */
   .consumer-pc .login-brand{
-    position:absolute;
-    z-index:2;
-    inset:0 auto 0 0;
-    width:64%;
-    height:100%;
-    margin:0;
-    padding:0;
-    border:0;
-    border-radius:0;
-    background:transparent;
-    overflow:visible;
-    color:#172846;
+    position:absolute;z-index:2;inset:0 auto 0 0;width:63.4%;height:100%;
+    margin:0;padding:0;border:0;border-radius:0;background:transparent;overflow:visible;color:#172846;
   }
-  .consumer-pc .login-brand::before,
-  .consumer-pc .login-brand::after{display:none!important}
-
-  .consumer-pc .login-brand-top{
-    position:absolute;
-    z-index:7;
-    left:5.32vw;
-    top:5.16vh;
-  }
-  .consumer-pc .login-brand-lockup{
-    display:flex;
-    align-items:center;
-    gap:14px;
-  }
+  .consumer-pc .login-brand::before,.consumer-pc .login-brand::after{display:none!important}
+  .consumer-pc .login-brand-top{position:absolute;z-index:5;left:5.4vw;top:5.15vh;display:block}
+  .consumer-pc .login-brand-lockup{display:flex;align-items:center;gap:14px}
   .consumer-pc .login-brand-mark{
-    width:clamp(48px,3.08vw,54px);
-    height:clamp(48px,3.08vw,54px);
-    border-radius:12px;
-    overflow:hidden;
-    background:#0a69e8;
-    box-shadow:0 8px 22px rgba(0,93,222,.17);
+    width:3.05vw;height:3.05vw;min-width:46px;min-height:46px;max-width:58px;max-height:58px;
+    border-radius:12px;overflow:hidden;background:#0969e8;box-shadow:0 9px 23px rgba(0,94,220,.19);
   }
   .consumer-pc .login-brand-lockup>span{
-    color:#142441;
-    font-size:clamp(22px,1.54vw,28px);
-    font-weight:720;
-    letter-spacing:-.45px;
-    white-space:nowrap;
+    color:#142441;font-size:clamp(22px,1.55vw,30px);font-weight:700;letter-spacing:-.5px;
   }
-
   .consumer-pc .login-brand-copy{
-    position:absolute;
-    z-index:6;
-    left:5.32vw;
-    top:18.28vh;
-    width:32.1vw;
-    max-width:none;
-    transform:none;
+    position:absolute;z-index:4;left:5.45vw;top:18.45vh;width:32.7vw;max-width:none;transform:none;
   }
   .consumer-pc .login-brand-eyebrow{
-    display:inline-flex;
-    align-items:center;
-    justify-content:center;
-    height:40px;
-    padding:0 17px;
-    border-radius:999px;
-    background:rgba(215,231,255,.90);
-    color:#0969e8;
-    font-size:clamp(13px,.9vw,16px);
-    font-weight:650;
-    line-height:1;
-    letter-spacing:.005em;
+    display:inline-flex;align-items:center;justify-content:center;height:38px;padding:0 17px;
+    border-radius:999px;background:rgba(213,230,255,.88);color:#0969e8;
+    font-size:clamp(13px,.9vw,16px);font-weight:650;letter-spacing:.01em;
   }
   .consumer-pc .login-brand-copy>strong{
-    display:block;
-    margin:24px 0 0;
-    color:#172846;
-    font-size:clamp(45px,3.28vw,58px);
-    font-weight:760;
-    line-height:1.15;
-    letter-spacing:-1.7px;
+    display:block;margin:25px 0 0;color:#172846;
+    font-size:clamp(48px,3.35vw,64px);font-weight:760;line-height:1.13;letter-spacing:-1.8px;
   }
-  .consumer-pc .login-brand-copy>strong em{
-    position:relative;
-    display:inline-block;
-    color:#0b69e8;
-    font-style:normal;
-  }
-  .consumer-pc .login-brand-copy>strong em::after{
-    content:"";
-    position:absolute;
-    left:43%;
-    bottom:-12px;
-    width:54%;
-    height:11px;
-    border-top:3px solid #307df2;
-    border-radius:50%;
-    transform:rotate(-3deg);
-    opacity:.96;
-  }
+  .consumer-pc .login-brand-copy>strong em{font-style:normal;color:#0b69e8}
   .consumer-pc .login-brand-copy>p{
-    margin:39px 0 0;
-    color:#526987;
-    font-size:clamp(15px,1.06vw,19px);
-    font-weight:400;
-    line-height:1.76;
-    white-space:nowrap;
+    margin:38px 0 0;color:#526987;font-size:clamp(15px,1.04vw,19px);line-height:1.78;font-weight:400;
   }
-
   .consumer-pc .login-brand-points{
-    list-style:none;
-    display:grid;
-    grid-template-columns:repeat(4,minmax(0,1fr));
-    width:31.8vw;
-    max-width:none;
-    margin:47px 0 0;
-    padding:0;
-    gap:0;
-    border:0;
-    background:transparent;
-    backdrop-filter:none;
+    list-style:none;margin:47px 0 0;padding:0;width:34.9vw;max-width:none;border:0;background:transparent;
+    display:grid;grid-template-columns:repeat(4,1fr);gap:0;backdrop-filter:none;
   }
   .consumer-pc .login-brand-points li{
-    position:relative;
-    display:flex;
-    flex-direction:column;
-    align-items:center;
-    justify-content:flex-start;
-    min-width:0;
-    padding:0 8px;
-    color:#1d3152;
-    text-align:center;
+    position:relative;display:flex;flex-direction:column;align-items:flex-start;gap:0;
+    min-width:0;padding:0 13px 0 0;color:#1e3151;
   }
   .consumer-pc .login-brand-points li:not(:last-child)::after{
-    content:"";
-    position:absolute;
-    top:26px;
-    right:0;
-    width:1px;
-    height:70px;
-    background:#d4e1f2;
+    content:"";position:absolute;top:7px;right:8px;width:1px;height:76px;background:#d7e2f1;
   }
   .consumer-pc .login-feature-icon{
-    display:flex;
-    align-items:center;
-    justify-content:center;
-    width:58px;
-    height:58px;
-    margin:0 auto 12px;
-    border:1px solid rgba(9,105,232,.07);
-    border-radius:14px;
-    background:rgba(255,255,255,.76);
-    color:#0969e8;
-    font-size:23px;
-    box-shadow:0 6px 18px rgba(61,109,180,.045);
+    display:flex;align-items:center;justify-content:center;width:46px;height:46px;margin-bottom:12px;
+    border:1px solid rgba(0,97,232,.08);border-radius:13px;background:rgba(255,255,255,.72);
+    color:#0969e8;font-size:22px;box-shadow:0 7px 18px rgba(67,111,178,.05);
   }
-  .consumer-pc .login-brand-points b{
-    font-size:clamp(12px,.88vw,15px);
-    font-weight:650;
-    line-height:1.35;
-    white-space:nowrap;
-  }
+  .consumer-pc .login-brand-points b{font-size:clamp(12px,.86vw,15px);font-weight:650;line-height:1.35;white-space:nowrap}
   .consumer-pc .login-brand-points small{
-    margin-top:5px;
-    color:#70829b;
-    font-size:clamp(10px,.70vw,12px);
-    line-height:1.4;
-    white-space:nowrap;
+    margin-top:5px;color:#71839b;font-size:clamp(10px,.68vw,12px);line-height:1.4;white-space:nowrap;
   }
 
-  /* Transparent vector 3D scene. Canvas is positioned so the visible drawing matches the 1692×930 reference. */
+  /* Exact approved 3D illustration asset, cropped from the supplied reference. */
   .consumer-pc .login-brand-visual{
-    position:absolute;
-    z-index:4;
-    left:31.4vw;
-    top:14.7vh;
-    width:32vw;
-    height:64.5vh;
-    pointer-events:none;
-    overflow:visible;
+    position:absolute;z-index:3;left:36.55vw;top:21.35vh;width:26.15vw;height:53.4vh;
+    transform:none;pointer-events:none;overflow:visible;
   }
   .consumer-pc .login-brand-visual::before{
-    content:"";
-    position:absolute;
-    z-index:-1;
-    left:-8%;
-    right:-14%;
-    top:7%;
-    bottom:3%;
-    border-radius:50%;
-    background:radial-gradient(ellipse at center,rgba(103,164,251,.20),rgba(192,222,255,.075) 55%,transparent 78%);
-    filter:blur(22px);
+    content:"";position:absolute;z-index:-1;left:-22%;right:-28%;top:-12%;bottom:-15%;
+    border-radius:50%;background:radial-gradient(ellipse at center,rgba(111,171,255,.20),rgba(203,228,255,.08) 52%,transparent 76%);
+    filter:blur(28px);
   }
   .consumer-pc .login-brand-hero{
-    display:block;
-    width:100%;
-    height:100%;
-    overflow:visible;
-    user-select:none;
-    pointer-events:none;
-    filter:drop-shadow(0 17px 29px rgba(56,111,188,.075));
+    display:block;width:100%;height:100%;overflow:visible;
+    user-select:none;pointer-events:none;
+    filter:drop-shadow(0 18px 32px rgba(67,116,190,.07));
   }
-  .consumer-pc .login-brand-hero text{
-    paint-order:stroke;
-    stroke:rgba(255,255,255,.18);
-    stroke-width:.25px;
-  }
+  .consumer-pc .login-brand-hero text{paint-order:stroke;stroke:rgba(255,255,255,.18);stroke-width:.3px}
 
-  /* Login card */
+  /* Right panel/card positions calibrated to target: x≈1093, y≈151, w≈522, h≈578 on 1692×930. */
   .consumer-pc .login-main{
-    position:absolute;
-    z-index:5;
-    inset:0;
-    display:block;
-    min-width:0;
-    padding:0;
-    background:transparent;
+    position:absolute;z-index:4;inset:0;display:block;min-width:0;padding:0;background:transparent;
   }
   .consumer-pc .login-main>.login-logo,
   .consumer-pc .login-main>h1,
   .consumer-pc .login-main>p:not(.login-copyright){display:none}
-
   .consumer-pc .login-card{
-    position:absolute;
-    z-index:6;
-    right:6.15vw;
-    top:16.13vh;
-    width:30.38vw;
-    height:62.26vh;
-    max-width:none;
-    min-width:0;
-    margin:0;
-    padding:6.2vh 3.25vw 4.6vh;
-    border:1px solid rgba(213,225,241,.96);
-    border-radius:26px;
-    background:rgba(255,255,255,.91);
-    box-shadow:0 23px 60px rgba(65,91,133,.09);
-    backdrop-filter:blur(15px);
-    overflow:hidden;
+    position:absolute;z-index:5;right:4.05vw;top:16.15vh;
+    width:30.75vw;height:62.1vh;max-width:none;min-width:0;margin:0;
+    padding:6.0vh 3.25vw 4.65vh;
+    border:1px solid rgba(216,226,240,.96);border-radius:26px;background:rgba(255,255,255,.91);
+    box-shadow:0 22px 58px rgba(66,91,133,.09),-14px 0 48px rgba(128,177,244,.035);backdrop-filter:blur(16px);overflow:hidden;
   }
   .consumer-pc .login-card::before,
-  .consumer-pc .login-card::after{
-    content:"";
-    position:absolute;
-    z-index:0;
-    pointer-events:none;
-    border-radius:50%;
-  }
+  .consumer-pc .login-card::after{content:"";position:absolute;pointer-events:none;border-radius:50%;z-index:0}
   .consumer-pc .login-card::before{
-    width:23.5vw;
-    height:23.5vw;
-    right:-11.9vw;
-    top:-12.8vw;
-    background:linear-gradient(145deg,rgba(107,168,255,.40),rgba(212,231,255,.11) 59%,transparent 73%);
-    border:1px solid rgba(255,255,255,.70);
+    width:23vw;height:23vw;right:-11.4vw;top:-12.1vw;
+    background:linear-gradient(145deg,rgba(112,170,255,.37),rgba(214,232,255,.10) 58%,transparent 73%);
+    border:1px solid rgba(255,255,255,.72);
   }
   .consumer-pc .login-card::after{
-    width:19.3vw;
-    height:19.3vw;
-    right:-9.75vw;
-    top:-8.5vw;
-    border:1px solid rgba(255,255,255,.64);
-    background:rgba(255,255,255,.10);
+    width:19vw;height:19vw;right:-9.7vw;top:-8.0vw;
+    border:1px solid rgba(255,255,255,.66);background:rgba(255,255,255,.10);
   }
   .consumer-pc .login-card>*{position:relative;z-index:2}
-
-  .consumer-pc .login-card-head{margin:0 0 4.25vh}
-  .consumer-pc .login-card-head h2{
-    margin:0;
-    line-height:1.13;
-    letter-spacing:-.65px;
-  }
+  .consumer-pc .login-card-head{margin:0 0 4.15vh}
+  .consumer-pc .login-card-head h2{margin:0;line-height:1.16;letter-spacing:-.7px}
   .consumer-pc .login-card-head h2 span{display:block}
-  .consumer-pc .login-welcome{
-    color:#172846;
-    font-size:clamp(30px,2.25vw,40px);
-    font-weight:760;
-  }
-  .consumer-pc .login-product{
-    margin-top:5px;
-    color:#0b69e8;
-    font-size:clamp(31px,2.33vw,42px);
-    font-weight:760;
-  }
+  .consumer-pc .login-welcome{color:#172846;font-size:clamp(30px,2.18vw,41px);font-weight:760}
+  .consumer-pc .login-product{margin-top:4px;color:#0b69e8;font-size:clamp(31px,2.25vw,43px);font-weight:760}
   .consumer-pc .login-card-head p{
-    margin:14px 0 0;
-    color:#617894;
-    font-size:clamp(14px,1.04vw,18px);
-    line-height:1.45;
+    margin:13px 0 0;color:#657a98;font-size:clamp(14px,1vw,18px);line-height:1.45;
   }
   .consumer-pc .login-label{
-    display:block;
-    margin:0 0 9px;
-    color:#263955;
-    font-size:clamp(12px,.85vw,15px);
-    font-weight:650;
+    display:block;margin:0 0 9px;color:#273958;font-size:clamp(12px,.84vw,15px);font-weight:650;
   }
-  .consumer-pc .login-label-password{margin-top:3.05vh}
-
+  .consumer-pc .login-label-password{margin-top:2.8vh}
   .consumer-pc .login-card .van-cell{padding:0;background:transparent}
   .consumer-pc .login-card .van-cell::after{display:none}
   .consumer-pc .login-card .van-field{
-    min-height:5.82vh;
-    height:5.82vh;
-    padding:0 15px;
-    border:1px solid #c9d6e8;
-    border-radius:9px;
-    background:rgba(255,255,255,.80);
-    transition:border-color .15s ease,box-shadow .15s ease,background .15s ease;
+    min-height:5.8vh;height:5.8vh;padding:0 14px;border:1px solid #cad6e7;border-radius:9px;
+    background:rgba(255,255,255,.79);transition:border-color .15s ease,box-shadow .15s ease,background .15s ease;
   }
-  .consumer-pc .login-card .van-field:hover{
-    border-color:#8eafe0;
-    background:#fff;
-  }
-  .consumer-pc .login-card .van-field:focus-within{
-    border-color:#2f7df0;
-    background:#fff;
-    box-shadow:0 0 0 3px rgba(47,125,240,.10);
-  }
+  .consumer-pc .login-card .van-field:hover{border-color:#8fb2e7;background:#fff}
+  .consumer-pc .login-card .van-field:focus-within{border-color:#3b82ea;background:#fff;box-shadow:0 0 0 3px rgba(59,130,234,.10)}
   .consumer-pc .login-card .van-field__label{display:none}
-  .consumer-pc .login-card .van-field__left-icon{
-    margin-right:12px;
-    color:#7387a5;
-    font-size:19px;
-  }
+  .consumer-pc .login-card .van-field__left-icon{margin-right:12px;color:#7286a4;font-size:19px}
   .consumer-pc .login-card .van-field__control{
-    height:calc(5.82vh - 2px);
-    color:#1e2d47;
-    font-size:clamp(14px,1vw,18px);
+    height:calc(5.8vh - 2px);color:#1e2d47;font-size:clamp(14px,.98vw,18px);
   }
-  .consumer-pc .login-card .van-field__control::placeholder{color:#a3b1c5}
-  .consumer-pc .login-password-toggle{
-    display:inline-flex;
-    align-items:center;
-    justify-content:center;
-    width:34px;
-    height:34px;
-    padding:0;
-    border:0;
-    background:transparent;
-    color:#6f84a2;
-    font-size:20px;
-    cursor:pointer;
-  }
+  .consumer-pc .login-card .van-field__control::placeholder{color:#a7b4c7}
   .consumer-pc .login-card input:-webkit-autofill,
   .consumer-pc .login-card input:-webkit-autofill:hover,
   .consumer-pc .login-card input:-webkit-autofill:focus{
     -webkit-text-fill-color:#1e2d47!important;
-    -webkit-box-shadow:0 0 0 1000px rgba(255,255,255,.97) inset!important;
+    -webkit-box-shadow:0 0 0 1000px rgba(255,255,255,.96) inset!important;
     transition:background-color 9999s ease-out 0s;
   }
-
+  .consumer-pc .login-password-toggle{width:34px;height:34px;color:#6f83a0}
   .consumer-pc .login-card .van-button{
-    margin-top:4.43vh;
-    height:6.45vh;
-    min-height:54px;
-    border:0;
-    border-radius:9px;
-    background:linear-gradient(90deg,#075be9 0%,#0878ef 66%,#0ba0f3 100%);
-    box-shadow:0 10px 22px rgba(7,105,231,.19);
-    font-size:clamp(16px,1.08vw,19px);
-    font-weight:700;
-    letter-spacing:.02em;
+    margin-top:4.35vh;height:6.15vh;min-height:52px;border:0;border-radius:9px;
+    background:linear-gradient(90deg,#0759e8 0%,#0877ef 66%,#0b9ef2 100%);
+    box-shadow:0 11px 24px rgba(7,105,231,.20);font-size:clamp(16px,1.08vw,19px);font-weight:700;letter-spacing:.02em;
   }
-  .consumer-pc .login-card .van-button .van-icon{
-    margin-left:9px;
-    font-size:19px;
-  }
-  .consumer-pc .login-card .van-button:hover{filter:brightness(.985)}
-
+  .consumer-pc .login-card .van-button .van-icon{margin-left:9px;font-size:19px}
+  .consumer-pc .login-card .van-button:hover{filter:brightness(.98)}
   .consumer-pc .login-footnote{display:none}
   .consumer-pc .login-copyright{
-    position:absolute;
-    z-index:6;
-    left:0;
-    right:0;
-    bottom:9.2vh;
-    margin:0;
-    color:#7185a3;
-    font-size:clamp(11px,.73vw,13px);
-    text-align:center;
-    letter-spacing:.005em;
-    pointer-events:none;
+    position:absolute;z-index:5;left:0;right:0;bottom:7.4vh;margin:0;text-align:center;
+    color:#7d8ea8;font-size:clamp(11px,.72vw,13px);letter-spacing:.01em;pointer-events:none;
   }
 
-  /* Login deliberately follows the approved light reference even when the app preference is dark. */
+  /* Target uses a very light visual language; login always stays light even if an admin previously chose dark mode. */
   .consumer-pc[data-theme="dark"] .login-screen{
     background:
-      radial-gradient(ellipse 36% 49% at 51% 38%,rgba(109,171,255,.24) 0%,rgba(176,212,255,.10) 50%,transparent 77%),
-      radial-gradient(ellipse 27% 38% at 77% 24%,rgba(168,207,255,.18),transparent 75%),
-      linear-gradient(111deg,#fbfdff 0%,#f7faff 26%,#eef6ff 54%,#f5f9ff 78%,#fbfdff 100%);
+      radial-gradient(ellipse 34% 46% at 52% 40%,rgba(89,153,255,.26),transparent 72%),
+      linear-gradient(118deg,#fbfdff 0%,#f3f8ff 37%,#edf5ff 58%,#f8fbff 82%,#fbfcff 100%);
   }
+  .consumer-pc[data-theme="dark"] .login-brand{color:#172846}
   .consumer-pc[data-theme="dark"] .login-brand-lockup>span,
-  .consumer-pc[data-theme="dark"] .login-brand-copy>strong,
-  .consumer-pc[data-theme="dark"] .login-welcome,
-  .consumer-pc[data-theme="dark"] .login-label{color:#172846}
+  .consumer-pc[data-theme="dark"] .login-brand-copy>strong{color:#172846}
   .consumer-pc[data-theme="dark"] .login-brand-copy>p{color:#526987}
-  .consumer-pc[data-theme="dark"] .login-card{
-    background:rgba(255,255,255,.91);
-    border-color:rgba(213,225,241,.96);
-  }
-  .consumer-pc[data-theme="dark"] .login-card-head p{color:#617894}
-  .consumer-pc[data-theme="dark"] .login-card .van-field{
-    background:rgba(255,255,255,.80);
-    border-color:#c9d6e8;
-  }
+  .consumer-pc[data-theme="dark"] .login-card{background:rgba(255,255,255,.92);border-color:rgba(216,226,240,.96)}
+  .consumer-pc[data-theme="dark"] .login-welcome{color:#172846}
+  .consumer-pc[data-theme="dark"] .login-card-head p{color:#657a98}
+  .consumer-pc[data-theme="dark"] .login-label{color:#273958}
+  .consumer-pc[data-theme="dark"] .login-card .van-field{background:rgba(255,255,255,.80);border-color:#cad6e7}
   .consumer-pc[data-theme="dark"] .login-card .van-field__control{color:#1e2d47}
   .consumer-pc[data-theme="dark"] .login-card .van-field__left-icon,
-  .consumer-pc[data-theme="dark"] .login-password-toggle{color:#7387a5}
+  .consumer-pc[data-theme="dark"] .login-password-toggle{color:#7286a4}
 
-  /* 1366/1440-class desktops: preserve the reference hierarchy without wrapping the four feature items. */
-  @media(max-width:1440px){
-    .consumer-pc .login-brand-copy{width:33vw}
-    .consumer-pc .login-brand-copy>strong{font-size:clamp(42px,3.25vw,53px)}
-    .consumer-pc .login-brand-copy>p{font-size:clamp(13px,1.03vw,16px)}
-    .consumer-pc .login-brand-points{width:34vw;margin-top:36px}
-    .consumer-pc .login-feature-icon{width:52px;height:52px}
-    .consumer-pc .login-brand-visual{left:30.9vw;width:32.5vw}
-    .consumer-pc .login-card{right:4.7vw;width:31.9vw;padding-left:3.05vw;padding-right:3.05vw}
+  @media(max-width:1360px){
+    .consumer-pc .login-brand-copy{width:32.5vw}
+    .consumer-pc .login-brand-copy>strong{font-size:clamp(42px,3.25vw,52px)}
+    .consumer-pc .login-brand-copy>p{margin-top:25px;font-size:14px}
+    .consumer-pc .login-brand-points{margin-top:30px;width:36vw}
+    .consumer-pc .login-brand-points li{padding-right:9px}
+    .consumer-pc .login-brand-points li:not(:last-child)::after{right:5px}
+    .consumer-pc .login-brand-visual{left:36.6vw;top:20.5vh;width:26.5vw;height:54.5vh}
+    .consumer-pc .login-card{right:3.45vw;width:31.9vw}
   }
-
-  /* Narrow desktop / tablet landscape. Keep four capabilities on one line and let the illustration recede behind the card. */
   @media(max-width:1180px){
-    .consumer-pc .login-brand-copy{left:4.2vw;width:36vw}
-    .consumer-pc .login-brand-top{left:4.2vw}
-    .consumer-pc .login-brand-copy>strong{font-size:clamp(38px,3.55vw,46px)}
-    .consumer-pc .login-brand-copy>p{white-space:normal;width:35vw}
-    .consumer-pc .login-brand-points{width:37vw}
-    .consumer-pc .login-brand-points b{font-size:11px}
-    .consumer-pc .login-brand-points small{font-size:9px}
-    .consumer-pc .login-brand-visual{left:29.5vw;top:16.5vh;width:32.5vw;height:62vh;opacity:.84}
-    .consumer-pc .login-card{right:2.6vw;width:36vw;padding-left:3vw;padding-right:3vw}
+    .consumer-pc .login-brand-visual{opacity:.96;left:37.2vw;top:20.5vh;width:27vw}
+    .consumer-pc .login-brand-points{grid-template-columns:repeat(2,1fr);row-gap:16px;width:31vw}
+    .consumer-pc .login-brand-points li:nth-child(2)::after{display:none}
+    .consumer-pc .login-brand-points li:nth-child(1)::after,
+    .consumer-pc .login-brand-points li:nth-child(3)::after{height:56px}
+    .consumer-pc .login-card{right:2.8vw;width:35vw}
   }
-
-  @media(max-height:800px){
-    .consumer-pc .login-brand-copy{top:16.2vh}
-    .consumer-pc .login-brand-copy>strong{margin-top:15px;font-size:clamp(38px,3.05vw,50px)}
-    .consumer-pc .login-brand-copy>p{margin-top:20px;line-height:1.55}
-    .consumer-pc .login-brand-points{margin-top:21px}
-    .consumer-pc .login-feature-icon{width:48px;height:48px;margin-bottom:8px}
-    .consumer-pc .login-brand-points li:not(:last-child)::after{top:20px;height:61px}
-    .consumer-pc .login-brand-visual{top:12.5vh;height:67vh}
-    .consumer-pc .login-card{top:11.8vh;height:72vh;padding-top:5vh}
-    .consumer-pc .login-card-head{margin-bottom:2.7vh}
-    .consumer-pc .login-label-password{margin-top:2.1vh}
-    .consumer-pc .login-card .van-button{margin-top:3.1vh}
-    .consumer-pc .login-copyright{bottom:5.8vh}
+  @media(max-height:760px){
+    .consumer-pc .login-brand-copy{top:16.5vh}
+    .consumer-pc .login-brand-copy>strong{margin-top:14px;font-size:clamp(35px,3vw,47px)}
+    .consumer-pc .login-brand-copy>p{margin-top:17px;line-height:1.55}
+    .consumer-pc .login-brand-points{margin-top:18px}
+    .consumer-pc .login-brand-visual{top:18.8vh;height:56vh}
+    .consumer-pc .login-card{top:12.5vh;height:69vh;padding-top:5vh}
+    .consumer-pc .login-card-head{margin-bottom:2.8vh}
+    .consumer-pc .login-label-password{margin-top:2vh}
+    .consumer-pc .login-card .van-button{margin-top:3vh}
   }
 }
