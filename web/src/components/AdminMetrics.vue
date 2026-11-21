@@ -15,6 +15,8 @@ const importBusy=ref(false)
 const importError=ref('')
 const selectedFile=ref(null)
 const preview=ref(null)
+const autoParseOpen=ref(false),autoParseBusy=ref(false),autoParseSaving=ref(false),autoParseError=ref('')
+const parseSources=ref([]),parseSourceId=ref(''),parsedPreview=ref(null)
 
 const empty=()=>({
   id:null,metricName:'',aliases:'',definition:'',adsTable:'',adsField:'',timeField:'',dimensions:'',notes:''
@@ -142,6 +144,46 @@ async function download(url,filename){
     showFailToast(errorText(e))
   }
 }
+async function openAutoParse(){
+  autoParseOpen.value=true
+  autoParseError.value=''
+  parsedPreview.value=null
+  autoParseBusy.value=true
+  try{
+    const {data}=await props.api.get('/admin/table-permissions/sources')
+    parseSources.value=Array.isArray(data)?data:[]
+    parseSourceId.value=parseSources.value.find(s=>s.active)?.id||parseSources.value[0]?.id||''
+  }catch(e){autoParseError.value=errorText(e)}
+  finally{autoParseBusy.value=false}
+  if(parseSourceId.value&&!autoParseError.value)await loadAutoParse()
+}
+async function loadAutoParse(){
+  autoParseError.value=''
+  parsedPreview.value=null
+  if(!parseSourceId.value)return
+  autoParseBusy.value=true
+  try{
+    const {data}=await props.api.get('/admin/table-permissions/auto-parse',
+      {params:{sourceId:parseSourceId.value}})
+    parsedPreview.value=data
+  }catch(e){autoParseError.value=errorText(e)}
+  finally{autoParseBusy.value=false}
+}
+function closeAutoParse(){if(!autoParseSaving.value)autoParseOpen.value=false}
+async function confirmAutoParse(){
+  if(autoParseBusy.value||autoParseSaving.value||!parsedPreview.value?.count)return
+  autoParseError.value=''
+  autoParseSaving.value=true
+  try{
+    const {data}=await props.api.post('/admin/table-permissions/auto-parse/confirm',
+      {sourceId:parseSourceId.value})
+    autoParseOpen.value=false
+    refresh.value++
+    showSuccessToast(data.message||'指标已生成')
+  }catch(e){autoParseError.value=errorText(e)}
+  finally{autoParseSaving.value=false}
+}
+const parseSourceActive=()=>parseSources.value.some(s=>s.id===parseSourceId.value&&s.active)
 const exportMetrics=()=>download('/admin/metrics/export','DataAsk-指标口径.xlsx')
 const downloadTemplate=()=>download('/admin/metrics/template','DataAsk-指标口径模板.xlsx')
 </script>
@@ -167,6 +209,9 @@ const downloadTemplate=()=>download('/admin/metrics/template','DataAsk-指标口
         </button>
         <button type="button" class="td-btn" @click="exportMetrics">
           <van-icon name="down"/> 导出
+        </button>
+        <button type="button" class="td-btn" @click="openAutoParse">
+          <van-icon name="cluster-o"/> 一键解析
         </button>
       </template>
       <template #actions="{row}">
@@ -239,12 +284,78 @@ const downloadTemplate=()=>download('/admin/metrics/template','DataAsk-指标口
         </footer>
       </form>
     </van-popup>
+    <van-popup :show="autoParseOpen" round :close-on-click-overlay="false"
+      class="da-crud-modal da-metric-auto-parse" @keydown.esc="closeAutoParse">
+      <div>
+        <header>
+          <h2>一键解析授权表</h2>
+          <button type="button" aria-label="关闭解析弹窗" :disabled="autoParseSaving" @click="closeAutoParse">×</button>
+        </header>
+        <div class="da-auto-body">
+          <label class="da-auto-source">
+            <span>数据源</span>
+            <select v-model="parseSourceId" aria-label="选择解析数据源" :disabled="autoParseBusy" @change="loadAutoParse">
+              <option v-for="source in parseSources" :key="source.id" :value="source.id">
+                {{ source.name }}（{{ source.schema }}）{{ source.active?' · 当前启用':'' }}
+              </option>
+            </select>
+          </label>
+          <p v-if="autoParseBusy" class="da-auto-loading"><van-loading size="16px"/> 正在读取表字段…</p>
+          <p v-if="autoParseError" class="metric-error" role="alert">{{ autoParseError }}</p>
+          <template v-if="parsedPreview">
+            <div class="da-auto-summary">发现 {{ parsedPreview.count }} 个数值字段，
+              {{ parsedPreview.withoutPrimaryKey }} 张表无主键</div>
+            <p v-if="!parseSourceActive()" class="da-auto-warning">
+              当前不是启用的数据源。可以预览，但需要先在数据源配置中启用后才能生成指标草稿。
+            </p>
+            <p v-for="notice in parsedPreview.notices.slice(0,8)" :key="notice" class="da-auto-note">
+              {{ notice }}
+            </p>
+            <div class="da-auto-table">
+              <table>
+                <thead><tr><th>来源表</th><th>指标字段</th><th>指标名称</th><th>分析维度（主键）</th></tr></thead>
+                <tbody>
+                  <tr v-for="item in parsedPreview.metrics" :key="item.adsTable+'.'+item.adsField">
+                    <td>{{ item.adsTable }}</td><td>{{ item.adsField }}</td>
+                    <td>{{ item.metricName }}</td><td>{{ item.dimensions||'待设置' }}</td>
+                  </tr>
+                  <tr v-if="!parsedPreview.metrics.length"><td colspan="4">暂无可解析的数值字段</td></tr>
+                </tbody>
+              </table>
+            </div>
+          </template>
+        </div>
+        <footer>
+          <span class="da-auto-footer-hint">生成的是待确认草稿，请核实 SUM、单位与去重口径</span>
+          <button type="button" class="td-btn" :disabled="autoParseSaving" @click="closeAutoParse">取消</button>
+          <button type="button" class="td-btn td-btn--primary"
+            :disabled="autoParseBusy||autoParseSaving||!parsedPreview?.count||!parseSourceActive()"
+            @click="confirmAutoParse">{{ autoParseSaving?'生成中…':'确认生成指标' }}</button>
+        </footer>
+      </div>
+    </van-popup>
+
   </div>
 </template>
 
 <style scoped>
 .da-metric-editor{width:min(820px,calc(100vw - 48px))}
 .da-metric-import{width:min(900px,calc(100vw - 48px))}
+.da-metric-auto-parse{width:min(1020px,calc(100vw - 48px))}
+.da-auto-body{padding:18px 20px;max-height:62vh;overflow:auto}
+.da-auto-source{display:flex;align-items:center;gap:12px}
+.da-auto-source span{color:var(--da-text-2);font-size:12px}
+.da-auto-source select{min-width:300px;height:36px;padding:0 12px;border:1px solid var(--da-border);border-radius:7px;background:var(--da-surface);color:var(--da-text);font-size:13px}
+.da-auto-loading{display:flex;align-items:center;gap:8px;color:var(--da-text-3)}
+.da-auto-summary{margin-top:16px;font-size:13px;color:var(--da-text-2)}
+.da-auto-warning{font-size:12px;color:var(--da-danger)}
+.da-auto-note{margin:6px 0;font-size:12px;color:var(--da-text-3)}
+.da-auto-table{margin-top:14px;max-height:330px;overflow:auto;border:1px solid var(--da-border);border-radius:7px}
+.da-auto-table table{width:100%;border-collapse:collapse;font-size:12px}
+.da-auto-table th,.da-auto-table td{padding:10px;border-bottom:1px solid var(--da-border);text-align:left;color:var(--da-text-2)}
+.da-auto-table th{position:sticky;top:0;background:var(--da-surface-2);color:var(--da-text-3)}
+.da-auto-footer-hint{margin-right:auto;font-size:11px;color:var(--da-text-3)}
+
 .da-metric-fields{display:grid!important;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px 18px}
 .da-metric-fields label{min-width:0}
 .da-metric-fields .wide{grid-column:1/-1}
