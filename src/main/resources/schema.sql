@@ -28,16 +28,27 @@ CREATE TABLE IF NOT EXISTS da_role_permissions (
  INDEX idx_da_role_permission(permission_code)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
-INSERT INTO da_roles(code,name,built_in,enabled) VALUES
- ('ADMIN','管理员',1,1),
- ('CITY_MANAGER','城市经理',1,1),
- ('USER','普通用户',1,1)
-ON DUPLICATE KEY UPDATE built_in=VALUES(built_in),enabled=VALUES(enabled);
+INSERT INTO da_roles(code,name,built_in,enabled)
+SELECT 'ADMIN','管理员',1,1 WHERE NOT EXISTS (SELECT 1 FROM da_roles WHERE code='ADMIN');
+INSERT INTO da_roles(code,name,built_in,enabled)
+SELECT 'CITY_MANAGER','城市经理',1,1 WHERE NOT EXISTS (SELECT 1 FROM da_roles WHERE code='CITY_MANAGER');
+INSERT INTO da_roles(code,name,built_in,enabled)
+SELECT 'USER','普通用户',1,1 WHERE NOT EXISTS (SELECT 1 FROM da_roles WHERE code='USER');
 
-INSERT IGNORE INTO da_role_permissions(role_code,permission_code) VALUES
- ('ADMIN','ASK'),('ADMIN','CHARTS'),('ADMIN','SYSTEM_ADMIN'),
- ('CITY_MANAGER','ASK'),('CITY_MANAGER','CHARTS'),
- ('USER','ASK'),('USER','CHARTS');
+INSERT INTO da_role_permissions(role_code,permission_code)
+SELECT 'ADMIN','ASK' WHERE NOT EXISTS (SELECT 1 FROM da_role_permissions WHERE role_code='ADMIN' AND permission_code='ASK');
+INSERT INTO da_role_permissions(role_code,permission_code)
+SELECT 'ADMIN','CHARTS' WHERE NOT EXISTS (SELECT 1 FROM da_role_permissions WHERE role_code='ADMIN' AND permission_code='CHARTS');
+INSERT INTO da_role_permissions(role_code,permission_code)
+SELECT 'ADMIN','SYSTEM_ADMIN' WHERE NOT EXISTS (SELECT 1 FROM da_role_permissions WHERE role_code='ADMIN' AND permission_code='SYSTEM_ADMIN');
+INSERT INTO da_role_permissions(role_code,permission_code)
+SELECT 'CITY_MANAGER','ASK' WHERE NOT EXISTS (SELECT 1 FROM da_role_permissions WHERE role_code='CITY_MANAGER' AND permission_code='ASK');
+INSERT INTO da_role_permissions(role_code,permission_code)
+SELECT 'CITY_MANAGER','CHARTS' WHERE NOT EXISTS (SELECT 1 FROM da_role_permissions WHERE role_code='CITY_MANAGER' AND permission_code='CHARTS');
+INSERT INTO da_role_permissions(role_code,permission_code)
+SELECT 'USER','ASK' WHERE NOT EXISTS (SELECT 1 FROM da_role_permissions WHERE role_code='USER' AND permission_code='ASK');
+INSERT INTO da_role_permissions(role_code,permission_code)
+SELECT 'USER','CHARTS' WHERE NOT EXISTS (SELECT 1 FROM da_role_permissions WHERE role_code='USER' AND permission_code='CHARTS');
 
 CREATE TABLE IF NOT EXISTS da_users (
  id BIGINT NOT NULL AUTO_INCREMENT PRIMARY KEY,
