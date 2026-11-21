@@ -242,7 +242,9 @@ public class MetricDictionaryService {
      * definitions. A repeated parse of the same authorized table is idempotent.
      */
     @Transactional
-    public Map<String,Object> importAutoSuggestions(List<MetricEdit> candidates,String username) {
+    public Map<String,Object> importAutoSuggestions(List<MetricEdit> candidates,String username,String sourceId) {
+        if(sourceId==null||!sourceId.matches("[0-9a-fA-F-]{36}"))
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST,"未指定合法的来源数据源");
         if(candidates==null || candidates.isEmpty())
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST,"没有可导入的指标草稿");
         if(candidates.size()>1000)
@@ -257,8 +259,10 @@ public class MetricDictionaryService {
                 continue;
             }
             Integer existing=jdbc.queryForObject(
-                "SELECT COUNT(*) FROM da_metric_definitions WHERE ads_table=? AND ads_field=?",
-                Integer.class,table,field);
+                "SELECT COUNT(*) FROM da_metric_definitions d " +
+                "LEFT JOIN da_metric_definition_sources s ON s.metric_id=d.id " +
+                "WHERE d.ads_table=? AND d.ads_field=? AND (s.data_source_id IS NULL OR s.data_source_id=?)",
+                Integer.class,table,field,sourceId);
             if(existing!=null && existing>0){
                 skipped++;
                 continue;
@@ -273,6 +277,12 @@ public class MetricDictionaryService {
                 batchId,clean(entry.metricName()),clean(entry.aliases()),clean(entry.definition()),
                 table,field,clean(entry.timeField()),clean(entry.dimensions()),clean(entry.notes()),
                 "自动解析",inserted+1);
+            Long metricId=jdbc.queryForObject(
+                "SELECT MAX(id) FROM da_metric_definitions WHERE batch_id=?",Long.class,batchId);
+            if(metricId==null)
+                throw new IllegalStateException("指标自增 ID 未返回");
+            jdbc.update("INSERT INTO da_metric_definition_sources(metric_id,data_source_id) VALUES(?,?)",
+                metricId,sourceId);
             inserted++;
         }
         if(inserted>0)jdbc.update("UPDATE da_metric_import_batches SET row_count=? WHERE id=?",inserted,batchId);
@@ -310,13 +320,18 @@ public class MetricDictionaryService {
     }
 
     public String promptForQuestion(String question, Set<String> allowedTables) {
+        List<String> activeIds=jdbc.query(
+            "SELECT setting_value FROM da_app_settings WHERE setting_key='sr.activeSource'",
+            (rs,n)->rs.getString(1));
+        String activeSource=activeIds.isEmpty()?"":activeIds.getFirst();
         var rows=jdbc.query(
-            "SELECT metric_name,aliases,definition,ads_table,ads_field,time_field,dimensions,notes " +
-            "FROM da_metric_definitions ORDER BY id DESC LIMIT 1000",
+            "SELECT d.metric_name,d.aliases,d.definition,d.ads_table,d.ads_field,d.time_field,d.dimensions,d.notes " +
+            "FROM da_metric_definitions d LEFT JOIN da_metric_definition_sources s ON s.metric_id=d.id " +
+            "WHERE s.data_source_id IS NULL OR s.data_source_id=? ORDER BY d.id DESC LIMIT 1000",
             (rs,n)->new String[]{
                 rs.getString(1),rs.getString(2),rs.getString(3),rs.getString(4),
                 rs.getString(5),rs.getString(6),rs.getString(7),rs.getString(8)
-            });
+            },activeSource);
         record Ranked(String[] data,int score) {}
         List<Ranked> ranked = new ArrayList<>();
         String normalizedQuestion=question.replaceAll("\\s+","");
