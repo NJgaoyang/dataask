@@ -63,11 +63,15 @@ try{
   const ctx=await browser.newContext({viewport:{width:1440,height:1000},locale:'zh-CN'});
   await ctx.addInitScript(()=>{sessionStorage.setItem('dataask_token','management-test');sessionStorage.setItem('dataask_user',JSON.stringify({username:'admin',displayName:'系统管理员',role:'ADMIN'}))});
   const page=await ctx.newPage();page.on('pageerror',e=>errors.push(e.message));await page.route('**/api/**',backend);await page.goto(base,{waitUntil:'networkidle'});
-  assert.equal(await page.locator('.ds-home-history-row').count(),0);assert.equal(await page.locator('.da-home-saved-item').count(),0);
+  assert.equal(await page.locator('.desktop-main-nav button').filter({hasText:'工作台'}).count(),0,
+    'Smart Q&A must not expose a separate workbench');
+  assert.match(await page.locator('.desktop-main-nav button').filter({hasText:'智能问数'}).getAttribute('class'),/active/,
+    'Smart Q&A is the authenticated default page');
   assert.equal(await page.locator('.ds-home-intro,.tb-page-heading,.tb-admin-heading,.da-chart-detail-heading').count(),0,
     'Global PC workspaces must not render extra title/description banners');
-  const homeHeight=(await page.locator('.da-home-ask-row').boundingBox()).height;assert(homeHeight>=80,'Workbench ask box must remain comfortably tappable');await snap(page,'workbench');
-  await page.locator('.sidebar-new').click();assert((await page.locator('.composer-row').boundingBox()).height>=80,'Conversation composer must remain comfortably tappable');
+  const composerHeight=(await page.locator('.composer-row').boundingBox()).height;
+  assert(composerHeight>=80,'Smart Q&A composer must remain comfortably tappable');await snap(page,'smart-qa-default');
+  await page.locator('.sidebar-new').click();assert((await page.locator('.composer-row').boundingBox()).height>=80,'New question keeps the composer tappable');
   await tile(page,'数据源配置');const sourceList=page.getByRole('region',{name:'数据源',exact:true});
   await sourceList.waitFor();
   const sourceOuter=await page.locator('.tb-admin-page').boundingBox();
@@ -135,5 +139,5 @@ try{
   await tile(page,'数据源配置');await page.getByRole('button',{name:'新增数据源',exact:true}).click();
   await page.evaluate(()=>document.querySelector('.consumer-pc').setAttribute('data-theme','dark'));await snap(page,'source-create-dark');await modal.getByRole('button',{name:'取消',exact:true}).click();
   for(const width of [1024,1280,1920]){await page.setViewportSize({width,height:900});assert(await page.locator('main').evaluate(el=>el.scrollWidth<=el.clientWidth+1));await snap(page,`sources-${width}`)}
-  assert.deepEqual(errors,[]);assert(calls.some(c=>c.p==='/api/admin/users/new_user/reset-password'));console.log('PASS: focused workbench, server paging beyond 50 sessions, source create/test/edit/activate/cancel, user create/edit/reset, indexed pagination, dark mode and screenshots');await ctx.close();
+  assert.deepEqual(errors,[]);assert(calls.some(c=>c.p==='/api/admin/users/new_user/reset-password'));console.log('PASS: Smart Q&A default entry, server paging beyond 50 sessions, source create/test/edit/activate/cancel, user create/edit/reset, indexed pagination, dark mode and screenshots');await ctx.close();
 }finally{await browser.close()}

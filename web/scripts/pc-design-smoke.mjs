@@ -63,20 +63,19 @@ try {
     page.on('pageerror', error => errors.push(error.message));
     await page.route('**/api/**',backend);
     await page.goto(base,{waitUntil:'networkidle'});
-    await page.locator('.da-home-ask-row').waitFor();
-    assert.equal(await page.locator('.da-home-columns').count(),0,'Workbench home should stay focused on the primary ask action');
+    await page.locator('.conversation').waitFor();
+    await page.locator('.composer-row').waitFor();
+    assert.equal(await page.locator('.desktop-main-nav button').filter({hasText:'工作台'}).count(),0,
+      'Smart Q&A has no extra workbench navigation layer');
+    const askNav=page.locator('.desktop-main-nav button').filter({hasText:'智能问数'});
+    assert.match(await askNav.getAttribute('class'),/active/,'Authenticated desktop opens Smart Q&A directly');
     const rail = await page.locator('.desktop-sidebar').boundingBox();
     assert(Math.abs(rail.width - 216)<2,'Sidebar keeps the fixed enterprise rail width');
-    assert.equal(await page.locator('.ds-home-intro').count(),0,'Workbench has no title banner');
-    const workspace = await page.locator('.ds-home').boundingBox();
-    const askBox = await page.locator('.da-home-ask-row').boundingBox();
-    assert(workspace.y>=48 && askBox.y>=workspace.y+12 && askBox.y<workspace.y+140,
-      'Workbench question entry starts directly beneath the existing topbar');
     const account = await page.locator('.da-account-trigger').boundingBox();
     assert(account.x < 232 && account.y > height - 150,'Account must remain at bottom-left');
-    await snap(page,`${width}-home`);
+    await snap(page,`${width}-ask-home`);
     await page.getByRole('textbox',{name:'输入经营数据问题'}).fill(analysisAnswer.question);
-    await page.getByRole('button',{name:'开始分析'}).click();
+    await page.getByRole('button',{name:'发送问题'}).click();
     const processPanel = page.locator('.da-analysis-panel');
     await processPanel.waitFor();
     assert.equal(await page.locator('.da-analysis-steps li').count(),6);
@@ -264,7 +263,7 @@ try {
       assert.equal(passwordFocus.borderLeftWidth,'0px','Password input must not draw the left separator line');
       assert.equal(passwordFocus.borderRightWidth,'0px','Password input must not draw the right separator line');
       await page.getByRole('button',{name:'登录',exact:true}).click();
-      await page.locator('.da-home-ask-row').waitFor();
+      await page.locator('.conversation').waitFor();await page.locator('.composer-row').waitFor();
       assert.equal(await page.evaluate(()=>document.documentElement.dataset.dataaskTheme),'light','A different user must not inherit admin theme');
       await page.locator('.da-account-trigger').click();
       await page.getByRole('menuitem',{name:'退出登录'}).click();
@@ -272,7 +271,7 @@ try {
       await page.locator('input[autocomplete="username"]').fill('admin');
       await page.locator('input[autocomplete="current-password"]').fill('example-password');
       await page.getByRole('button',{name:'登录',exact:true}).click();
-      await page.locator('.da-home-ask-row').waitFor();
+      await page.locator('.conversation').waitFor();await page.locator('.composer-row').waitFor();
       assert.equal(await page.evaluate(()=>document.documentElement.dataset.dataaskTheme),'dark','Returning account should restore its own preference');
       // Returning to narrow H5 removes desktop dark styling even with the preference saved.
       await page.setViewportSize({width:390,height:844});

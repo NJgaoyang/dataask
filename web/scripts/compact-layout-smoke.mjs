@@ -75,8 +75,8 @@ try {
     await ctx.addInitScript(()=>{sessionStorage.setItem('dataask_token','layout-test');sessionStorage.setItem('dataask_user',JSON.stringify({username:'admin',role:'ADMIN',displayName:'系统管理员'}))});
     const page=await ctx.newPage();trackErrors(page);await page.route('**/api/**',backend);
     await page.goto(base,{waitUntil:'networkidle'});
-    await capture(page,width,'workbench','.da-home-ask');
-    await page.locator('.sidebar-new').click();
+    assert.equal(await page.locator('.desktop-main-nav button').filter({hasText:'工作台'}).count(),0,
+      'No separate workbench remains in navigation');
     await capture(page,width,'ask','.conversation');
     const box=await page.locator('.composer-row').boundingBox();
     assert(box.y<=180&&box.width<=width-216+2,'Question input fills the workspace width');
@@ -147,5 +147,5 @@ try {
     await compare.close();
   }
   assert.deepEqual(errors,[]);
-  console.log('PC layout: five desktop widths, bounded sidebar, centered workbench, consistent content frames, navigation, user/audit/source pages and dark appearance passed.');
+  console.log('PC layout: five desktop widths, direct Smart Q&A entry, consistent content frames, navigation, user/audit/source pages and dark appearance passed.');
 } finally {await browser.close()}

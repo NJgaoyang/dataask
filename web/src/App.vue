@@ -360,7 +360,7 @@ function isRedundantSummary(msg) {
   return /^(?:已从\s*StarRocks\s*查询到\s*\d+\s*行真实数据[。.]?\s*(?:可点击下方快捷追问继续分析[。.]?)?|(?:已查询到|查询到|已返回|已获取|本次查询返回)\s*\d+\s*(?:行|条)数据[。.]?)$/i.test(summary)
 }
 
-const desktopSection = ref('overview')
+const desktopSection = ref('ask')
 const adminExpanded = ref(false)
 const desktopAdminSections = ['admin-overview','admin-source','admin-model','admin-tables','admin-metrics','admin-users','admin-status','admin-audit']
 const adminSectionBusy = ref(false)
@@ -386,12 +386,12 @@ const configuredStatusRows = computed(() => [
 ])
 
 const desktopSectionTitle = computed(() => ({
-  overview:'工作台',ask:'智能问数',charts:'我的图表',history:'历史会话',
+  ask:'智能问数',charts:'我的图表',history:'历史会话',
   'admin-overview':'系统管理','admin-source':'数据源配置','admin-model':'模型配置',
   'admin-tables':'ADS 表授权',
   'admin-metrics':'指标口径','admin-users':'用户管理',
   'admin-status':'配置状态','admin-audit':'审计日志'
-})[desktopSection.value] || '工作台')
+})[desktopSection.value] || '智能问数')
 const desktopIsAdminSection = computed(() => desktopSection.value.startsWith('admin-'))
 const sharingVisible = ref(false)
 const sharingChart = ref(null)
@@ -444,14 +444,6 @@ const todayLabel = computed(() => {
   const weekday = ['日','一','二','三','四','五','六'][now.getDay()]
   return `${now.getFullYear()} 年 ${now.getMonth() + 1} 月 ${now.getDate()} 日 星期${weekday}`
 })
-const homeQuestion = ref('')
-function askFromHome(text = homeQuestion.value) {
-  const value = String(text || '').trim()
-  if (!value || busy.value) return
-  homeQuestion.value = ''
-  switchDesktopSection('ask')
-  ask(value)
-}
 function answerScope(msg) {
   const period = msg.timeLabel || msg.periodLabel
   return [
@@ -675,7 +667,7 @@ async function login() {
     me.value = user; loggedIn.value = true; loginForm.value.password = ''
     await loadCityPermissions()
     await Promise.all([loadSessions(), loadApprovedDatasets(), loadSavedCharts()])
-    if (isDesktop.value) desktopSection.value = 'overview'
+    if (isDesktop.value) desktopSection.value = 'ask'
   } catch (e) { showFailToast(errorText(e)) }
   finally { loggingIn.value = false }
 }
@@ -710,7 +702,7 @@ function logout(record = true) {
   followUpSource.value = null
   fullScreenMessage.value = null
   answerFeedback.value = {}
-  desktopSection.value = 'overview'
+  desktopSection.value = 'ask'
   adminSectionError.value = ''
   adminSectionBusy.value = false
   adminExpanded.value = false
@@ -787,7 +779,7 @@ async function refreshSharedHistory() {
   finally { sharedHistoryRefreshPending = false }
 }
 function switchDesktopSection(section) {
-  const normal = ['overview','ask','charts','history'].includes(section)
+  const normal = ['ask','charts','history'].includes(section)
   if (!normal && !(desktopAdminSections.includes(section) && isAdmin.value)) return
   if (desktopSection.value !== section) recordClientEvent('PAGE_VIEW',section)
   if (isDesktop.value && busy.value && section !== 'ask') stopAsk()
@@ -797,7 +789,6 @@ function switchDesktopSection(section) {
   if (desktopAdminSections.includes(section)) adminExpanded.value = true
   if (section === 'charts') closeChartDetail()
   if (section === 'history') loadSessions()
-  if (section === 'overview') { loadSessions(); loadSavedCharts(); loadApprovedDatasets() }
   if (section === 'ask') { focusDesktopQuestion(); if (sessionId.value) refreshSharedHistory() }
 }
 async function loadSavedCharts() {
@@ -1045,7 +1036,7 @@ function toggleAdminNavigation() {
   if (!isAdmin.value) return
   if (!adminExpanded.value) { openAdmin(); return }
   adminExpanded.value = false
-  if (desktopIsAdminSection.value) switchDesktopSection('overview')
+  if (desktopIsAdminSection.value) switchDesktopSection('ask')
 }
 async function refreshAdminOverview() {
   if (!requireAdmin()) return
@@ -1554,7 +1545,6 @@ onBeforeUnmount(() => {
         <button type="button" class="sidebar-new da-new-conversation" title="新建问数" @click="newConversation"><van-icon name="plus"/><span>新建问数</span></button>
         <div class="da-nav-label tb-nav-category">分析</div>
         <nav class="desktop-main-nav" aria-label="分析导航">
-          <button type="button" title="工作台" :class="{active:desktopSection==='overview'}" @click="switchDesktopSection('overview')"><van-icon name="home-o"/><span>工作台</span></button>
           <button type="button" title="智能问数" :class="{active:desktopSection==='ask'}" @click="switchDesktopSection('ask')"><van-icon name="chat-o"/><span>智能问数</span></button>
           <button type="button" title="我的图表" :class="{active:desktopSection==='charts'}" @click="switchDesktopSection('charts')"><van-icon name="chart-trending-o"/><span>我的图表</span></button>
           <button type="button" title="历史会话" :class="{active:desktopSection==='history'}" @click="switchDesktopSection('history')"><van-icon name="clock-o"/><span>历史会话</span></button>
@@ -1772,42 +1762,6 @@ onBeforeUnmount(() => {
           </section>
         </div>
         <AdminUsers v-else-if="desktopSection==='admin-users'" :api="api"/>
-      </main>
-      <main v-if="isDesktop && desktopSection==='overview'" class="tb-page-body tb-overview ds-home" aria-label="DataAsk 工作台">
-        <div class="da-home-body">
-          <section class="da-home-ask" aria-label="快速提问">
-            <p class="da-home-ask-label"><van-icon name="chat-o"/> 快速提问</p>
-            <form class="da-home-ask-row" @submit.prevent="askFromHome()">
-              <textarea v-model="homeQuestion" maxlength="800" placeholder="例如：昨天各城市的销售额是多少？" aria-label="输入经营数据问题" @keydown.enter="!$event.shiftKey && !$event.isComposing && ($event.preventDefault(),askFromHome())"/>
-              <div class="da-home-composer-actions"><small>{{ homeQuestion.length }}/800</small><button type="submit" :disabled="busy || !homeQuestion.trim()">开始分析 <van-icon name="arrow"/></button></div>
-            </form>
-            <p class="da-home-quick-label">试试这样问</p>
-            <div class="da-home-ask-chips">
-              <button v-for="item in quickQuestions" :key="item" type="button" :disabled="busy" @click="askFromHome(item)">{{ item }}</button>
-            </div>
-          </section>
-          <div class="da-home-grid">
-            <section class="da-home-card" aria-label="最近会话">
-              <div class="da-home-card-head"><h3>最近会话</h3><button type="button" @click="switchDesktopSection('history')">查看全部 <van-icon name="arrow"/></button></div>
-              <div v-if="sessions.length" class="da-home-card-list">
-                <button v-for="item in sessions.slice(0,5)" :key="item.id" type="button" class="da-home-session-row" :title="item.title" @click="openSession(item)">
-                  <van-icon name="chat-o"/><span>{{ item.title }}</span><time>{{ sessionTimeLabel(item.updatedAt) }}</time>
-                </button>
-              </div>
-              <p v-else class="da-home-card-empty">暂无会话，从上方快速提问开始分析。</p>
-            </section>
-            <section class="da-home-card" aria-label="最近图表">
-              <div class="da-home-card-head"><h3>最近图表</h3><button type="button" @click="switchDesktopSection('charts')">查看全部 <van-icon name="arrow"/></button></div>
-              <div v-if="chartsError" class="da-home-card-error" role="alert"><van-icon name="warning-o"/><span>{{ chartsError }}</span><button type="button" @click="loadSavedCharts">重试</button></div>
-              <div v-if="savedCharts.length" class="da-home-card-list">
-                <button v-for="chart in savedCharts.slice(0,5)" :key="chart.id" type="button" class="da-home-chart-row" :title="chart.title" @click="revisitChart(chart)">
-                  <van-icon name="chart-trending-o"/><span>{{ chart.title }}</span><small>{{ chartTypeLabel(chart.chartType) }}</small><time>{{ sessionTimeLabel(chart.updatedAt) }}</time>
-                </button>
-              </div>
-              <p v-else-if="!chartsError" class="da-home-card-empty">暂无收藏图表，在问数结果中点击「收藏」即可保存。</p>
-            </section>
-          </div>
-        </div>
       </main>
       <main v-if="isDesktop && desktopSection==='charts'" class="tb-page-body tb-content-page tb-charts-page">
         <template v-if="activeChart">
@@ -2266,7 +2220,7 @@ onBeforeUnmount(() => {
               <van-icon name="arrow"/>
             </span>
           </button>
-          <div class="admin-build-status">DataAsk 工作台 · 版本 {{ buildSha }} · PC 宽屏使用桌面设计系统</div>
+          <div class="admin-build-status">DataAsk 数问 · 版本 {{ buildSha }} · PC 宽屏使用桌面设计系统</div>
           <h3>开放给 AI 的 ADS 表</h3>
           <p class="muted">默认不开放任何表。仅授权通过审核的经营数据表。</p>
           <div v-for="table in allowedTables" :key="table.name" class="admin-table">
