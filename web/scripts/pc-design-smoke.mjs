@@ -239,6 +239,14 @@ try {
       assert.equal(await page.locator('.login-brand-hero g[transform*="rotate(7 170 190)"]').count(),1,
         'The main analytics window must lean left, not right');
       assert.equal(await page.locator('.login-card-corner').count(),1,'Login card uses the vector top-right arc decoration');
+      const cornerPosition=await page.locator('.login-card-corner').evaluate(el=>getComputedStyle(el).position);
+      assert.equal(cornerPosition,'absolute','Card corner decoration must not occupy form layout space');
+      const loginButton=page.locator('.login-card .van-button');
+      await loginButton.waitFor({state:'visible'});
+      const cardBox=await page.locator('.login-card').boundingBox();
+      const loginButtonBox=await loginButton.boundingBox();
+      assert(cardBox && loginButtonBox && loginButtonBox.y+loginButtonBox.height <= cardBox.y+cardBox.height,
+        'Login button must remain fully visible inside the card');
       assert.equal(await page.locator('.login-background-waves').count(),1,'Login bottom uses the vector wave layers');
       const hero=await page.locator('.login-brand-hero').boundingBox();
       const card=await page.locator('.login-card').boundingBox();

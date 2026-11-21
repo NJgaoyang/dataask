@@ -143,3 +143,10 @@ PC 登录页按确认稿调整为全屏左右布局：左侧为 DataAsk 品牌�
 - 底部波浪按参考截图改为三层 SVG path，不再使用两个大椭圆伪元素。
 - 欢迎登录右上角装饰改为卡片内 SVG 双层弧面，比例固定随卡片自适应。
 - 密码框内部原生 input 的 focus outline/border 被关闭，只保留 Vant 外层输入框的单一焦点边框，去掉左右蓝色竖线。
+
+
+### 登录卡片 SVG 布局回归修复
+
+- 右上角 `.login-card-corner` 必须保持绝对定位，不参与登录卡片文档流。
+- 原通用规则 `.login-card > *` 会覆盖 SVG 的 `position:absolute`，导致装饰 SVG 占据 34% 卡片高度并把表单整体向下推。现在改为 `:not(.login-card-corner)`，同时对 SVG 使用 `position:absolute!important`。
+- 回归测试新增登录按钮必须完整位于卡片内部，避免再次出现按钮被 `overflow:hidden` 截掉。
