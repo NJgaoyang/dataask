@@ -65,6 +65,11 @@ try {
     await page.goto(base,{waitUntil:'networkidle'});
     await page.locator('.conversation').waitFor();
     await page.locator('.composer-row').waitFor();
+    await page.locator('.da-ask-hero').waitFor();
+    assert.equal(await page.locator('.da-suggestion-grid button').count(),4,'Smart Q&A home exposes four concise quick questions');
+    const entryBox=await page.locator('.composer-row').boundingBox();
+    assert(entryBox && entryBox.width<=1042 && entryBox.width>=Math.min(720,width-280),
+      'Smart Q&A entry is centered and bounded instead of spanning the full canvas');
     assert.equal(await page.locator('.desktop-main-nav button').filter({hasText:'工作台'}).count(),0,
       'Smart Q&A has no extra workbench navigation layer');
     const askNav=page.locator('.desktop-main-nav button').filter({hasText:'智能问数'});

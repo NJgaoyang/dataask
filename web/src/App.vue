@@ -1992,6 +1992,10 @@ onBeforeUnmount(() => {
           @pointerdown="beginComposerDrag"
           @keydown.up.prevent="adjustComposerHeight(24)"
           @keydown.down.prevent="adjustComposerHeight(-24)"><span></span></button>
+        <section v-if="isDesktop && !messages.length && !busy && !desktopFeedback" class="da-ask-hero" aria-label="智能问数入口">
+          <h1>从一个经营问题开始</h1>
+          <p>直接输入问题，DataAsk 将基于已授权的 ADS 数据进行查询、分析与可视化。</p>
+        </section>
         <div class="composer-row da-composer">
           <div v-if="isDesktop && followUpSource" class="da-followup-context">
             <span><van-icon name="comment-o"/> 正在追加提问：{{ followUpSource.title || followUpSource.question }}</span>
@@ -2022,26 +2026,19 @@ onBeforeUnmount(() => {
           </button>
         </div>
         <section v-if="isDesktop && !messages.length && !busy && !desktopFeedback" class="da-suggestions" aria-label="示例问题">
-          <div class="da-suggestions-label"><span><van-icon name="apps-o"/> 示例问题</span><small>按分析场景选择</small></div>
-          <div class="da-suggestion-group">
-            <p class="da-suggestion-group-label">指标查询</p>
-            <div class="da-suggestion-grid">
-              <button v-for="item in quickQuestions.slice(0,1)" :key="item" :disabled="busy" type="button" @click="ask(item)">
-                <span class="da-suggestion-icon"><van-icon name="chart-trending-o" size="16"/></span>
-                <span>{{ item }}</span>
-                <van-icon name="arrow" size="12"/>
-              </button>
-            </div>
+          <div class="da-suggestions-label">
+            <span>常用问题</span>
+            <small>点击即可开始分析</small>
           </div>
-          <div class="da-suggestion-group">
-            <p class="da-suggestion-group-label">排行 · 趋势 · 对比</p>
-            <div class="da-suggestion-grid">
-              <button v-for="(item, idx) in quickQuestions.slice(1)" :key="item" :disabled="busy" type="button" @click="ask(item)">
-                <span class="da-suggestion-icon"><van-icon :name="['location-o','bar-chart-o','balance-o'][idx]" size="16"/></span>
-                <span>{{ item }}</span>
-                <van-icon name="arrow" size="12"/>
-              </button>
-            </div>
+          <div class="da-suggestion-grid">
+            <button v-for="(item, idx) in quickQuestions" :key="item" :disabled="busy" type="button" @click="ask(item)">
+              <span class="da-suggestion-icon"><van-icon :name="['chart-trending-o','location-o','bar-chart-o','balance-o'][idx]" size="16"/></span>
+              <span class="da-suggestion-copy">
+                <small>{{ ['指标查询','城市排行','趋势分析','经营对比'][idx] }}</small>
+                <strong>{{ item }}</strong>
+              </span>
+              <van-icon name="arrow" size="12"/>
+            </button>
           </div>
         </section>
         <small>DataAsk · 仅供内部经营分析 · 以实际业务口径为准</small>
