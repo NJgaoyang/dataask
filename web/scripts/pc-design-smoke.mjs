@@ -66,6 +66,7 @@ try {
     await page.locator('.conversation').waitFor();
     await page.locator('.da-home-question-box').waitFor();
     await page.locator('.da-ask-hero').waitFor();
+    assert.equal(await page.locator('.da-empty-ask-home').count(),1,'Authenticated New task must render the WorkBuddy-style landing page');
     assert.equal(await page.locator('.da-ask-hero p').count(),0,'Smart Q&A home keeps only the task title');
     assert.equal(await page.locator('.da-suggestions-label small').count(),0,'Common questions heading has no helper copy');
     assert.equal(await page.locator('.da-suggestion-grid button').count(),8,'Smart Q&A home exposes eight compact quick questions');
@@ -235,6 +236,10 @@ try {
       await page.locator('.da-home-question-box textarea').fill('查看近7天趋势');
       await page.locator('.da-home-question-box textarea').press('Enter');
       await page.locator('.metric-clarification').waitFor();
+      const composerEdge=page.locator('.da-composer-resize-edge');
+      const edgeBox=await composerEdge.boundingBox();
+      assert(edgeBox && edgeBox.height<=10,'Conversation composer resize edge stays visually hidden');
+
       assert.equal(await page.locator('.da-analysis-card').count(),0);
       assert.match(await page.locator('.da-analysis-steps').innerText(),/等待确认指标/);
       await page.locator('.desktop-main-nav button').filter({hasText:'新建任务'}).click();

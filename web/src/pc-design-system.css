@@ -431,13 +431,18 @@
   .consumer-pc .send-btn.stop-btn{background:var(--da-surface);border:1px solid var(--da-border-strong);color:var(--da-text-2)}
   .consumer-pc .send-btn.stop-btn:hover{border-color:var(--da-danger);color:var(--da-danger);background:var(--da-surface)}
   .consumer-pc .send-btn svg{width:16px;height:16px}
-  .consumer-pc .da-composer-resize-handle{
-    position:absolute;top:2px;left:50%;transform:translateX(-50%);z-index:3;width:84px;height:16px;border:0;border-radius:var(--da-radius-pill);
-    background:transparent;display:flex;justify-content:center;align-items:center;cursor:ns-resize;touch-action:none;user-select:none;
+  .consumer-pc .da-composer-resize-edge{
+    position:absolute;z-index:20;top:-4px;left:0;right:0;height:8px;
+    border:0;outline:0;background:transparent;cursor:ns-resize;touch-action:none;
   }
-  .consumer-pc .da-composer-resize-handle span{display:block;width:40px;height:4px;border-radius:4px;background:var(--da-border-strong);transition:background .15s}
-  .consumer-pc .da-composer-resize-handle:hover span,.consumer-pc .da-composer-resize-handle:focus-visible span{background:var(--da-primary)}
-  .consumer-pc.consumer-home .da-composer-resize-handle{display:none}
+  .consumer-pc .da-composer-resize-edge::after{
+    content:"";position:absolute;left:0;right:0;top:3px;height:2px;
+    background:transparent;transition:background .12s;
+  }
+  .consumer-pc .da-composer-resize-edge:hover::after,
+  .consumer-pc .da-composer-resize-edge:focus-visible::after{background:var(--da-primary)}
+  html.da-composer-resizing,html.da-composer-resizing *{cursor:ns-resize!important;user-select:none!important}
+  html.da-composer-resizing .consumer-pc .da-composer-resize-edge::after{background:var(--da-primary)}
   .consumer-pc .da-suggestions{width:min(760px,100%);max-width:none;margin:0 auto}
   .consumer-pc .da-suggestions-label{display:flex;align-items:center;justify-content:space-between;gap:var(--da-sp-3);margin-bottom:var(--da-sp-3);font-size:var(--da-fs-sm);font-weight:600;color:var(--da-text-2)}
   .consumer-pc .da-suggestions-label .van-icon{color:var(--da-primary);margin-right:4px}

@@ -206,6 +206,13 @@ const busy = ref(false)
 const pendingQuestion = ref('')
 // Desktop-only UI state. The miniapp HTML and narrow-screen template stay untouched.
 const desktopFeedback = ref(null)
+const showDesktopAskLanding = computed(() =>
+  isDesktop.value &&
+  desktopSection.value === 'ask' &&
+  messages.value.length === 0 &&
+  !busy.value &&
+  !desktopFeedback.value
+)
 const analysisPanelOpen = ref(false)
 const analysisMessage = ref(null)
 const analysisQuestion = ref('')
@@ -456,6 +463,7 @@ function moveComposerPointer(e) {
 function finishComposerPointer() {
   if (!composerPointerDrag) return
   composerPointerDrag = null
+  document.documentElement.classList.remove('da-composer-resizing')
   document.removeEventListener('pointermove', moveComposerPointer)
   document.removeEventListener('pointerup', finishComposerPointer)
   document.removeEventListener('pointercancel', finishComposerPointer)
@@ -465,6 +473,7 @@ function beginComposerDrag(e) {
   if (!isDesktop.value) return
   e.preventDefault()
   composerPointerDrag = { id:e.pointerId, y:e.clientY, height:composerHeight.value }
+  document.documentElement.classList.add('da-composer-resizing')
   document.addEventListener('pointermove', moveComposerPointer)
   document.addEventListener('pointerup', finishComposerPointer)
   document.addEventListener('pointercancel', finishComposerPointer)
@@ -1488,7 +1497,7 @@ onBeforeUnmount(() => {
 <template>
   <div class="app-shell" :data-theme="isDesktop ? theme : undefined"
     :style="isDesktop ? { '--da-sidebar-w': sidebarWidth + 'px' } : undefined"
-    :class="{ 'consumer-pc': isDesktop, 'consumer-home': isDesktop && desktopSection==='ask' && !messages.length && !busy && !desktopFeedback, 'analysis-panel-open': isDesktop && desktopSection==='ask' && analysisPanelOpen }">
+    :class="{ 'consumer-pc': isDesktop, 'consumer-home': showDesktopAskLanding, 'analysis-panel-open': isDesktop && desktopSection==='ask' && analysisPanelOpen }">
     <div v-if="!loggedIn" class="login-screen">
       <svg v-if="isDesktop" class="login-background-waves" viewBox="0 0 1647 216" preserveAspectRatio="none" aria-hidden="true">
         <defs>
@@ -1992,8 +2001,8 @@ onBeforeUnmount(() => {
               </button>
             </div>
         </section>
-        <section v-if="isDesktop && !messages.length && !busy && !desktopFeedback"
-          class="da-empty-ask-home" aria-label="智能问数入口">
+        <section v-if="showDesktopAskLanding"
+          class="da-empty-ask-home" aria-label="新建任务首页">
           <div class="da-empty-ask-inner">
             <section class="da-ask-hero">
               <h1>DataAsk，帮你问数</h1>
@@ -2147,13 +2156,15 @@ onBeforeUnmount(() => {
       </main>
       <AnalysisPanel v-if="isDesktop && desktopSection==='ask' && analysisPanelOpen"
         :message="analysisMessage" :pending="busy && !analysisMessage" :question="analysisQuestion" @close="closeAnalysis"/>
-      <footer v-if="!isDesktop || (desktopSection==='ask' && (messages.length || busy || desktopFeedback))" class="composer"
+      <footer v-if="!isDesktop || (desktopSection==='ask' && !showDesktopAskLanding)" class="composer"
         :style="isDesktop ? { '--da-composer-height': composerHeight + 'px' } : {}">
-        <button v-if="isDesktop" type="button" class="da-composer-resize-handle"
-          title="向上或向下拖动调整提问框高度" aria-label="上下拖动调整提问框高度"
+        <div v-if="isDesktop" class="da-composer-resize-edge" role="separator"
+          aria-label="调整对话输入框高度" aria-orientation="horizontal"
+          :aria-valuenow="composerHeight" aria-valuemin="94" aria-valuemax="430"
+          tabindex="0"
           @pointerdown="beginComposerDrag"
           @keydown.up.prevent="adjustComposerHeight(24)"
-          @keydown.down.prevent="adjustComposerHeight(-24)"><span></span></button>
+          @keydown.down.prevent="adjustComposerHeight(-24)"></div>
         <div class="composer-row da-composer">
           <div v-if="isDesktop && followUpSource" class="da-followup-context">
             <span><van-icon name="comment-o"/> 正在追加提问：{{ followUpSource.title || followUpSource.question }}</span>
