@@ -232,7 +232,14 @@ try {
       assert.match(loginGrid,/px .*px/,'Desktop login should keep a two-column layout');
       const loginCardBox=await page.locator('.login-card').boundingBox();
       assert(loginCardBox && loginCardBox.width>=400 && loginCardBox.width<=500,'Login card should match the approved visual proportions');
-      assert.equal(await page.locator('.login-visual-monitor').count(),1,'Desktop login keeps a CSS analytics illustration');
+      assert.equal(await page.locator('.login-brand-hero').count(),1,'Desktop login uses the approved analytics illustration asset');
+      const hero=await page.locator('.login-brand-hero').boundingBox();
+      const card=await page.locator('.login-card').boundingBox();
+      const viewport=page.viewportSize();
+      assert(hero && card && viewport);
+      assert(Math.abs(hero.x/viewport.width-0.3755)<0.035,'Hero horizontal position follows the reference');
+      assert(Math.abs(card.x/viewport.width-0.646)<0.04,'Login card horizontal position follows the reference');
+      assert(Math.abs(card.y/viewport.height-0.162)<0.04,'Login card vertical position follows the reference');
       assert.equal(await page.evaluate(()=>document.documentElement.dataset.dataaskTheme),undefined);
       assert(calls.includes('POST /api/chat/cancel'));
       await page.locator('input[autocomplete="username"]').fill('alice');

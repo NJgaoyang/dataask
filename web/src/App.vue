@@ -1391,18 +1391,7 @@ onBeforeUnmount(() => {
           </ul>
         </div>
         <div class="login-brand-visual" aria-hidden="true">
-          <div class="login-visual-orbit"></div>
-          <div class="login-visual-monitor">
-            <div class="login-visual-browser"><i></i><i></i><i></i></div>
-            <div class="login-visual-query">昨日营业额是多少？</div>
-            <div class="login-visual-dashboard">
-              <div class="login-visual-bars"><i></i><i></i><i></i><i></i><i></i></div>
-              <div class="login-visual-donut"></div>
-            </div>
-          </div>
-          <div class="login-visual-chat"><van-icon name="chat-o"/></div>
-          <div class="login-visual-db"><i></i><i></i><i></i></div>
-          <div class="login-visual-base"></div>
+          <img class="login-brand-hero" src="/login-hero.webp" alt="" draggable="false"/>
         </div>
       </aside>
       <main class="login-main">
@@ -1412,7 +1401,7 @@ onBeforeUnmount(() => {
         <p>{{ isDesktop ? '企业经营数据问答平台' : '面向企业管理者的智能经营数据助手' }}</p>
         <div class="login-card">
           <div v-if="isDesktop" class="login-card-head">
-            <h2>欢迎登录 <span>DataAsk 数问</span></h2>
+            <h2><span class="login-welcome">欢迎登录</span><span class="login-product">DataAsk 数问</span></h2>
             <p>企业经营数据智能问答平台</p>
           </div>
           <h2 v-else>登录到数问</h2>

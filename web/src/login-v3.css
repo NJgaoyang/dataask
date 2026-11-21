@@ -1,0 +1,211 @@
+/* DataAsk desktop login v3 — coordinate-calibrated against the approved 1692×930 reference.
+   Only the desktop logged-out screen is affected. The mobile login and authenticated app stay unchanged. */
+@media (min-width:1024px){
+  .consumer-pc .login-screen{
+    position:relative;display:block;grid-column:1/-1;grid-row:1/-1;
+    width:100vw;height:100dvh;min-height:100dvh;padding:0;margin:0;overflow:hidden;
+    background:
+      radial-gradient(ellipse 34% 46% at 52% 40%,rgba(89,153,255,.26) 0%,rgba(150,198,255,.11) 45%,transparent 72%),
+      radial-gradient(ellipse 30% 38% at 82% 16%,rgba(169,204,255,.18),transparent 72%),
+      linear-gradient(118deg,#fbfdff 0%,#f3f8ff 37%,#edf5ff 58%,#f8fbff 82%,#fbfcff 100%);
+    isolation:isolate;
+  }
+  .consumer-pc .login-screen::before,
+  .consumer-pc .login-screen::after{content:"";position:absolute;z-index:0;pointer-events:none}
+  .consumer-pc .login-screen::before{
+    left:-11vw;bottom:-23.5vh;width:124vw;height:38vh;border-radius:50% 50% 0 0/67% 67% 0 0;
+    background:linear-gradient(92deg,#2c7af2 0%,#72bfff 22%,#ecf7ff 48%,#fbfdff 67%,#80c3ff 88%,#3185ef 100%);
+    transform:rotate(1.7deg);opacity:.92;
+  }
+  .consumer-pc .login-screen::after{
+    left:-8vw;bottom:-27vh;width:118vw;height:36vh;border-radius:50% 50% 0 0/60% 60% 0 0;
+    background:rgba(248,252,255,.94);transform:rotate(-2.6deg);
+  }
+
+  /* Left brand layer: positions are normalized from the approved reference image. */
+  .consumer-pc .login-brand{
+    position:absolute;z-index:2;inset:0 auto 0 0;width:63.4%;height:100%;
+    margin:0;padding:0;border:0;border-radius:0;background:transparent;overflow:visible;color:#172846;
+  }
+  .consumer-pc .login-brand::before,.consumer-pc .login-brand::after{display:none!important}
+  .consumer-pc .login-brand-top{position:absolute;z-index:5;left:5.4vw;top:5.15vh;display:block}
+  .consumer-pc .login-brand-lockup{display:flex;align-items:center;gap:14px}
+  .consumer-pc .login-brand-mark{
+    width:3.05vw;height:3.05vw;min-width:46px;min-height:46px;max-width:58px;max-height:58px;
+    border-radius:12px;overflow:hidden;background:#0969e8;box-shadow:0 9px 23px rgba(0,94,220,.19);
+  }
+  .consumer-pc .login-brand-lockup>span{
+    color:#142441;font-size:clamp(22px,1.55vw,30px);font-weight:700;letter-spacing:-.5px;
+  }
+  .consumer-pc .login-brand-copy{
+    position:absolute;z-index:4;left:5.4vw;top:18.25vh;width:31.5vw;max-width:none;transform:none;
+  }
+  .consumer-pc .login-brand-eyebrow{
+    display:inline-flex;align-items:center;justify-content:center;height:38px;padding:0 17px;
+    border-radius:999px;background:rgba(213,230,255,.88);color:#0969e8;
+    font-size:clamp(13px,.9vw,16px);font-weight:650;letter-spacing:.01em;
+  }
+  .consumer-pc .login-brand-copy>strong{
+    display:block;margin:25px 0 0;color:#172846;
+    font-size:clamp(48px,3.35vw,64px);font-weight:760;line-height:1.13;letter-spacing:-1.8px;
+  }
+  .consumer-pc .login-brand-copy>strong em{font-style:normal;color:#0b69e8}
+  .consumer-pc .login-brand-copy>p{
+    margin:38px 0 0;color:#526987;font-size:clamp(15px,1.04vw,19px);line-height:1.78;font-weight:400;
+  }
+  .consumer-pc .login-brand-points{
+    list-style:none;margin:47px 0 0;padding:0;width:32.4vw;max-width:none;border:0;background:transparent;
+    display:grid;grid-template-columns:repeat(4,1fr);gap:0;backdrop-filter:none;
+  }
+  .consumer-pc .login-brand-points li{
+    position:relative;display:flex;flex-direction:column;align-items:flex-start;gap:0;
+    min-width:0;padding:0 13px 0 0;color:#1e3151;
+  }
+  .consumer-pc .login-brand-points li:not(:last-child)::after{
+    content:"";position:absolute;top:7px;right:8px;width:1px;height:76px;background:#d7e2f1;
+  }
+  .consumer-pc .login-feature-icon{
+    display:flex;align-items:center;justify-content:center;width:46px;height:46px;margin-bottom:12px;
+    border:1px solid rgba(0,97,232,.08);border-radius:13px;background:rgba(255,255,255,.72);
+    color:#0969e8;font-size:22px;box-shadow:0 7px 18px rgba(67,111,178,.05);
+  }
+  .consumer-pc .login-brand-points b{font-size:clamp(12px,.86vw,15px);font-weight:650;line-height:1.35;white-space:nowrap}
+  .consumer-pc .login-brand-points small{
+    margin-top:5px;color:#71839b;font-size:clamp(10px,.68vw,12px);line-height:1.4;white-space:nowrap;
+  }
+
+  /* Exact approved 3D illustration asset, cropped from the supplied reference. */
+  .consumer-pc .login-brand-visual{
+    position:absolute;z-index:3;left:37.55vw;top:20.3vh;width:25.25vw;height:55.4vh;
+    transform:none;pointer-events:none;overflow:visible;
+  }
+  .consumer-pc .login-brand-hero{
+    display:block;width:100%;height:100%;object-fit:contain;object-position:center;
+    user-select:none;-webkit-user-drag:none;
+    filter:drop-shadow(0 22px 35px rgba(67,116,190,.08));
+    -webkit-mask-image:radial-gradient(ellipse 94% 96% at 50% 49%,#000 84%,transparent 100%);
+    mask-image:radial-gradient(ellipse 94% 96% at 50% 49%,#000 84%,transparent 100%);
+  }
+
+  /* Right panel/card positions calibrated to target: x≈1093, y≈151, w≈522, h≈578 on 1692×930. */
+  .consumer-pc .login-main{
+    position:absolute;z-index:4;inset:0;display:block;min-width:0;padding:0;background:transparent;
+  }
+  .consumer-pc .login-topbar{
+    position:absolute;z-index:8;top:5.25vh;right:6.25vw;display:flex;align-items:center;gap:9px;
+    color:#687b96;font-size:clamp(12px,.82vw,14px);font-weight:400;
+  }
+  .consumer-pc .login-status-dot{
+    width:8px;height:8px;border-radius:50%;background:#20a66a;box-shadow:0 0 0 4px rgba(32,166,106,.10);
+  }
+  .consumer-pc .login-main>.login-logo,
+  .consumer-pc .login-main>h1,
+  .consumer-pc .login-main>p:not(.login-copyright){display:none}
+  .consumer-pc .login-card{
+    position:absolute;z-index:5;right:4.55vw;top:16.2vh;
+    width:30.85vw;height:62.25vh;max-width:none;min-width:0;margin:0;
+    padding:6.05vh 3.45vw 4.7vh;
+    border:1px solid rgba(216,226,240,.96);border-radius:26px;background:rgba(255,255,255,.91);
+    box-shadow:0 20px 60px rgba(66,91,133,.10);backdrop-filter:blur(16px);overflow:hidden;
+  }
+  .consumer-pc .login-card::before,
+  .consumer-pc .login-card::after{content:"";position:absolute;pointer-events:none;border-radius:50%;z-index:0}
+  .consumer-pc .login-card::before{
+    width:24vw;height:24vw;right:-12.5vw;top:-12.8vw;
+    background:linear-gradient(145deg,rgba(115,172,255,.43),rgba(212,231,255,.12) 58%,transparent 72%);
+    border:1px solid rgba(255,255,255,.72);
+  }
+  .consumer-pc .login-card::after{
+    width:20vw;height:20vw;right:-10.6vw;top:-8.5vw;
+    border:1px solid rgba(255,255,255,.66);background:rgba(255,255,255,.10);
+  }
+  .consumer-pc .login-card>*{position:relative;z-index:2}
+  .consumer-pc .login-card-head{margin:0 0 4.15vh}
+  .consumer-pc .login-card-head h2{margin:0;line-height:1.16;letter-spacing:-.7px}
+  .consumer-pc .login-card-head h2 span{display:block}
+  .consumer-pc .login-welcome{color:#172846;font-size:clamp(30px,2.18vw,41px);font-weight:760}
+  .consumer-pc .login-product{margin-top:4px;color:#0b69e8;font-size:clamp(31px,2.25vw,43px);font-weight:760}
+  .consumer-pc .login-card-head p{
+    margin:13px 0 0;color:#657a98;font-size:clamp(14px,1vw,18px);line-height:1.45;
+  }
+  .consumer-pc .login-label{
+    display:block;margin:0 0 9px;color:#273958;font-size:clamp(12px,.84vw,15px);font-weight:650;
+  }
+  .consumer-pc .login-label-password{margin-top:2.8vh}
+  .consumer-pc .login-card .van-cell{padding:0;background:transparent}
+  .consumer-pc .login-card .van-cell::after{display:none}
+  .consumer-pc .login-card .van-field{
+    min-height:5.8vh;height:5.8vh;padding:0 14px;border:1px solid #cad6e7;border-radius:9px;
+    background:rgba(255,255,255,.79);transition:border-color .15s ease,box-shadow .15s ease,background .15s ease;
+  }
+  .consumer-pc .login-card .van-field:hover{border-color:#8fb2e7;background:#fff}
+  .consumer-pc .login-card .van-field:focus-within{border-color:#3b82ea;background:#fff;box-shadow:0 0 0 3px rgba(59,130,234,.10)}
+  .consumer-pc .login-card .van-field__label{display:none}
+  .consumer-pc .login-card .van-field__left-icon{margin-right:12px;color:#7286a4;font-size:19px}
+  .consumer-pc .login-card .van-field__control{
+    height:calc(5.8vh - 2px);color:#1e2d47;font-size:clamp(14px,.98vw,18px);
+  }
+  .consumer-pc .login-card .van-field__control::placeholder{color:#a7b4c7}
+  .consumer-pc .login-password-toggle{width:34px;height:34px;color:#6f83a0}
+  .consumer-pc .login-card .van-button{
+    margin-top:4.35vh;height:6.15vh;min-height:52px;border:0;border-radius:9px;
+    background:linear-gradient(90deg,#0759e8 0%,#0877ef 66%,#0b9ef2 100%);
+    box-shadow:0 11px 24px rgba(7,105,231,.20);font-size:clamp(16px,1.08vw,19px);font-weight:700;letter-spacing:.02em;
+  }
+  .consumer-pc .login-card .van-button .van-icon{margin-left:9px;font-size:19px}
+  .consumer-pc .login-card .van-button:hover{filter:brightness(.98)}
+  .consumer-pc .login-footnote{display:none}
+  .consumer-pc .login-copyright{
+    position:absolute;z-index:5;left:0;right:0;bottom:8.7vh;margin:0;text-align:center;
+    color:#7d8ea8;font-size:clamp(11px,.72vw,13px);letter-spacing:.01em;pointer-events:none;
+  }
+
+  /* Target uses a very light visual language; login always stays light even if an admin previously chose dark mode. */
+  .consumer-pc[data-theme="dark"] .login-screen{
+    background:
+      radial-gradient(ellipse 34% 46% at 52% 40%,rgba(89,153,255,.26),transparent 72%),
+      linear-gradient(118deg,#fbfdff 0%,#f3f8ff 37%,#edf5ff 58%,#f8fbff 82%,#fbfcff 100%);
+  }
+  .consumer-pc[data-theme="dark"] .login-brand{color:#172846}
+  .consumer-pc[data-theme="dark"] .login-brand-lockup>span,
+  .consumer-pc[data-theme="dark"] .login-brand-copy>strong{color:#172846}
+  .consumer-pc[data-theme="dark"] .login-brand-copy>p{color:#526987}
+  .consumer-pc[data-theme="dark"] .login-card{background:rgba(255,255,255,.92);border-color:rgba(216,226,240,.96)}
+  .consumer-pc[data-theme="dark"] .login-welcome{color:#172846}
+  .consumer-pc[data-theme="dark"] .login-card-head p{color:#657a98}
+  .consumer-pc[data-theme="dark"] .login-label{color:#273958}
+  .consumer-pc[data-theme="dark"] .login-card .van-field{background:rgba(255,255,255,.80);border-color:#cad6e7}
+  .consumer-pc[data-theme="dark"] .login-card .van-field__control{color:#1e2d47}
+  .consumer-pc[data-theme="dark"] .login-card .van-field__left-icon,
+  .consumer-pc[data-theme="dark"] .login-password-toggle{color:#7286a4}
+
+  @media(max-width:1360px){
+    .consumer-pc .login-brand-copy{width:31vw}
+    .consumer-pc .login-brand-copy>strong{font-size:clamp(42px,3.25vw,52px)}
+    .consumer-pc .login-brand-copy>p{margin-top:25px;font-size:14px}
+    .consumer-pc .login-brand-points{margin-top:30px;width:34vw}
+    .consumer-pc .login-brand-points li{padding-right:9px}
+    .consumer-pc .login-brand-points li:not(:last-child)::after{right:5px}
+    .consumer-pc .login-brand-visual{left:38vw;width:25vw}
+    .consumer-pc .login-card{right:3.8vw;width:32vw}
+  }
+  @media(max-width:1180px){
+    .consumer-pc .login-brand-visual{opacity:.78;left:39.5vw}
+    .consumer-pc .login-brand-points{grid-template-columns:repeat(2,1fr);row-gap:16px;width:31vw}
+    .consumer-pc .login-brand-points li:nth-child(2)::after{display:none}
+    .consumer-pc .login-brand-points li:nth-child(1)::after,
+    .consumer-pc .login-brand-points li:nth-child(3)::after{height:56px}
+    .consumer-pc .login-card{right:3vw;width:35vw}
+  }
+  @media(max-height:760px){
+    .consumer-pc .login-brand-copy{top:16.5vh}
+    .consumer-pc .login-brand-copy>strong{margin-top:14px;font-size:clamp(35px,3vw,47px)}
+    .consumer-pc .login-brand-copy>p{margin-top:17px;line-height:1.55}
+    .consumer-pc .login-brand-points{margin-top:18px}
+    .consumer-pc .login-brand-visual{top:18vh;height:57vh}
+    .consumer-pc .login-card{top:12.5vh;height:69vh;padding-top:5vh}
+    .consumer-pc .login-card-head{margin-bottom:2.8vh}
+    .consumer-pc .login-label-password{margin-top:2vh}
+    .consumer-pc .login-card .van-button{margin-top:3vh}
+  }
+}
