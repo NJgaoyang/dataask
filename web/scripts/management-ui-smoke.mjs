@@ -37,7 +37,8 @@ async function backend(route){
   const ds=p.match(/^\/api\/admin\/datasources\/([^/]+)(?:\/(test|activate))?$/);
   if(ds){if(ds[2]==='activate')sources=sources.map(x=>({...x,active:x.id===ds[1]}));else if(m==='PUT')sources=sources.map(x=>x.id===ds[1]?{...x,...req.postDataJSON(),password:undefined}:x);else if(m==='DELETE')sources=sources.filter(x=>x.id!==ds[1]);return ok({success:true})}
   if(p==='/api/admin/datasources/test')return ok({success:true});
-  if(p==='/api/admin/tables')return ok(Array.from({length:23},(_,i)=>({name:'ads.orders_'+i,enabled:true,columns:[]})));
+  if(p==='/api/admin/table-permissions/sources')return ok(sources.map(x=>({id:x.id,name:x.name,schema:x.schema,active:x.active})));
+  if(p==='/api/admin/table-permissions')return ok(Array.from({length:23},(_,i)=>({name:'ads.orders_'+i,enabled:true})));
   if(p==='/api/admin/semantic/status')return ok({count:0});
   if(p==='/api/admin/metrics')return ok({total:0,batches:[],metrics:[]});
   if(p.includes('/metrics/')&&p.endsWith('/page'))return ok({items:[],total:0});
@@ -145,7 +146,10 @@ try{
   await mine.getByText('共 24 条',{exact:true}).waitFor();
   await page.locator('.desktop-main-nav button').filter({hasText:'新建任务'}).click();await page.locator('.da-home-question-box textarea').fill('昨天各城市的订单量');await page.locator('.da-home-question-box textarea').press('Enter');
   const answer=page.locator('.answer-card');await answer.getByText('共 23 条',{exact:true}).waitFor();await answer.getByRole('button',{name:'下一页',exact:true}).click();assert.equal(await answer.locator('.result-table tbody tr').first().locator('td').first().innerText(),'11');await snap(page,'query-results-page-2');
-  await tile(page,'ADS 表授权');await page.getByRole('button',{name:'下一页',exact:true}).click();await page.getByText('第 2 / 3 页',{exact:true}).waitFor();assert.equal(await page.locator('.admin-table .da-sequence').first().innerText(),'11');
+  await tile(page,'表权限');await page.locator('.da-tables-row').first().waitFor();
+  await page.getByRole('button',{name:'下一页',exact:true}).click();
+  await page.getByText('第 2 / 3 页',{exact:true}).waitFor();
+  assert.equal(await page.locator('.da-tables-row').first().locator('span').first().innerText(),'11');
   await tile(page,'数据源配置');await page.getByRole('button',{name:'新增数据源',exact:true}).click();
   await page.evaluate(()=>document.querySelector('.consumer-pc').setAttribute('data-theme','dark'));await snap(page,'source-create-dark');await modal.getByRole('button',{name:'取消',exact:true}).click();
   for(const width of [1024,1280,1920]){await page.setViewportSize({width,height:900});assert(await page.locator('main').evaluate(el=>el.scrollWidth<=el.clientWidth+1));await snap(page,`sources-${width}`)}
