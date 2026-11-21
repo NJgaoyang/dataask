@@ -196,8 +196,10 @@ public class AdminController {
         });
         Map<String,Set<String>> grants=new HashMap<>();
         jdbc.query("SELECT role_code,permission_code FROM da_role_permissions ORDER BY role_code,permission_code",
-            rs -> grants.computeIfAbsent(rs.getString(1),unused -> new LinkedHashSet<>())
-                .add(rs.getString(2)));
+            rs -> {
+                grants.computeIfAbsent(rs.getString(1),unused -> new LinkedHashSet<>())
+                    .add(rs.getString(2));
+            });
         List<Map<String,Object>> result=new ArrayList<>();
         jdbc.query("SELECT code,name,built_in,enabled FROM da_roles ORDER BY built_in DESC,code",rs -> {
             String code=rs.getString(1);
