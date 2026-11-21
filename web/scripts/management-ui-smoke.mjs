@@ -45,11 +45,11 @@ async function backend(route){
 }
 const browser=await chromium.launch({headless:true,args:['--no-sandbox']});
 async function tile(page,label){
-  if(!await page.locator('.tb-admin-overview-grid').count()){
-    if(await page.locator('.tb-breadcrumb-admin').count())await page.locator('.tb-breadcrumb-admin').click();
-    else{await page.locator('.da-account-trigger').click();await page.getByRole('menuitem',{name:'系统管理'}).click()}
+  if(!await page.locator('.da-admin-workspace-popup:visible').count()){
+    await page.locator('.da-account-trigger').click();
+    await page.getByRole('menuitem',{name:'系统管理'}).click();
   }
-  await page.locator('.tb-admin-overview-grid button').filter({hasText:label}).click();
+  await page.locator('.da-admin-workspace-nav button').filter({hasText:label}).click();
   await page.locator('.tb-admin-loading').waitFor({state:'hidden'});
 }
 async function snap(page,name){
