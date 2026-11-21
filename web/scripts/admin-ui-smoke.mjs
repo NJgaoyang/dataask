@@ -25,6 +25,7 @@ let users = [
 let metrics = {total:0,batches:[],definitions:[]};
 let failNextAdminSettings = false;
 let failNextRoles = false;
+let createdMetric = null;
 
 async function mockBackend(route) {
   const req = route.request();
@@ -72,6 +73,11 @@ async function mockBackend(route) {
       permissions:['ASK','CHARTS','SYSTEM_ADMIN'],userCount:1}]);
   }
   if(path==='/api/admin/metrics' && method==='GET') return ok(metrics);
+  if(path==='/api/admin/metrics' && method==='POST'){
+    createdMetric=req.postDataJSON();
+    metrics.definitions.push({id:7,...createdMetric,sourceName:'通用口径'});
+    return ok({success:true,message:'指标已新增'});
+  }
   if(path==='/api/admin/metrics/preview' && method==='POST')
     return ok({filename:'demo-metrics.xlsx',count:1,samples:[{metricName:'营业额',definition:'销售净额',adsTable:'ads.sales'}],notices:[]});
   if(path==='/api/admin/metrics/import' && method==='POST') {
@@ -236,6 +242,27 @@ try {
 
   await clickTile(page,'指标口径');
   await visible(page.locator('.tb-admin-metrics-page'),'Metric page');
+  await page.locator('.tb-admin-metrics-page').getByRole('button',{name:'新增指标'}).click();
+  const metricEditor=page.locator('.da-metric-editor:visible');
+  await visible(metricEditor,'Complex metric editor');
+  assert.equal(await metricEditor.getByText('ADS 表', {exact:true}).count(),0,
+    'Legacy single ADS table input must not appear in the editor');
+  await metricEditor.locator('input[maxlength="150"]').fill('净营业额');
+  await metricEditor.getByPlaceholder('例如 收入，营收').fill('净收入');
+  await metricEditor.locator('textarea[maxlength="5000"]').fill('订单金额减成功退款金额');
+  await metricEditor.getByRole('textbox',{name:'来源表（可多张）'}).fill(
+    'ads.orders_di\nads.refunds_di');
+  await metricEditor.getByRole('textbox',{name:'参与字段（可多个）'}).fill(
+    'paid_amount, refund_amount');
+  await metricEditor.getByRole('textbox',{name:'计算表达式'}).fill(
+    'SUM(paid_amount)-SUM(refund_amount)');
+  await metricEditor.getByRole('textbox',{name:'表关联规则'}).fill('按 order_id 关联');
+  await metricEditor.getByRole('button',{name:'保存',exact:true}).click();
+  await requireCall('POST /api/admin/metrics');
+  assert.match(createdMetric.sourceTables,/ads.refunds_di/);
+  assert.equal(createdMetric.calculationExpression,'SUM(paid_amount)-SUM(refund_amount)');
+  assert.equal(createdMetric.joinRules,'按 order_id 关联');
+  assert.equal(createdMetric.adsTable,'','Complex manual metric must not be reduced to one ADS table');
   await page.locator('.tb-admin-metrics-page input[type=file]').setInputFiles({
     name:'demo-metrics.xlsx',mimeType:'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
     buffer:Buffer.from('mocked spreadsheet')});
