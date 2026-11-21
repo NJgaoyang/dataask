@@ -87,7 +87,8 @@ public class MetricDictionaryController {
         try (XSSFWorkbook book = new XSSFWorkbook();
              ByteArrayOutputStream output = new ByteArrayOutputStream()) {
             Sheet sheet=book.createSheet("指标口径");
-            String[] headers={"指标名称","指标口径","指标别名","ADS表名","来源字段","时间字段","分析维度","备注"};
+            String[] headers={"指标名称","指标口径","指标别名","ADS表名","来源字段","时间字段","分析维度","备注",
+                "关联来源表","参与字段","计算表达式","表关联规则"};
             Row head=sheet.createRow(0);
             CellStyle style=book.createCellStyle();
             Font font=book.createFont();
@@ -110,6 +111,10 @@ public class MetricDictionaryController {
                 row.createCell(5).setCellValue(item.timeField());
                 row.createCell(6).setCellValue(item.dimensions());
                 row.createCell(7).setCellValue(item.notes());
+                row.createCell(8).setCellValue(item.sourceTables());
+                row.createCell(9).setCellValue(item.sourceFields());
+                row.createCell(10).setCellValue(item.calculationExpression());
+                row.createCell(11).setCellValue(item.joinRules());
             }
             sheet.createFreezePane(0,1);
             book.write(output);
@@ -125,7 +130,8 @@ public class MetricDictionaryController {
         try (XSSFWorkbook book = new XSSFWorkbook();
              ByteArrayOutputStream output = new ByteArrayOutputStream()) {
             Sheet sheet=book.createSheet("指标口径");
-            String[] headers={"指标名称","指标口径","指标别名","ADS表名","来源字段","时间字段","分析维度","备注"};
+            String[] headers={"指标名称","指标口径","指标别名","ADS表名","来源字段","时间字段","分析维度","备注",
+                "关联来源表","参与字段","计算表达式","表关联规则"};
             Row row=sheet.createRow(0);
             CellStyle headerStyle=book.createCellStyle();
             Font font=book.createFont();
@@ -141,7 +147,9 @@ public class MetricDictionaryController {
             Sheet notes=book.createSheet("填写说明");
             notes.createRow(0).createCell(0).setCellValue("第一列“指标名称”、第二列“指标口径”必填；其他列可留空。");
             notes.createRow(1).createCell(0).setCellValue("统计口径应写明去重、退款、日期范围、单位等计算原则。");
-            notes.createRow(2).createCell(0).setCellValue("ADS表名若填写，须是系统管理中已开放的表（如 ads.ads_sales_di）。");
+            notes.createRow(2).createCell(0).setCellValue("单表指标可填写 ADS表名和来源字段；多表指标请填写关联来源表及参与字段。");
+            notes.createRow(4).createCell(0).setCellValue("关联来源表支持逗号或换行分隔，格式如 ads.orders_di、ads.refunds_di；来源表必须先授权。");
+            notes.createRow(5).createCell(0).setCellValue("计算表达式和表关联规则是供智能问数理解的参考定义，不会直接作为 SQL 执行。");
             notes.createRow(3).createCell(0).setCellValue("指标别名用中文逗号分隔；请不要上传敏感个人信息。");
             notes.setColumnWidth(0,95*256);
             book.write(output);
