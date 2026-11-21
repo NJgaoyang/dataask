@@ -236,6 +236,8 @@ try {
       assert.equal(await page.locator('.login-topbar').count(),0,'Login page must not show the internal-system security banner');
       assert.equal(await page.locator('.login-brand-hero image').count(),0,'The hero must not contain a raster rectangle');
       assert((await page.locator('.login-brand-hero defs').count())===1,'The SVG hero keeps gradients and shadows inside the transparent scene');
+      assert.equal(await page.locator('.login-brand-hero g[transform*="rotate(7 170 190)"]').count(),1,
+        'The main analytics window must lean left, not right');
       const hero=await page.locator('.login-brand-hero').boundingBox();
       const card=await page.locator('.login-card').boundingBox();
       const viewport=page.viewportSize();

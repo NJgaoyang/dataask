@@ -110,12 +110,17 @@
   .consumer-pc .login-card::after{content:"";position:absolute;pointer-events:none;border-radius:50%;z-index:0}
   .consumer-pc .login-card::before{
     width:23vw;height:23vw;right:-11.4vw;top:-12.1vw;
-    background:linear-gradient(145deg,rgba(112,170,255,.37),rgba(214,232,255,.10) 58%,transparent 73%);
-    border:1px solid rgba(255,255,255,.72);
+    background:linear-gradient(145deg,
+      rgba(72,143,247,.62) 0%,
+      rgba(139,188,255,.34) 38%,
+      rgba(211,231,255,.16) 62%,
+      transparent 76%);
+    border:1px solid rgba(255,255,255,.78);
   }
   .consumer-pc .login-card::after{
     width:19vw;height:19vw;right:-9.7vw;top:-8.0vw;
-    border:1px solid rgba(255,255,255,.66);background:rgba(255,255,255,.10);
+    border:1px solid rgba(147,190,250,.26);
+    background:linear-gradient(145deg,rgba(183,214,255,.18),rgba(255,255,255,.05) 68%);
   }
   .consumer-pc .login-card>*{position:relative;z-index:2}
   .consumer-pc .login-card-head{margin:0 0 4.15vh}

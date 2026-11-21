@@ -1436,7 +1436,7 @@ onBeforeUnmount(() => {
               <ellipse cx="294" cy="482" rx="126" ry="26" fill="#ffffff" opacity=".86"/>
             </g>
 
-            <g transform="translate(125 92) rotate(-7 170 190)" filter="url(#hero-shadow)">
+            <g transform="translate(125 92) rotate(7 170 190)" filter="url(#hero-shadow)">
               <rect x="34" y="27" width="314" height="350" rx="27" fill="url(#hero-glass)" stroke="#c7ddff" stroke-width="3"/>
               <rect x="34" y="27" width="314" height="57" rx="27" fill="url(#hero-blue)"/>
               <path d="M34 62h314v22H34z" fill="url(#hero-blue)"/>
