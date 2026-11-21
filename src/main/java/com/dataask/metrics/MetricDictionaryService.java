@@ -226,7 +226,7 @@ public class MetricDictionaryService {
             .map(String::strip).filter(x->!x.isEmpty()).distinct().toList();
     }
 
-    private static boolean permittedMetricTables(String sources,String legacy,Set<String> allowed) {
+    public static boolean permittedMetricTables(String sources,String legacy,Set<String> allowed) {
         List<String> tables=metricTables(sources,legacy);
         return tables.stream().allMatch(table->allowed.stream().anyMatch(candidate->
             candidate.equalsIgnoreCase(table) ||

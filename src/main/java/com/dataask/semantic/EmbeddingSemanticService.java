@@ -2,6 +2,7 @@ package com.dataask.semantic;
 
 import com.dataask.config.RuntimeConfigService;
 import com.dataask.data.StarRocksGateway;
+import com.dataask.metrics.MetricDictionaryService;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.springframework.http.HttpStatus;
@@ -170,18 +171,27 @@ public class EmbeddingSemanticService {
         }
 
         List<Map<String,Object>> metricRows=jdbc.queryForList(
-            "SELECT d.id,d.metric_name,d.aliases,d.definition,d.ads_table,d.ads_field,d.dimensions " +
+            "SELECT d.id,d.metric_name,d.aliases,d.definition,d.ads_table,d.ads_field,d.dimensions," +
+            "COALESCE(c.source_tables,'') AS source_tables,COALESCE(c.source_fields,'') AS source_fields," +
+            "COALESCE(c.calculation_expression,'') AS calculation_expression," +
+            "COALESCE(c.join_rules,'') AS join_rules " +
             "FROM da_metric_definitions d " +
             "LEFT JOIN da_metric_definition_sources src ON src.metric_id=d.id " +
+            "LEFT JOIN da_metric_calculations c ON c.metric_id=d.id " +
             "WHERE src.data_source_id IS NULL OR src.data_source_id=? " +
             "ORDER BY d.id DESC LIMIT 100",settings.activeSourceId());
         for (Map<String,Object> row : metricRows) {
             String table=Objects.toString(row.get("ads_table"),"").trim();
-            if(!table.isEmpty() && allowed.stream().noneMatch(t ->
-                    t.equalsIgnoreCase(table) || t.endsWith("."+table))) continue;
+            String sources=Objects.toString(row.get("source_tables"),"");
+            if(!MetricDictionaryService.permittedMetricTables(sources,table,allowed))continue;
             String content="指标 "+row.get("metric_name")+"；别名 "+row.get("aliases")+
-                "；口径 "+row.get("definition")+"；ADS 表 "+table+
-                "；计算字段 "+row.get("ads_field")+"；维度 "+row.get("dimensions");
+                "；口径 "+row.get("definition")+
+                "；来源表 "+(sources.isBlank()?table:sources)+
+                "；计算字段 "+row.get("ads_field")+
+                "；参与字段 "+row.get("source_fields")+
+                "；计算表达式 "+row.get("calculation_expression")+
+                "；关联规则 "+row.get("join_rules")+
+                "；维度 "+row.get("dimensions");
             documents.add(new Document("METRIC",Objects.toString(row.get("id")),truncate(content)));
             if (documents.size()>=MAX_DOCS) break;
         }
@@ -215,16 +225,14 @@ public class EmbeddingSemanticService {
     /** Honor active-source permissions even for vectors left by an older index build. */
     Set<String> allowedMetricIds(Set<String> allowedTables) {
         Set<String> result=new HashSet<>();
-        jdbc.query("SELECT d.id,d.ads_table FROM da_metric_definitions d " +
+        jdbc.query("SELECT d.id,d.ads_table,COALESCE(c.source_tables,'') FROM da_metric_definitions d " +
             "LEFT JOIN da_metric_definition_sources src ON src.metric_id=d.id " +
+            "LEFT JOIN da_metric_calculations c ON c.metric_id=d.id " +
             "WHERE src.data_source_id IS NULL OR src.data_source_id=?",
             (org.springframework.jdbc.core.RowCallbackHandler) rs -> {
-                String table=Objects.toString(rs.getString(2),"").trim();
-                if(table.isEmpty() || allowedTables.stream().anyMatch(t ->
-                    t.equalsIgnoreCase(table) || t.toLowerCase(Locale.ROOT)
-                        .endsWith("."+table.toLowerCase(Locale.ROOT)))) {
+                if(MetricDictionaryService.permittedMetricTables(
+                    rs.getString(3),rs.getString(2),allowedTables))
                     result.add(rs.getString(1));
-                }
             },settings.activeSourceId());
         return result;
     }
