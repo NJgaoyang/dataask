@@ -136,7 +136,8 @@
   .consumer-pc .desktop-main-nav button.active{background:var(--da-primary-soft);color:var(--da-primary);font-weight:600}
   .consumer-pc .desktop-main-nav button.active .van-icon{color:var(--da-primary)}
   .consumer-pc .desktop-main-nav button.active::before{content:"";position:absolute;left:-12px;top:6px;bottom:6px;width:3px;background:var(--da-primary)}
-  .consumer-pc .da-sidebar-history{margin-top:var(--da-sp-4);padding-top:var(--da-sp-2);border-top:1px solid var(--da-border);min-height:0;overflow:auto;scrollbar-width:thin}
+  .consumer-pc .da-sidebar-history{margin-top:var(--da-sp-5);padding-top:var(--da-sp-3);border-top:1px solid var(--da-border);min-height:0;overflow:auto;scrollbar-width:thin}
+  .consumer-pc .da-sidebar-history-head{display:flex;align-items:center;height:28px;padding:0 10px;color:var(--da-text-3);font-size:11px;font-weight:600;letter-spacing:.3px}
   .consumer-pc .da-sidebar-history button{display:flex;align-items:center;gap:8px;width:100%;min-height:30px;border:0;border-radius:var(--da-radius-sm);padding:5px 10px;background:transparent;text-align:left;color:var(--da-text-2);font-size:12px}
   .consumer-pc .da-sidebar-history button span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
   .consumer-pc .da-sidebar-history button .van-icon{color:var(--da-text-3);flex-shrink:0}

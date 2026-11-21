@@ -423,7 +423,7 @@ const configuredStatusRows = computed(() => [
 ])
 
 const desktopSectionTitle = computed(() => ({
-  ask:'智能问数',charts:'我的图表',history:'历史会话',
+  ask:'新建任务',charts:'我的图表',history:'历史会话',
   'admin-source':'数据源配置','admin-model':'模型配置',
   'admin-tables':'ADS 表授权',
   'admin-metrics':'指标口径','admin-users':'用户管理','admin-roles':'角色权限',
@@ -1634,14 +1634,12 @@ onBeforeUnmount(() => {
           <div class="brand-title"><strong>DataAsk</strong></div>
         </div>
         <nav class="desktop-main-nav" aria-label="分析导航">
-          <button v-if="canAsk" type="button" title="智能问数" :class="{active:desktopSection==='ask'}" @click="newConversation"><van-icon name="chat-o"/><span>智能问数</span></button>
+          <button v-if="canAsk" type="button" title="新建任务" :class="{active:desktopSection==='ask' && !sessionId}" @click="newConversation"><van-icon name="plus"/><span>新建任务</span></button>
           <button v-if="canCharts" type="button" title="我的图表" :class="{active:desktopSection==='charts'}" @click="switchDesktopSection('charts')"><van-icon name="chart-trending-o"/><span>我的图表</span></button>
         </nav>
-        <section v-if="canAsk && sessions.length" class="da-sidebar-history" aria-label="最近会话">
+        <section v-if="canAsk && sessions.length" class="da-sidebar-history" aria-label="最近提问">
           <div class="da-sidebar-history-head">
             <span>最近</span>
-            <button type="button" class="da-sidebar-history-all" aria-label="查看全部会话"
-              :class="{active:desktopSection==='history'}" @click="switchDesktopSection('history')">查看全部</button>
           </div>
           <div v-for="item in sessions.slice(0,5)" :key="item.id" class="da-sidebar-session"
             :class="{active:desktopSection==='ask' && sessionId===item.id}">

@@ -65,14 +65,14 @@ try{
   const page=await ctx.newPage();page.on('pageerror',e=>errors.push(e.message));await page.route('**/api/**',backend);await page.goto(base,{waitUntil:'networkidle'});
   assert.equal(await page.locator('.desktop-main-nav button').filter({hasText:'工作台'}).count(),0,
     'Smart Q&A must not expose a separate workbench');
-  assert.match(await page.locator('.desktop-main-nav button').filter({hasText:'智能问数'}).getAttribute('class'),/active/,
-    'Smart Q&A is the authenticated default page');
+  assert.match(await page.locator('.desktop-main-nav button').filter({hasText:'新建任务'}).getAttribute('class'),/active/,
+    'New task is the authenticated default Q&A entry');
   assert.equal(await page.locator('.ds-home-intro,.tb-page-heading,.tb-admin-heading,.da-chart-detail-heading').count(),0,
     'Global PC workspaces must not render extra title/description banners');
   const composerHeight=(await page.locator('.da-home-question-box').boundingBox()).height;
   assert(composerHeight>=120,'Smart Q&A landing input must remain comfortably tappable');await snap(page,'smart-qa-default');
   assert.equal(await page.locator('.sidebar-new').count(),0,'Sidebar must not expose a separate new-question button');
-  await page.locator('.desktop-main-nav button').filter({hasText:'智能问数'}).click();
+  await page.locator('.desktop-main-nav button').filter({hasText:'新建任务'}).click();
   assert((await page.locator('.da-home-question-box').boundingBox()).height>=120,'Smart Q&A navigation returns to the landing page');
   await tile(page,'数据源配置');const sourceList=page.getByRole('region',{name:'数据源',exact:true});
   await sourceList.waitFor();
@@ -136,7 +136,7 @@ try{
   assert.equal(await mine.locator('tbody tr').first().locator('td').first().innerText(),'1');
   await page.locator('.tb-chart-toolbar').getByRole('button',{name:'重置',exact:true}).click();
   await mine.getByText('共 24 条',{exact:true}).waitFor();
-  await page.locator('.desktop-main-nav button').filter({hasText:'智能问数'}).click();await page.locator('.da-home-question-box textarea').fill('昨天各城市的订单量');await page.locator('.da-home-question-box textarea').press('Enter');
+  await page.locator('.desktop-main-nav button').filter({hasText:'新建任务'}).click();await page.locator('.da-home-question-box textarea').fill('昨天各城市的订单量');await page.locator('.da-home-question-box textarea').press('Enter');
   const answer=page.locator('.answer-card');await answer.getByText('共 23 条',{exact:true}).waitFor();await answer.getByRole('button',{name:'下一页',exact:true}).click();assert.equal(await answer.locator('.result-table tbody tr').first().locator('td').first().innerText(),'11');await snap(page,'query-results-page-2');
   await tile(page,'ADS 表授权');await page.getByRole('button',{name:'下一页',exact:true}).click();await page.getByText('第 2 / 3 页',{exact:true}).waitFor();assert.equal(await page.locator('.admin-table .da-sequence').first().innerText(),'11');
   await tile(page,'数据源配置');await page.getByRole('button',{name:'新增数据源',exact:true}).click();

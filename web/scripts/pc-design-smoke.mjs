@@ -75,8 +75,9 @@ try {
       'Smart Q&A entry is centered and bounded instead of spanning the full canvas');
     assert.equal(await page.locator('.desktop-main-nav button').filter({hasText:'工作台'}).count(),0,
       'Smart Q&A has no extra workbench navigation layer');
-    const askNav=page.locator('.desktop-main-nav button').filter({hasText:'智能问数'});
-    assert.match(await askNav.getAttribute('class'),/active/,'Authenticated desktop opens Smart Q&A directly');
+    const askNav=page.locator('.desktop-main-nav button').filter({hasText:'新建任务'});
+    assert.match(await askNav.getAttribute('class'),/active/,'Authenticated desktop exposes New task as the default Q&A entry');
+    assert.equal(await page.getByRole('button',{name:'查看全部会话'}).count(),0,'Recent section should contain recent questions only');
     const rail = await page.locator('.desktop-sidebar').boundingBox();
     assert(Math.abs(rail.width - 216)<2,'Sidebar keeps the fixed enterprise rail width');
     const account = await page.locator('.da-account-trigger').boundingBox();
@@ -209,7 +210,7 @@ try {
       await page.getByRole('button',{name:/查看分析过程/}).click();
       await page.locator('.da-analysis-panel').waitFor();
       assert.equal(await page.locator('.da-analysis-steps').count(),0);
-      await page.locator('.desktop-main-nav button').filter({hasText:'智能问数'}).click();
+      await page.locator('.desktop-main-nav button').filter({hasText:'新建任务'}).click();
       assert.equal(await page.locator('.conversation .welcome').count(),0,
         'PC question page must not render the redundant welcome banner');
       const composer = await page.locator('.da-home-question-box').boundingBox();
@@ -223,7 +224,7 @@ try {
       await page.locator('.metric-clarification').waitFor();
       assert.equal(await page.locator('.da-analysis-card').count(),0);
       assert.match(await page.locator('.da-analysis-steps').innerText(),/等待确认指标/);
-      await page.locator('.desktop-main-nav button').filter({hasText:'智能问数'}).click();
+      await page.locator('.desktop-main-nav button').filter({hasText:'新建任务'}).click();
       mode = 'pending';
       await page.locator('.da-home-question-box textarea').fill('昨天订单量');
       await page.locator('.da-home-question-box textarea').press('Enter');
