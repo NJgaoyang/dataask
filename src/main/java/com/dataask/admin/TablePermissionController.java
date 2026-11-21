@@ -240,7 +240,7 @@ public class TablePermissionController {
         List<MetricDictionaryService.MetricEdit> entries=preview.metrics().stream()
             .map(s->new MetricDictionaryService.MetricEdit(s.metricName(),"",s.definition(),
                 s.adsTable(),s.adsField(),s.timeField(),s.dimensions(),s.notes())).toList();
-        Map<String,Object> result=metrics.importAutoSuggestions(entries,authentication.getName());
+        Map<String,Object> result=metrics.importAutoSuggestions(entries,authentication.getName(),request.sourceId());
         AuditContext.set("target","指标自动解析："+preview.sourceName());
         AuditContext.set("detail","已解析候选 "+preview.count()+" 条");
         return result;
