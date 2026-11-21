@@ -2026,6 +2026,28 @@ onBeforeUnmount(() => {
               </button>
             </div>
         </section>
+        <section v-if="isDesktop && !messages.length && !busy && !desktopFeedback"
+          class="da-empty-ask-home" aria-label="智能问数入口">
+          <div class="da-empty-ask-inner">
+            <section class="da-ask-hero">
+              <h1>从一个经营问题开始</h1>
+            </section>
+            <section class="da-suggestions" aria-label="示例问题">
+              <div class="da-suggestions-label"><span>常用问题</span></div>
+              <div class="da-suggestion-grid">
+                <button v-for="item in desktopQuickQuestions" :key="item.question" :disabled="busy"
+                  type="button" @click="ask(item.question)">
+                  <span class="da-suggestion-icon"><van-icon :name="item.icon" size="15"/></span>
+                  <span class="da-suggestion-copy">
+                    <small>{{ item.type }}</small>
+                    <strong>{{ item.question }}</strong>
+                  </span>
+                  <van-icon name="arrow" size="11"/>
+                </button>
+              </div>
+            </section>
+          </div>
+        </section>
         <section v-for="msg in messages" :key="msg.id" class="turn">
           <div class="user-bubble">{{ msg.question }}</div>
           <div class="answer-card" :class="{ 'answer-needs-clarification': msg.unsupported && msg.followUps?.length }">
@@ -2145,9 +2167,6 @@ onBeforeUnmount(() => {
           @pointerdown="beginComposerDrag"
           @keydown.up.prevent="adjustComposerHeight(24)"
           @keydown.down.prevent="adjustComposerHeight(-24)"><span></span></button>
-        <section v-if="isDesktop && !messages.length && !busy && !desktopFeedback" class="da-ask-hero" aria-label="智能问数入口">
-          <h1>从一个经营问题开始</h1>
-        </section>
         <div class="composer-row da-composer">
           <div v-if="isDesktop && followUpSource" class="da-followup-context">
             <span><van-icon name="comment-o"/> 正在追加提问：{{ followUpSource.title || followUpSource.question }}</span>
@@ -2177,22 +2196,6 @@ onBeforeUnmount(() => {
             <van-icon name="arrow-up" size="20"/>
           </button>
         </div>
-        <section v-if="isDesktop && !messages.length && !busy && !desktopFeedback" class="da-suggestions" aria-label="示例问题">
-          <div class="da-suggestions-label">
-            <span>常用问题</span>
-          </div>
-          <div class="da-suggestion-grid">
-            <button v-for="item in desktopQuickQuestions" :key="item.question" :disabled="busy" type="button" @click="ask(item.question)">
-              <span class="da-suggestion-icon"><van-icon :name="item.icon" size="15"/></span>
-              <span class="da-suggestion-copy">
-                <small>{{ item.type }}</small>
-                <strong>{{ item.question }}</strong>
-              </span>
-              <van-icon name="arrow" size="11"/>
-            </button>
-          </div>
-        </section>
-
       </footer>
       <van-popup v-if="isDesktop" v-model:show="resultFullscreenOpen" position="center"
         :close-on-click-overlay="false" class="da-result-fullscreen" @keydown.esc="closeFullScreen">
