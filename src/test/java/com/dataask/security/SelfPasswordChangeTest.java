@@ -25,6 +25,7 @@ class SelfPasswordChangeTest {
     private final JdbcTemplate jdbc = mock(JdbcTemplate.class);
     private final PasswordEncoder passwords = mock(PasswordEncoder.class);
     private final JwtTokens jwt = mock(JwtTokens.class);
+    private final RolePermissionService roles = mock(RolePermissionService.class);
     private final AuthController controller = new AuthController(jdbc, passwords, jwt);
     private final UsernamePasswordAuthenticationToken alice =
         new UsernamePasswordAuthenticationToken("alice", null,
@@ -98,7 +99,7 @@ class SelfPasswordChangeTest {
         MockHttpServletResponse response=new MockHttpServletResponse();
         FilterChain chain=mock(FilterChain.class);
 
-        new JwtFilter(jwt, jdbc).doFilterInternal(request,response,chain);
+        new JwtFilter(jwt, jdbc, roles).doFilterInternal(request,response,chain);
         assertNull(SecurityContextHolder.getContext().getAuthentication());
         verify(chain).doFilter(request,response);
     }
