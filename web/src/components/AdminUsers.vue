@@ -22,6 +22,10 @@ const roles=ref([
   {code:'USER',name:'普通用户'}
 ])
 const cityState=ref({loading:false,loaded:false,available:[],selected:[]})
+const cityViewOpen=ref(false)
+const cityViewLoading=ref(false)
+const cityViewError=ref('')
+const cityView=ref({username:'',displayName:'',role:'',allCities:false,selectedCities:[]})
 
 async function loadRoles(){
   try{
@@ -63,6 +67,22 @@ function toggleCity(city){
 function selectAllCities(){cityState.value={...cityState.value,selected:[...cityState.value.available]}}
 function clearCities(){cityState.value={...cityState.value,selected:[]}}
 async function roleChanged(){error.value='';await loadCityOptions()}
+
+async function viewCities(row){
+  cityView.value={username:row.username,displayName:row.displayName||row.username,role:row.role,allCities:row.role==='ADMIN',selectedCities:[]}
+  cityViewError.value=''
+  cityViewLoading.value=true
+  cityViewOpen.value=true
+  try{
+    const {data}=await props.api.get('/admin/users/'+encodeURIComponent(row.username)+'/city-permissions')
+    cityView.value={...cityView.value,allCities:!!data.allCities,selectedCities:Array.isArray(data.selectedCities)?data.selectedCities:[]}
+  }catch(e){
+    cityViewError.value=e.response?.data?.message||'读取城市权限失败'
+  }finally{
+    cityViewLoading.value=false
+  }
+}
+function closeCityView(){if(!cityViewLoading.value)cityViewOpen.value=false}
 
 let alive=true
 onBeforeUnmount(()=>{alive=false;form.value={}})
@@ -147,6 +167,7 @@ async function save(){
       </template>
       <template #role="{row}">{{ roleLabel(row.role) }}</template>
       <template #actions="{row}">
+        <button :disabled="busy" @click="viewCities(row)">查看城市</button>
         <button :disabled="busy" @click="edit(row)">编辑</button>
         <button :disabled="busy" @click="edit(row,true)">重置密码</button>
       </template>
@@ -221,5 +242,47 @@ async function save(){
         </footer>
       </form>
     </van-popup>
+
+    <van-popup :show="cityViewOpen" round :close-on-click-overlay="false"
+      class="da-crud-modal da-city-view-modal" @keydown.esc="closeCityView">
+      <div>
+        <header>
+          <h2>查看城市</h2>
+          <button type="button" aria-label="关闭城市弹窗" :disabled="cityViewLoading" @click="closeCityView">×</button>
+        </header>
+        <div class="da-city-view-body">
+          <div class="da-city-view-user">
+            <strong>{{ cityView.displayName }}</strong>
+            <span>{{ cityView.username }} · {{ roleLabel(cityView.role) }}</span>
+          </div>
+          <p v-if="cityViewLoading" class="da-city-view-loading"><van-loading size="16px"/> 正在读取城市权限…</p>
+          <p v-else-if="cityViewError" class="metric-error" role="alert">{{ cityViewError }}</p>
+          <div v-else-if="cityView.allCities" class="da-city-view-all">
+            <van-icon name="passed"/><strong>全部城市</strong>
+          </div>
+          <template v-else>
+            <div class="da-city-view-summary">已授权 {{ cityView.selectedCities.length }} 个城市</div>
+            <div v-if="cityView.selectedCities.length" class="da-city-view-grid">
+              <span v-for="city in cityView.selectedCities" :key="city">{{ city }}</span>
+            </div>
+            <p v-else class="da-user-city-empty">该用户当前暂无授权城市。</p>
+          </template>
+        </div>
+        <footer><span/><button type="button" class="td-btn" :disabled="cityViewLoading" @click="closeCityView">关闭</button></footer>
+      </div>
+    </van-popup>
   </div>
 </template>
+
+<style scoped>
+.da-city-view-modal{width:min(680px,calc(100vw - 48px))}
+.da-city-view-body{padding:18px 20px;min-height:180px}
+.da-city-view-user{display:flex;align-items:baseline;gap:10px;padding-bottom:14px;border-bottom:1px solid var(--da-border)}
+.da-city-view-user strong{font-size:15px;color:var(--da-text)}
+.da-city-view-user span,.da-city-view-summary{font-size:12px;color:var(--da-text-3)}
+.da-city-view-loading{display:flex;align-items:center;gap:8px;padding:28px 0;color:var(--da-text-2)}
+.da-city-view-all{display:flex;align-items:center;gap:10px;margin-top:18px;padding:18px;border:1px solid var(--da-primary-border);border-radius:8px;background:var(--da-primary-soft);color:var(--da-primary)}
+.da-city-view-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px;margin-top:12px;max-height:320px;overflow:auto}
+.da-city-view-grid span{padding:8px 10px;border:1px solid var(--da-border);border-radius:6px;background:var(--da-surface-2);color:var(--da-text);font-size:12px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+@media(max-width:900px){.da-city-view-grid{grid-template-columns:repeat(2,minmax(0,1fr))}}
+</style>

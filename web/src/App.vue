@@ -382,10 +382,9 @@ const desktopSection = ref('ask')
 const adminExpanded = ref(false)
 const adminWorkspaceOpen = ref(false)
 const adminReturnSection = ref('ask')
-const desktopAdminSections = ['admin-overview','admin-source','admin-model','admin-tables','admin-metrics','admin-users','admin-roles','admin-status','admin-audit']
+const desktopAdminSections = ['admin-source','admin-model','admin-tables','admin-metrics','admin-users','admin-roles','admin-status','admin-audit']
 const adminNavigationGroups = [
   { label:'管理', items:[
-    {section:'admin-overview',label:'概览',icon:'setting-o'},
     {section:'admin-source',label:'数据源配置',icon:'cluster-o'},
     {section:'admin-model',label:'模型配置',icon:'chat-o'},
     {section:'admin-tables',label:'ADS 表授权',icon:'records-o'},
@@ -424,7 +423,7 @@ const configuredStatusRows = computed(() => [
 
 const desktopSectionTitle = computed(() => ({
   ask:'智能问数',charts:'我的图表',history:'历史会话',
-  'admin-overview':'系统管理','admin-source':'数据源配置','admin-model':'模型配置',
+  'admin-source':'数据源配置','admin-model':'模型配置',
   'admin-tables':'ADS 表授权',
   'admin-metrics':'指标口径','admin-users':'用户管理','admin-roles':'角色权限',
   'admin-status':'配置状态','admin-audit':'审计日志'
@@ -617,7 +616,7 @@ function requireAdmin() {
 function defaultDesktopSection() {
   if (hasPermission('ASK')) return 'ask'
   if (hasPermission('CHARTS')) return 'charts'
-  if (hasPermission('SYSTEM_ADMIN')) return 'admin-overview'
+  if (hasPermission('SYSTEM_ADMIN')) return 'admin-source'
   return 'ask'
 }
 async function refreshAuthenticatedRole() {
@@ -1071,7 +1070,7 @@ async function loadAdminSectionData(section) {
   adminSectionBusy.value = true
   adminSectionError.value = ''
   try {
-    if (['admin-overview','admin-status'].includes(section)) {
+    if (section === 'admin-status') {
       await refreshAdminStatus()
     } else if (section === 'admin-source') {
       await refreshAdminStatus()
@@ -1102,8 +1101,8 @@ async function openAdmin() {
   if (!desktopIsAdminSection.value) adminReturnSection.value = desktopSection.value
   adminVisible.value = false
   adminWorkspaceOpen.value = true
-  switchDesktopSection('admin-overview')
-  await loadAdminSectionData('admin-overview')
+  switchDesktopSection('admin-source')
+  await loadAdminSectionData('admin-source')
 }
 function closeAdminWorkspace() {
   adminWorkspaceOpen.value = false
@@ -1755,9 +1754,7 @@ onBeforeUnmount(() => {
           <div class="da-admin-workspace-pane">
             <header class="da-admin-workspace-header">
               <div class="da-admin-workspace-heading">
-                <button v-if="desktopSection!=='admin-overview'" type="button" class="tb-breadcrumb-admin"
-                  @click="openAdminSection('admin-overview')">系统管理</button>
-                <van-icon v-if="desktopSection!=='admin-overview'" name="arrow" size="11"/>
+                <span>系统管理</span><van-icon name="arrow" size="11"/>
                 <strong>{{ desktopSectionTitle }}</strong>
               </div>
               <div class="da-admin-workspace-actions da-topbar-operations">
@@ -1791,52 +1788,7 @@ onBeforeUnmount(() => {
           <span>{{ adminSectionError }}</span>
           <button type="button" @click="loadAdminSectionData(desktopSection)">重试加载</button>
         </div>
-        <div v-if="desktopSection==='admin-overview'" class="tb-admin-overview">
-          <div class="tb-admin-overview-grid">
-            <button type="button" @click="openAdminSection('admin-source')">
-              <span class="tb-admin-overview-icon icon-source"><van-icon name="cluster-o" size="21"/></span>
-              <strong>数据源配置</strong><small>{{ status.starrocksConfigured ? '已配置' : '未配置' }}</small>
-              <van-icon name="arrow" class="tb-admin-overview-arrow"/>
-            </button>
-            <button type="button" @click="openAdminSection('admin-model')">
-              <span class="tb-admin-overview-icon icon-model"><van-icon name="chat-o" size="21"/></span>
-              <strong>模型配置</strong>
-              <small>对话 {{ status.aiConfigured ? '已配置' : '待配置' }} · Embedding {{ status.embeddingConfigured ? '已配置' : '未启用' }}</small>
-              <van-icon name="arrow" class="tb-admin-overview-arrow"/>
-            </button>
-            <button type="button" @click="openAdminSection('admin-tables')">
-              <span class="tb-admin-overview-icon icon-tables"><van-icon name="records-o" size="21"/></span>
-              <strong>ADS 表授权</strong>
-              <van-icon name="arrow" class="tb-admin-overview-arrow"/>
-            </button>
-            <button type="button" @click="openAdminSection('admin-metrics')">
-              <span class="tb-admin-overview-icon icon-metrics"><van-icon name="description" size="21"/></span>
-              <strong>指标口径</strong>
-              <van-icon name="arrow" class="tb-admin-overview-arrow"/>
-            </button>
-            <button type="button" @click="openAdminSection('admin-users')">
-              <span class="tb-admin-overview-icon icon-users"><van-icon name="friends-o" size="21"/></span>
-              <strong>用户管理</strong>
-              <van-icon name="arrow" class="tb-admin-overview-arrow"/>
-            </button>
-            <button type="button" @click="openAdminSection('admin-roles')">
-              <span class="tb-admin-overview-icon icon-users"><van-icon name="shield-o" size="21"/></span>
-              <strong>角色权限</strong>
-              <van-icon name="arrow" class="tb-admin-overview-arrow"/>
-            </button>
-            <button type="button" @click="openAdminSection('admin-status')">
-              <span class="tb-admin-overview-icon icon-status"><van-icon name="chart-trending-o" size="21"/></span>
-              <strong>配置状态</strong>
-              <van-icon name="replay" class="tb-admin-overview-arrow"/>
-            </button>
-            <button type="button" @click="openAdminSection('admin-audit')">
-              <span class="tb-admin-overview-icon icon-status"><van-icon name="shield-o" size="21"/></span>
-              <strong>审计日志</strong>
-              <van-icon name="arrow" class="tb-admin-overview-arrow"/>
-            </button>
-          </div>
-        </div>
-        <AdminAuditLog v-else-if="desktopSection==='admin-audit'" :api="api"/>
+        <AdminAuditLog v-if="desktopSection==='admin-audit'" :api="api"/>
         <div v-else-if="desktopSection==='admin-status'" class="tb-admin-panel-card tb-admin-status-page">
           <div class="tb-config-status-list">
             <button v-for="item in configuredStatusRows" :key="item.key" type="button"
