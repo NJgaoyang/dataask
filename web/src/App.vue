@@ -10,6 +10,7 @@ import AdminDataSources from './components/AdminDataSources.vue'
 import AdminUsers from './components/AdminUsers.vue'
 import AdminRoles from './components/AdminRoles.vue'
 import AdminMetrics from './components/AdminMetrics.vue'
+import AdminTablePermissions from './components/AdminTablePermissions.vue'
 import ModelConfigCenter from './components/ModelConfigCenter.vue'
 import RecordList from './components/RecordList.vue'
 import ListPagination from './components/ListPagination.vue'
@@ -404,7 +405,7 @@ const adminNavigationGroups = [
   { label:'管理', items:[
     {section:'admin-source',label:'数据源配置',icon:'cluster-o'},
     {section:'admin-model',label:'模型配置',icon:'chat-o'},
-    {section:'admin-tables',label:'ADS 表授权',icon:'records-o'},
+    {section:'admin-tables',label:'表权限',icon:'records-o'},
     {section:'admin-metrics',label:'指标口径',icon:'description'}
   ]},
   { label:'权限', items:[
@@ -441,7 +442,7 @@ const configuredStatusRows = computed(() => [
 const desktopSectionTitle = computed(() => ({
   ask:'新建任务',charts:'我的图表',history:'历史会话',
   'admin-source':'数据源配置','admin-model':'模型配置',
-  'admin-tables':'ADS 表授权',
+  'admin-tables':'表权限',
   'admin-metrics':'指标口径','admin-users':'用户管理','admin-roles':'角色权限',
   'admin-status':'配置状态','admin-audit':'审计日志'
 })[desktopSection.value] || '智能问数')
@@ -1134,15 +1135,7 @@ async function loadAdminSectionData(section) {
       hydrateConfigForms()
     } else if (section === 'admin-model') {
       await refreshAdminStatus()
-    } else if (section === 'admin-tables') {
-      await refreshAdminStatus()
-      if (status.value.starrocksConfigured) {
-        allowedTables.value = (await api.get('/admin/tables')).data
-      } else {
-        allowedTables.value = []
-        adminSectionError.value = '尚未配置 StarRocks 数据源，请先在数据源配置中连接 ADS 数据库。'
-      }
-    } // User and metric list components request their own server-side pages.
+    } // Table, user, role and metric modules load their own data from their components.
   } catch (e) {
     if (request === adminLoadSequence) {
       adminSectionError.value = '读取“' + desktopSectionTitle.value + '”失败：' + errorText(e)
@@ -1871,28 +1864,7 @@ onBeforeUnmount(() => {
         <div v-else-if="desktopSection==='admin-model'" class="tb-admin-panel-card tb-admin-config-page">
           <ModelConfigCenter ref="modelCenterRef" :api="api" @status-changed="refreshAdminStatus"/>
         </div>
-        <div v-else-if="desktopSection==='admin-tables'" class="tb-admin-panel-card">
-          <div class="da-list-toolbar td-filter-bar">
-            <label class="td-filter-caption" for="ads-table-search">表名</label>
-            <input id="ads-table-search" v-model="tableSearch" aria-label="搜索数据表" placeholder="输入表名筛选">
-            <button type="button" class="td-btn" :disabled="!tableSearch" @click="tableSearch=''">重置</button>
-          </div>
-          <div v-for="(table,index) in pagedTables" :key="table.name" class="admin-table">
-            <div class="table-head"><span class="da-sequence">{{ (tablePage-1)*tableSize+index+1 }}</span>
-              <button type="button" class="tb-table-expand"
-                :aria-expanded="expandedTable === table.name"
-                @click="expandedTable = expandedTable === table.name ? '' : table.name">
-                <van-icon :name="expandedTable === table.name ? 'arrow-up' : 'arrow-down'"/> {{ table.name }}
-              </button>
-              <van-switch v-model="table.enabled" size="19px" @change="toggleAllowed(table)"/>
-            </div>
-            <div v-if="expandedTable === table.name" class="columns-list">
-              <div v-for="col in table.columns" :key="col.name"><b>{{ col.name }}</b> {{ col.type }} <span>{{ col.comment }}</span></div>
-            </div>
-          </div>
-          <p v-if="!filteredTables.length" class="muted">暂无匹配的数据表</p>
-          <ListPagination v-model:page="tablePage" v-model:size="tableSize" :total="filteredTables.length"/>
-        </div>
+        <AdminTablePermissions v-else-if="desktopSection==='admin-tables'" :api="api"/>
         <AdminMetrics v-else-if="desktopSection==='admin-metrics'" :api="api"/>
         <AdminUsers v-else-if="desktopSection==='admin-users'" :api="api"/>
         <AdminRoles v-else-if="desktopSection==='admin-roles'" :api="api"/>
