@@ -193,6 +193,16 @@ CREATE TABLE IF NOT EXISTS da_metric_definitions (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
 
+-- Auto-discovered metrics belong to the source that supplied their columns.
+-- Manually created and Excel-imported metrics remain unscoped for compatibility.
+CREATE TABLE IF NOT EXISTS da_metric_definition_sources (
+  metric_id BIGINT NOT NULL PRIMARY KEY,
+  data_source_id VARCHAR(36) NOT NULL,
+  INDEX idx_da_metric_source (data_source_id,metric_id),
+  CONSTRAINT fk_da_metric_source_metric FOREIGN KEY(metric_id)
+    REFERENCES da_metric_definitions(id) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
 -- Legacy da_ads_join_rules tables from prior releases are left untouched,
 -- but new installations no longer create or use manual association rules.
 
