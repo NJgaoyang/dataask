@@ -109,12 +109,21 @@ public class DataSourceController {
         var config=connection(existing(id));
         gateway.test(config);
         if (!id.equals(settings.activeSourceId())) {
+            String previous=settings.activeSourceId();
+            // Preserve legacy permissions before clearing the active-runtime cache.
+            if(previous!=null && !previous.isBlank()){
+                jdbc.update("INSERT IGNORE INTO da_source_table_permissions(data_source_id,table_name,enabled) " +
+                    "SELECT ?,table_name,enabled FROM da_allowed_tables WHERE enabled=1",previous);
+            }
             jdbc.update("UPDATE da_allowed_tables SET enabled=0");
+            jdbc.update("INSERT INTO da_allowed_tables(table_name,enabled) " +
+                "SELECT table_name,1 FROM da_source_table_permissions WHERE data_source_id=? AND enabled=1 " +
+                "ON DUPLICATE KEY UPDATE enabled=VALUES(enabled)",id);
             jdbc.update("DELETE FROM da_semantic_vectors");
             settings.activateSource(id,config);
         }
         AuditContext.set("target","数据源："+id);
-        AuditContext.set("detail","切换启用数据源，停用原表授权并重置语义索引");
+        AuditContext.set("detail","切换启用数据源，恢复该源已保存的表授权并重置语义索引");
         return Map.of("success",true);
     }
     @DeleteMapping("/{id}")
@@ -123,6 +132,7 @@ public class DataSourceController {
         lock();
         existing(id);
         if (id.equals(settings.activeSourceId())) throw bad("当前启用的数据源不能删除，请先切换数据源");
+        jdbc.update("DELETE FROM da_source_table_permissions WHERE data_source_id=?",id);
         jdbc.update("DELETE FROM da_datasources WHERE id=?",id);
         AuditContext.set("target","数据源："+id);
         return Map.of("success",true);
