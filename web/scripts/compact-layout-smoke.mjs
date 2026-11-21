@@ -78,8 +78,8 @@ try {
     assert.equal(await page.locator('.desktop-main-nav button').filter({hasText:'工作台'}).count(),0,
       'No separate workbench remains in navigation');
     await capture(page,width,'ask','.conversation');
-    const box=await page.locator('.composer-row').boundingBox();
-    assert(box.y<=180&&box.width<=width-216+2,'Question input fills the workspace width');
+    const box=await page.locator('.da-home-question-box').boundingBox();
+    assert(box && box.width<=Math.min(980,width-216),'Default Smart Q&A input stays centered and bounded');
     await page.locator('.desktop-main-nav button').filter({hasText:'我的图表'}).click();
     await capture(page,width,'charts','.tb-chart-workspace');
     const workspace=await page.locator('.tb-chart-workspace').boundingBox();

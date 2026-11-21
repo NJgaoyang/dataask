@@ -124,17 +124,8 @@
   .consumer-pc .sidebar-brand .brand-title{display:flex;flex-direction:column;gap:1px;min-width:0}
   .consumer-pc .sidebar-brand .brand-title strong{font-size:15px;font-weight:600;color:var(--da-text);white-space:nowrap;letter-spacing:.1px}
   .consumer-pc .sidebar-brand .brand-title small{font-size:11px;color:var(--da-text-3);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-  .consumer-pc .sidebar-new{
-    display:flex;align-items:center;justify-content:center;gap:6px;margin:var(--da-sp-2) 0 var(--da-sp-4);
-    height:var(--da-control-h);padding:0 var(--da-sp-3);border:0;border-radius:var(--da-radius-sm);
-    background:var(--da-primary);color:#fff;font-size:var(--da-fs-sm);font-weight:600;box-shadow:none;
-    transition:background .15s;
-  }
-  .consumer-pc .sidebar-new:hover{background:var(--da-primary-hover);border-color:transparent}
-  .consumer-pc .sidebar-new:active{background:var(--da-primary-active)}
-  .consumer-pc .sidebar-new .van-icon{font-size:15px}
   .consumer-pc .da-nav-label{font-size:11px;font-weight:600;letter-spacing:.6px;color:var(--da-text-3);padding:var(--da-sp-3) var(--da-sp-2) var(--da-sp-1);white-space:nowrap}
-  .consumer-pc .desktop-main-nav{display:flex;flex-direction:column;gap:2px}
+  .consumer-pc .desktop-main-nav{display:flex;flex-direction:column;gap:2px;margin-top:8px}
   .consumer-pc .desktop-main-nav button{
     position:relative;display:flex;align-items:center;gap:10px;width:100%;height:var(--da-control-h);padding:0 var(--da-sp-3);
     border:0;border-radius:var(--da-radius-sm);background:transparent;color:var(--da-text-2);
@@ -276,13 +267,19 @@
     grid-template-areas:"sidebar topbar" "sidebar content";
   }
   .consumer-pc.consumer-home .conversation{display:block;padding:0;background:var(--da-canvas)}
-  .consumer-pc .da-empty-ask-home{width:100%;min-height:100%;padding:54px 32px 42px}
-  .consumer-pc .da-empty-ask-inner{width:min(1120px,100%);margin:0 auto}
-  .consumer-pc .da-ask-hero{margin:0 0 22px}
-  .consumer-pc .da-ask-hero h1{margin:0;font-size:28px;line-height:1.3;font-weight:650;color:var(--da-text);letter-spacing:-.25px}
+  .consumer-pc .da-empty-ask-home{width:100%;min-height:100%;padding:112px 32px 48px}
+  .consumer-pc .da-empty-ask-inner{width:min(980px,100%);margin:0 auto}
+  .consumer-pc .da-ask-hero{margin:0 0 42px;text-align:center}
+  .consumer-pc .da-ask-hero h1{margin:0;font-size:32px;line-height:1.25;font-weight:700;color:var(--da-text);letter-spacing:-.4px}
+  .consumer-pc .da-ask-categories{display:flex;justify-content:center;gap:8px;flex-wrap:wrap;margin:0 0 14px}
+  .consumer-pc .da-ask-categories button{
+    height:32px;padding:0 14px;border:1px solid var(--da-border);border-radius:999px;
+    background:var(--da-surface);color:var(--da-text-2);font-size:12px;cursor:pointer
+  }
+  .consumer-pc .da-ask-categories button:hover{border-color:var(--da-primary-border);background:var(--da-primary-soft);color:var(--da-primary)}
   .consumer-pc .da-home-question-box{
-    display:flex;flex-direction:column;gap:12px;height:158px;margin:0 0 28px;padding:18px 18px 14px;
-    border:1px solid var(--da-border-strong);border-radius:12px;background:var(--da-surface);box-shadow:var(--da-shadow-sm);
+    display:flex;flex-direction:column;gap:12px;height:168px;margin:0 0 42px;padding:18px 18px 14px;
+    border:1px solid var(--da-border-strong);border-radius:18px;background:var(--da-surface);box-shadow:0 10px 28px rgba(31,39,51,.08);
     transition:border-color .12s,box-shadow .12s;
   }
   .consumer-pc .da-home-question-box:focus-within{border-color:var(--da-primary);box-shadow:var(--da-focus)}
@@ -427,15 +424,15 @@
   .consumer-pc .da-composer-resize-handle span{display:block;width:40px;height:4px;border-radius:4px;background:var(--da-border-strong);transition:background .15s}
   .consumer-pc .da-composer-resize-handle:hover span,.consumer-pc .da-composer-resize-handle:focus-visible span{background:var(--da-primary)}
   .consumer-pc.consumer-home .da-composer-resize-handle{display:none}
-  .consumer-pc .da-suggestions{width:100%;max-width:none;margin:0}
+  .consumer-pc .da-suggestions{width:min(760px,100%);max-width:none;margin:0 auto}
   .consumer-pc .da-suggestions-label{display:flex;align-items:center;justify-content:space-between;gap:var(--da-sp-3);margin-bottom:var(--da-sp-3);font-size:var(--da-fs-sm);font-weight:600;color:var(--da-text-2)}
   .consumer-pc .da-suggestions-label .van-icon{color:var(--da-primary);margin-right:4px}
   .consumer-pc .da-suggestions-label small{font-weight:400;color:var(--da-text-3);font-size:var(--da-fs-xs)}
   .consumer-pc .da-suggestion-group+.da-suggestion-group{margin-top:var(--da-sp-3)}
   .consumer-pc .da-suggestion-group-label{margin:0 0 var(--da-sp-2);font-size:var(--da-fs-xs);font-weight:600;color:var(--da-text-3)}
-  .consumer-pc .da-suggestion-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:var(--da-sp-3)}
+  .consumer-pc .da-suggestion-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}
   .consumer-pc .da-suggestion-grid button{
-    display:flex;align-items:center;gap:var(--da-sp-3);min-height:48px;padding:var(--da-sp-2) var(--da-sp-3);border:1px solid var(--da-border);border-radius:var(--da-radius-md);
+    display:flex;align-items:center;gap:10px;min-height:44px;padding:7px 10px;border:1px solid var(--da-border);border-radius:999px;
     background:var(--da-surface);color:var(--da-text);font-size:var(--da-fs-sm);font-weight:500;text-align:left;line-height:1.45;transition:border-color .12s,background .12s;
   }
   .consumer-pc .da-suggestion-grid button:hover:not(:disabled){border-color:var(--da-primary-border);background:var(--da-primary-soft)}
@@ -807,7 +804,8 @@
   @media (max-height:760px) {
     .consumer-pc .da-suggestions{margin-bottom:var(--da-sp-3)}
     .consumer-pc .da-suggestion-grid button{min-height:44px}
-    .consumer-pc .da-empty-ask-home{padding-top:28px}
+    .consumer-pc .da-empty-ask-home{padding-top:36px}
+    .consumer-pc .da-ask-hero{margin-bottom:24px}
     .consumer-pc .da-home-question-box{height:132px;margin-bottom:20px}
     .consumer-pc .login-brand{padding-top:24px;padding-bottom:24px}
     .consumer-pc .login-brand-points{margin-top:20px}

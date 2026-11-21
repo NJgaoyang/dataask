@@ -64,12 +64,12 @@ try {
     await page.route('**/api/**',backend);
     await page.goto(base,{waitUntil:'networkidle'});
     await page.locator('.conversation').waitFor();
-    await page.locator('.composer-row').waitFor();
+    await page.locator('.da-home-question-box').waitFor();
     await page.locator('.da-ask-hero').waitFor();
     assert.equal(await page.locator('.da-ask-hero p').count(),0,'Smart Q&A home keeps only the task title');
     assert.equal(await page.locator('.da-suggestions-label small').count(),0,'Common questions heading has no helper copy');
     assert.equal(await page.locator('.da-suggestion-grid button').count(),8,'Smart Q&A home exposes eight compact quick questions');
-    const entryBox=await page.locator('.composer-row').boundingBox();
+    const entryBox=await page.locator('.da-home-question-box').boundingBox();
     assert(entryBox && entryBox.height>=136,'Smart Q&A input area stays visually dominant');
     assert(entryBox && entryBox.width<=1042 && entryBox.width>=Math.min(720,width-280),
       'Smart Q&A entry is centered and bounded instead of spanning the full canvas');
@@ -209,24 +209,24 @@ try {
       await page.getByRole('button',{name:/查看分析过程/}).click();
       await page.locator('.da-analysis-panel').waitFor();
       assert.equal(await page.locator('.da-analysis-steps').count(),0);
-      await page.locator('.sidebar-new').click();
+      await page.locator('.desktop-main-nav button').filter({hasText:'智能问数'}).click();
       assert.equal(await page.locator('.conversation .welcome').count(),0,
         'PC question page must not render the redundant welcome banner');
-      const composer = await page.locator('.composer-row').boundingBox();
-      assert(composer.y<=180,'Empty ask page should expose the composer immediately');
-      assert(composer.width<=width-rail.width+2,'Composer must fill the workspace content frame');
+      const composer = await page.locator('.da-home-question-box').boundingBox();
+      assert(composer && composer.y<360,'Empty Smart Q&A page should expose the main input immediately');
+      assert(composer.width<=980,'Landing input must stay centered instead of filling the workspace');
       assert.doesNotMatch(await page.locator('.app-shell').innerText(),/仅查询管理员|通用问法示例|用自然语言提问，系统会/);
       await snap(page,`${width}-ask-compact`);
       mode = 'unsupported';
-      await page.locator('.composer textarea').fill('查看近7天趋势');
-      await page.locator('.composer textarea').press('Enter');
+      await page.locator('.da-home-question-box textarea').fill('查看近7天趋势');
+      await page.locator('.da-home-question-box textarea').press('Enter');
       await page.locator('.metric-clarification').waitFor();
       assert.equal(await page.locator('.da-analysis-card').count(),0);
       assert.match(await page.locator('.da-analysis-steps').innerText(),/等待确认指标/);
-      await page.locator('.sidebar-new').click();
+      await page.locator('.desktop-main-nav button').filter({hasText:'智能问数'}).click();
       mode = 'pending';
-      await page.locator('.composer textarea').fill('昨天订单量');
-      await page.locator('.composer textarea').press('Enter');
+      await page.locator('.da-home-question-box textarea').fill('昨天订单量');
+      await page.locator('.da-home-question-box textarea').press('Enter');
       await page.getByText('正在分析',{exact:true}).waitFor();
       assert.equal(await page.locator('.da-analysis-steps').count(),0,'Never invent in-flight completed stages');
       await page.getByRole('button',{name:'停止查询',exact:true}).click();
@@ -282,7 +282,7 @@ try {
       assert.equal(passwordFocus.borderLeftWidth,'0px','Password input must not draw the left separator line');
       assert.equal(passwordFocus.borderRightWidth,'0px','Password input must not draw the right separator line');
       await page.getByRole('button',{name:'登录',exact:true}).click();
-      await page.locator('.conversation').waitFor();await page.locator('.composer-row').waitFor();
+      await page.locator('.conversation').waitFor();await page.locator('.da-home-question-box').waitFor();
       assert.equal(await page.evaluate(()=>document.documentElement.dataset.dataaskTheme),'light','A different user must not inherit admin theme');
       await page.locator('.da-account-trigger').click();
       await page.getByRole('menuitem',{name:'退出登录'}).click();
@@ -290,7 +290,7 @@ try {
       await page.locator('input[autocomplete="username"]').fill('admin');
       await page.locator('input[autocomplete="current-password"]').fill('example-password');
       await page.getByRole('button',{name:'登录',exact:true}).click();
-      await page.locator('.conversation').waitFor();await page.locator('.composer-row').waitFor();
+      await page.locator('.conversation').waitFor();await page.locator('.da-home-question-box').waitFor();
       assert.equal(await page.evaluate(()=>document.documentElement.dataset.dataaskTheme),'dark','Returning account should restore its own preference');
       // Returning to narrow H5 removes desktop dark styling even with the preference saved.
       await page.setViewportSize({width:390,height:844});

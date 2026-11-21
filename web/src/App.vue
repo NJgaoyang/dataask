@@ -567,6 +567,13 @@ const desktopQuickQuestions = [
   { type:'订单趋势', icon:'clock-o', question:'最近30天订单量趋势' },
   { type:'销售排行', icon:'ascending', question:'昨天各城市销售额排行' }
 ]
+const desktopAskCategories = ['指标查询','城市排行','趋势分析','经营对比','用户增长','销售排行']
+function chooseAskCategory(type) {
+  const item = desktopQuickQuestions.find(entry => entry.type === type)
+  if (!item) return
+  question.value = item.question
+  focusDesktopQuestion()
+}
 // Quick BI-inspired desktop querying. A dataset selection is enforced by the server.
 const approvedDatasets = ref([])
 const chartStyles = ref({})
@@ -1626,9 +1633,8 @@ onBeforeUnmount(() => {
           <div class="brand-icon" aria-hidden="true"><svg class="brand-glyph" viewBox="0 0 36 36"><rect x="1.5" y="1.5" width="33" height="33" rx="10" fill="#2f6bff"/><path d="M10 8.5h8.2c4.8 0 8 3.5 8 8s-3.2 8-8 8H10z" fill="#fff"/><path d="M13 12h5c2.4 0 4 1.6 4 4.5s-1.6 4.5-4 4.5h-5z" fill="#2f6bff"/><path d="M7 27l5-5 4 3 7-8" fill="none" stroke="#b9d6ff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></div>
           <div class="brand-title"><strong>DataAsk</strong></div>
         </div>
-        <button v-if="canAsk" type="button" class="sidebar-new da-new-conversation" title="新建问数" @click="newConversation"><van-icon name="plus"/><span>新建问数</span></button>
         <nav class="desktop-main-nav" aria-label="分析导航">
-          <button v-if="canAsk" type="button" title="智能问数" :class="{active:desktopSection==='ask'}" @click="switchDesktopSection('ask')"><van-icon name="chat-o"/><span>智能问数</span></button>
+          <button v-if="canAsk" type="button" title="智能问数" :class="{active:desktopSection==='ask'}" @click="newConversation"><van-icon name="chat-o"/><span>智能问数</span></button>
           <button v-if="canCharts" type="button" title="我的图表" :class="{active:desktopSection==='charts'}" @click="switchDesktopSection('charts')"><van-icon name="chart-trending-o"/><span>我的图表</span></button>
         </nav>
         <section v-if="canAsk && sessions.length" class="da-sidebar-history" aria-label="最近会话">
@@ -1949,8 +1955,12 @@ onBeforeUnmount(() => {
           class="da-empty-ask-home" aria-label="智能问数入口">
           <div class="da-empty-ask-inner">
             <section class="da-ask-hero">
-              <h1>从一个经营问题开始</h1>
+              <h1>DataAsk，帮你问数</h1>
             </section>
+            <div class="da-ask-categories" aria-label="常用分析类型">
+              <button v-for="item in desktopAskCategories" :key="item" type="button"
+                @click="chooseAskCategory(item)">{{ item }}</button>
+            </div>
             <div class="da-home-question-box">
               <textarea ref="desktopQuestionRef" v-model="question" rows="4" maxlength="800"
                 placeholder="例如：昨天各城市的销售额是多少？"
