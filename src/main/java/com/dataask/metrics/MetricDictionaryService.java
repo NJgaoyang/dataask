@@ -30,6 +30,9 @@ public class MetricDictionaryService {
                             String sheetName, int excelRow) {}
     public record MetricEdit(String metricName,String aliases,String definition,String adsTable,
                              String adsField,String timeField,String dimensions,String notes) {}
+    /** Optional lineage and formula reference for multi-table indicators, never executed as SQL. */
+    public record MetricCalculation(String sourceTables,String sourceFields,
+                                    String calculationExpression,String joinRules) {}
     public record WorkbookPreview(String filename, int count, List<MetricRow> samples,
                                   List<String> notices) {}
 
@@ -193,8 +196,53 @@ public class MetricDictionaryService {
 
     private static String clean(String value) { return value == null ? "" : value.strip(); }
 
+    static List<String> metricTables(String sources,String legacy) {
+        String text=clean(sources);
+        if(text.isEmpty())text=clean(legacy);
+        if(text.isEmpty())return List.of();
+        return Arrays.stream(text.split("[,，;；\\n\\r]+"))
+            .map(String::strip).filter(x->!x.isEmpty()).distinct().toList();
+    }
+
+    private static boolean permittedMetricTables(String sources,String legacy,Set<String> allowed) {
+        List<String> tables=metricTables(sources,legacy);
+        return tables.stream().allMatch(table->allowed.stream().anyMatch(candidate->
+            candidate.equalsIgnoreCase(table) ||
+            candidate.toLowerCase(Locale.ROOT).endsWith("."+table.toLowerCase(Locale.ROOT))));
+    }
+
+    private void saveCalculation(long id,MetricCalculation calculation) {
+        if(calculation==null)return;
+        String tables=clean(calculation.sourceTables());
+        String fields=clean(calculation.sourceFields());
+        String expression=clean(calculation.calculationExpression());
+        String joins=clean(calculation.joinRules());
+        if(tables.length()>4000 || fields.length()>4000 ||
+           expression.length()>8000 || joins.length()>5000)
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST,"指标计算定义内容过长");
+        for(String table:metricTables(tables,""))
+            if(!table.matches("(?i)[a-z_][a-z0-9_]*\\.[a-z_][a-z0-9_]*"))
+                throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
+                    "来源表必须填写 schema.table 格式，如 ads.sales_di");
+        if(tables.isEmpty()&&fields.isEmpty()&&expression.isEmpty()&&joins.isEmpty()){
+            jdbc.update("DELETE FROM da_metric_calculations WHERE metric_id=?",id);
+            return;
+        }
+        jdbc.update("INSERT INTO da_metric_calculations " +
+            "(metric_id,source_tables,source_fields,calculation_expression,join_rules) " +
+            "VALUES(?,?,?,?,?) ON DUPLICATE KEY UPDATE " +
+            "source_tables=VALUES(source_tables),source_fields=VALUES(source_fields)," +
+            "calculation_expression=VALUES(calculation_expression),join_rules=VALUES(join_rules)",
+            id,tables,fields,expression,joins);
+    }
+
     @Transactional
     public void createMetric(MetricEdit input,String username) {
+        createMetric(input,username,null);
+    }
+
+    @Transactional
+    public void createMetric(MetricEdit input,String username,MetricCalculation calculation) {
         String batchId=UUID.randomUUID().toString();
         jdbc.update("INSERT INTO da_metric_import_batches(id,source_file,uploaded_by,row_count) VALUES(?,?,?,1)",
             batchId,"手工维护",username);
@@ -203,16 +251,28 @@ public class MetricDictionaryService {
             "VALUES(?,?,?,?,?,?,?,?,?,?,0)",
             batchId,clean(input.metricName()),clean(input.aliases()),clean(input.definition()),clean(input.adsTable()),
             clean(input.adsField()),clean(input.timeField()),clean(input.dimensions()),clean(input.notes()),"手工维护");
+        if(calculation!=null){
+            Long id=jdbc.queryForObject(
+                "SELECT MAX(id) FROM da_metric_definitions WHERE batch_id=?",Long.class,batchId);
+            if(id==null)throw new IllegalStateException("无法读取新增指标 ID");
+            saveCalculation(id,calculation);
+        }
     }
 
     @Transactional
     public void updateMetric(long id,MetricEdit input) {
+        updateMetric(id,input,null);
+    }
+
+    @Transactional
+    public void updateMetric(long id,MetricEdit input,MetricCalculation calculation) {
         if(id<=0) throw new ResponseStatusException(HttpStatus.BAD_REQUEST,"指标 ID 无效");
         int updated=jdbc.update("UPDATE da_metric_definitions SET metric_name=?,aliases=?,definition=?,ads_table=?," +
             "ads_field=?,time_field=?,dimensions=?,notes=? WHERE id=?",
             clean(input.metricName()),clean(input.aliases()),clean(input.definition()),clean(input.adsTable()),
             clean(input.adsField()),clean(input.timeField()),clean(input.dimensions()),clean(input.notes()),id);
         if(updated==0) throw new ResponseStatusException(HttpStatus.NOT_FOUND,"指标不存在");
+        saveCalculation(id,calculation);
     }
 
     @Transactional
@@ -325,21 +385,24 @@ public class MetricDictionaryService {
             (rs,n)->rs.getString(1));
         String activeSource=activeIds.isEmpty()?"":activeIds.getFirst();
         var rows=jdbc.query(
-            "SELECT d.metric_name,d.aliases,d.definition,d.ads_table,d.ads_field,d.time_field,d.dimensions,d.notes " +
+            "SELECT d.metric_name,d.aliases,d.definition,d.ads_table,d.ads_field,d.time_field,d.dimensions,d.notes," +
+            "COALESCE(c.source_tables,''),COALESCE(c.source_fields,'')," +
+            "COALESCE(c.calculation_expression,''),COALESCE(c.join_rules,'') " +
             "FROM da_metric_definitions d LEFT JOIN da_metric_definition_sources s ON s.metric_id=d.id " +
+            "LEFT JOIN da_metric_calculations c ON c.metric_id=d.id " +
             "WHERE s.data_source_id IS NULL OR s.data_source_id=? ORDER BY d.id DESC LIMIT 1000",
             (rs,n)->new String[]{
                 rs.getString(1),rs.getString(2),rs.getString(3),rs.getString(4),
-                rs.getString(5),rs.getString(6),rs.getString(7),rs.getString(8)
+                rs.getString(5),rs.getString(6),rs.getString(7),rs.getString(8),
+                rs.getString(9),rs.getString(10),rs.getString(11),rs.getString(12)
             },activeSource);
         record Ranked(String[] data,int score) {}
         List<Ranked> ranked = new ArrayList<>();
         String normalizedQuestion=question.replaceAll("\\s+","");
         for (String[] row : rows) {
-            String rawTable=row[3].trim();
-            if (!rawTable.isBlank() && allowedTables.stream().noneMatch(t ->
-                    t.equalsIgnoreCase(rawTable) || t.toLowerCase(Locale.ROOT)
-                      .endsWith("." + rawTable.toLowerCase(Locale.ROOT)))) continue;
+            String rawTable=row[8].isBlank()?row[3].trim():row[8].trim();
+            // All referenced tables must be authorized, not just the first one.
+            if(!permittedMetricTables(row[8],row[3],allowedTables)) continue;
             int score=0;
             String name=row[0].trim();
             if (name.length()>=2 && normalizedQuestion.contains(name)) score+=100;
@@ -360,8 +423,12 @@ public class MetricDictionaryService {
             String[] r=rank.data();
             result.append("\n指标：").append(r[0]).append("；常用叫法：").append(r[1])
                 .append("；统计口径：").append(r[2]);
-            if (!r[3].isBlank()) result.append("；ADS表：").append(r[3]);
-            if (!r[4].isBlank()) result.append("；指标字段：").append(r[4]);
+            String sourceTables=r[8].isBlank()?r[3]:r[8];
+            String sourceFields=r[9].isBlank()?r[4]:r[9];
+            if (!sourceTables.isBlank()) result.append("；授权来源表：").append(sourceTables);
+            if (!sourceFields.isBlank()) result.append("；参与计算字段：").append(sourceFields);
+            if (!r[10].isBlank()) result.append("；计算表达式参考：").append(r[10]);
+            if (!r[11].isBlank()) result.append("；表关联口径参考：").append(r[11]);
             if (!r[5].isBlank()) result.append("；时间字段：").append(r[5]);
             if (!r[6].isBlank()) result.append("；可分析维度：").append(r[6]);
             if (!r[7].isBlank()) result.append("；备注：").append(r[7]);
