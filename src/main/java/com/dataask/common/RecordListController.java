@@ -63,7 +63,14 @@ public class RecordListController {
     @PreAuthorize("hasAuthority('PERM_SYSTEM_ADMIN')")
     public Map<String,Object> metrics(@RequestParam(defaultValue="1") int page,@RequestParam(defaultValue="10") int pageSize,@RequestParam(defaultValue="") String keyword) {
         String pattern=ListPage.pattern(keyword);
-        return query("id,metric_name AS metricName,aliases,definition,ads_table AS adsTable,ads_field AS adsField,time_field AS timeField,dimensions,notes","FROM da_metric_definitions WHERE metric_name LIKE ? ESCAPE '!' OR definition LIKE ? ESCAPE '!'","id DESC",List.of(pattern,pattern),page,pageSize);
+        return query("d.id,d.metric_name AS metricName,d.aliases,d.definition," +
+            "d.ads_table AS adsTable,d.ads_field AS adsField,d.time_field AS timeField,d.dimensions,d.notes," +
+            "COALESCE(src.name,'通用口径') AS sourceName",
+            "FROM da_metric_definitions d " +
+            "LEFT JOIN da_metric_definition_sources assoc ON assoc.metric_id=d.id " +
+            "LEFT JOIN da_datasources src ON src.id=assoc.data_source_id " +
+            "WHERE d.metric_name LIKE ? ESCAPE '!' OR d.definition LIKE ? ESCAPE '!'",
+            "d.id DESC",List.of(pattern,pattern),page,pageSize);
     }
     @GetMapping("/admin/metrics/batches/page")
     @PreAuthorize("hasAuthority('PERM_SYSTEM_ADMIN')")

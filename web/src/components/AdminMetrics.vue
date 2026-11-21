@@ -197,7 +197,8 @@ const downloadTemplate=()=>download('/admin/metrics/template','DataAsk-指标口
       :columns="[
         {key:'metricName',label:'指标名称'},
         {key:'definition',label:'业务口径'},
-        {key:'adsTable',label:'ADS 表'},
+        {key:'sourceName',label:'数据源'},
+        {key:'adsTable',label:'来源表'},
         {key:'adsField',label:'指标字段'}
       ]">
       <template #toolbar>
@@ -306,7 +307,7 @@ const downloadTemplate=()=>download('/admin/metrics/template','DataAsk-指标口
             <div class="da-auto-summary">发现 {{ parsedPreview.count }} 个数值字段，
               {{ parsedPreview.withoutPrimaryKey }} 张表无主键</div>
             <p v-if="!parseSourceActive()" class="da-auto-warning">
-              当前不是启用的数据源。可以预览，但需要先在数据源配置中启用后才能生成指标草稿。
+              可为该数据源生成指标草稿；只有启用这个数据源后，这些口径才会参与问数。
             </p>
             <p v-for="notice in parsedPreview.notices.slice(0,8)" :key="notice" class="da-auto-note">
               {{ notice }}
@@ -329,7 +330,7 @@ const downloadTemplate=()=>download('/admin/metrics/template','DataAsk-指标口
           <span class="da-auto-footer-hint">生成的是待确认草稿，请核实 SUM、单位与去重口径</span>
           <button type="button" class="td-btn" :disabled="autoParseSaving" @click="closeAutoParse">取消</button>
           <button type="button" class="td-btn td-btn--primary"
-            :disabled="autoParseBusy||autoParseSaving||!parsedPreview?.count||!parseSourceActive()"
+            :disabled="autoParseBusy||autoParseSaving||!parsedPreview?.count"
             @click="confirmAutoParse">{{ autoParseSaving?'生成中…':'确认生成指标' }}</button>
         </footer>
       </div>

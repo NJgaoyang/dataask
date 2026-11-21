@@ -239,6 +239,7 @@ try {
   await page.locator('.tb-admin-metrics-page').getByRole('button',{name:'一键解析'}).click();
   await visible(page.locator('.da-metric-auto-parse:visible'),'Metric parsing preview');
   assert.match(await page.locator('.da-metric-auto-parse:visible').innerText(),/city_id/);
+  assert.match(await page.locator('.da-metric-auto-parse:visible').innerText(),/销售额/);
   await page.locator('.da-metric-auto-parse:visible').getByRole('button',{name:'确认生成指标'}).click();
   await requireCall('POST /api/admin/table-permissions/auto-parse/confirm');
 

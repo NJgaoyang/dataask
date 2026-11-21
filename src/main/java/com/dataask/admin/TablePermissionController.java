@@ -205,7 +205,10 @@ public class TablePermissionController {
                         "待解析的数值字段超过 1000 个，请减少授权表后再试");
                 String caption=field.comment().strip().isEmpty()?field.name():field.comment().strip();
                 if(caption.length()>100)caption=caption.substring(0,100);
-                String title=caption+"（"+field.name()+"）";
+                // Use the Chinese field comment verbatim as the metric name so
+                // "营业额" naturally matches queries about 营业额; the physical
+                // column name remains available separately for disambiguation.
+                String title=caption;
                 if(title.length()>150)title=title.substring(0,150);
                 String definition="自动识别草稿：建议对 "+field.name()+" 按 "+
                     (primary.isEmpty()?"人工指定的分析维度":String.join("、",primary))+
@@ -229,16 +232,14 @@ public class TablePermissionController {
     @PostMapping("/auto-parse/confirm")
     public Map<String,Object> confirm(@Valid @RequestBody ConfirmRequest request,
                                       org.springframework.security.core.Authentication authentication){
-        // The semantic and SQL engines currently execute against a single active source.
-        // Do not pollute their metric dictionary with definitions from inactive sources.
-        if(!request.sourceId().equals(settings.activeSourceId()))
-            throw new ResponseStatusException(HttpStatus.CONFLICT,
-                "请先在数据源配置中启用该数据源，再确认生成指标");
+        // Source identity is persisted with generated metric definitions. Non-active
+        // sources can also be parsed; their metrics will only enter the prompt when
+        // that data source becomes active.
         Preview preview=parseSuggestions(request.sourceId());
         if(preview.metrics().isEmpty())
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST,"未发现可生成的指标字段");
         List<MetricDictionaryService.MetricEdit> entries=preview.metrics().stream()
-            .map(s->new MetricDictionaryService.MetricEdit(s.metricName(),"",s.definition(),
+            .map(s->new MetricDictionaryService.MetricEdit(s.metricName(),s.adsField(),s.definition(),
                 s.adsTable(),s.adsField(),s.timeField(),s.dimensions(),s.notes())).toList();
         Map<String,Object> result=metrics.importAutoSuggestions(entries,authentication.getName(),request.sourceId());
         AuditContext.set("target","指标自动解析："+preview.sourceName());
