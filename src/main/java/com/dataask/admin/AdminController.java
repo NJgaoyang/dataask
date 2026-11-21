@@ -188,6 +188,7 @@ public class AdminController {
 
     @GetMapping("/roles")
     List<Map<String,Object>> roles() {
+        try {
         // Avoid a role/user aggregation join: older deployments can have a different
         // da_users index/collation, and the role list must be resilient to orphaned users.
         Map<String,Long> userCounts=new HashMap<>();
@@ -213,6 +214,12 @@ public class AdminController {
                 "permissions",permissions,"userCount",userCounts.getOrDefault(code,0L)));
         });
         return result;
+        } catch(org.springframework.dao.DataAccessException ex) {
+            org.slf4j.LoggerFactory.getLogger(AdminController.class)
+                .error("Role permission list query failed; verify da_roles, da_role_permissions and da_users",ex);
+            throw new ResponseStatusException(HttpStatus.SERVICE_UNAVAILABLE,
+                "角色权限读取失败，请检查 MySQL 角色权限表结构与后台日志");
+        }
     }
 
     record RoleRequest(@NotBlank @Size(max=16) String code,@NotBlank @Size(max=80) String name,
