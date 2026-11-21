@@ -193,6 +193,18 @@ CREATE TABLE IF NOT EXISTS da_metric_definitions (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
 
+-- Complex metric definitions are optional. Existing single-table / single-field metrics
+-- continue to use da_metric_definitions.ads_table and ads_field.
+CREATE TABLE IF NOT EXISTS da_metric_calculations (
+  metric_id BIGINT NOT NULL PRIMARY KEY,
+  source_tables TEXT NOT NULL,
+  source_fields TEXT NOT NULL,
+  calculation_expression TEXT NOT NULL,
+  join_rules TEXT NOT NULL,
+  CONSTRAINT fk_da_metric_calculation FOREIGN KEY(metric_id)
+    REFERENCES da_metric_definitions(id) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
 -- Auto-discovered metrics belong to the source that supplied their columns.
 -- Manually created and Excel-imported metrics remain unscoped for compatibility.
 CREATE TABLE IF NOT EXISTS da_metric_definition_sources (
