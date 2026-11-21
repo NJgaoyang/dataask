@@ -1378,23 +1378,31 @@ onBeforeUnmount(() => {
             <div class="login-brand-mark" aria-hidden="true"><svg class="brand-glyph" viewBox="0 0 36 36"><rect x="1.5" y="1.5" width="33" height="33" rx="10" fill="#2f6bff"/><path d="M10 8.5h8.2c4.8 0 8 3.5 8 8s-3.2 8-8 8H10z" fill="#fff"/><path d="M13 12h5c2.4 0 4 1.6 4 4.5s-1.6 4.5-4 4.5h-5z" fill="#2f6bff"/><path d="M7 27l5-5 4 3 7-8" fill="none" stroke="#b9d6ff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></div>
             <span>DataAsk 数问</span>
           </div>
-          <span class="login-brand-chip">企业内部平台</span>
         </div>
         <div class="login-brand-copy">
-          <span class="login-brand-eyebrow">企业经营数据问答平台</span>
-          <strong>经营数据<br/>一问即达</strong>
+          <span class="login-brand-eyebrow">企业经营数据智能问答平台</span>
+          <strong>用自然语言，<br/>让 <em>数据触手可问</em></strong>
+          <p>基于企业数据与指标口径，快速获取经营洞察，<br/>支持深度追问、可视化分析与图表共享。</p>
           <ul class="login-brand-points">
-            <li><van-icon name="chat-o"/><span>数据问答</span></li>
-            <li><van-icon name="filter-o"/><span>只读校验</span></li>
-            <li><van-icon name="chart-trending-o"/><span>图表呈现</span></li>
+            <li><span class="login-feature-icon"><van-icon name="chat-o"/></span><b>自然语言问数</b><small>像聊天一样查数据</small></li>
+            <li><span class="login-feature-icon"><van-icon name="cluster-o"/></span><b>指标语义理解</b><small>支持业务口径与别名</small></li>
+            <li><span class="login-feature-icon"><van-icon name="bar-chart-o"/></span><b>可视化分析</b><small>自动生成分析图表</small></li>
+            <li><span class="login-feature-icon"><van-icon name="friends-o"/></span><b>图表共享协作</b><small>一键分享，团队共用</small></li>
           </ul>
         </div>
         <div class="login-brand-visual" aria-hidden="true">
-          <div class="login-visual-card">
-            <div class="login-visual-bars"><i></i><i></i><i></i><i></i><i></i></div>
-            <div class="login-visual-line"><span></span><span></span><span></span></div>
+          <div class="login-visual-orbit"></div>
+          <div class="login-visual-monitor">
+            <div class="login-visual-browser"><i></i><i></i><i></i></div>
+            <div class="login-visual-query">昨日营业额是多少？</div>
+            <div class="login-visual-dashboard">
+              <div class="login-visual-bars"><i></i><i></i><i></i><i></i><i></i></div>
+              <div class="login-visual-donut"></div>
+            </div>
           </div>
-          <div class="login-visual-bubble"><van-icon name="chat-o"/></div>
+          <div class="login-visual-chat"><van-icon name="chat-o"/></div>
+          <div class="login-visual-db"><i></i><i></i><i></i></div>
+          <div class="login-visual-base"></div>
         </div>
       </aside>
       <main class="login-main">
@@ -1404,9 +1412,8 @@ onBeforeUnmount(() => {
         <p>{{ isDesktop ? '企业经营数据问答平台' : '面向企业管理者的智能经营数据助手' }}</p>
         <div class="login-card">
           <div v-if="isDesktop" class="login-card-head">
-            <span class="login-card-eyebrow">账号登录</span>
-            <h2>欢迎回来</h2>
-            <p>请登录以继续访问 DataAsk 工作台</p>
+            <h2>欢迎登录 <span>DataAsk 数问</span></h2>
+            <p>企业经营数据智能问答平台</p>
           </div>
           <h2 v-else>登录到数问</h2>
           <span v-if="isDesktop" class="login-label">账号</span>
@@ -1419,8 +1426,7 @@ onBeforeUnmount(() => {
               </button>
             </template>
           </van-field>
-          <van-button type="primary" block :loading="loggingIn" @click="login">登录</van-button>
-          <p v-if="isDesktop" class="login-footnote"><van-icon name="lock-o"/>账号由系统管理员分配，请勿共享登录凭证</p>
+          <van-button type="primary" block :loading="loggingIn" @click="login">登录 <van-icon name="arrow"/></van-button>
         </div>
         <p v-if="isDesktop" class="login-copyright">© 2026 DataAsk 数问 · 企业经营数据问答平台</p>
       </main>

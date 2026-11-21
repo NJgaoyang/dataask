@@ -223,6 +223,16 @@ try {
       await page.getByRole('menuitem',{name:'退出登录'}).click();
       await page.locator('.login-card').waitFor();
       assert.equal(await page.evaluate(()=>sessionStorage.getItem('dataask_token')),null);
+      const loginHeadline=(await page.locator('.login-brand-copy>strong').innerText()).replace(/\s+/g,' ');
+      assert.match(loginHeadline,/用自然语言/);
+      assert.match(loginHeadline,/数据触手可问/);
+      assert.equal(await page.getByText('自然语言问数',{exact:true}).count(),1);
+      assert.equal(await page.getByText('图表共享协作',{exact:true}).count(),1);
+      const loginGrid=await page.locator('.login-screen').evaluate(el=>getComputedStyle(el).gridTemplateColumns);
+      assert.match(loginGrid,/px .*px/,'Desktop login should keep a two-column layout');
+      const loginCardBox=await page.locator('.login-card').boundingBox();
+      assert(loginCardBox && loginCardBox.width>=400 && loginCardBox.width<=500,'Login card should match the approved visual proportions');
+      assert.equal(await page.locator('.login-visual-monitor').count(),1,'Desktop login keeps a CSS analytics illustration');
       assert.equal(await page.evaluate(()=>document.documentElement.dataset.dataaskTheme),undefined);
       assert(calls.includes('POST /api/chat/cancel'));
       await page.locator('input[autocomplete="username"]').fill('alice');
