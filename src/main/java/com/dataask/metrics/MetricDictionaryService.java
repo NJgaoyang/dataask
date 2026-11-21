@@ -28,6 +28,8 @@ public class MetricDictionaryService {
     public record MetricRow(String metricName, String aliases, String definition, String adsTable,
                             String adsField, String timeField, String dimensions, String notes,
                             String sheetName, int excelRow) {}
+    public record MetricEdit(String metricName,String aliases,String definition,String adsTable,
+                             String adsField,String timeField,String dimensions,String notes) {}
     public record WorkbookPreview(String filename, int count, List<MetricRow> samples,
                                   List<String> notices) {}
 
@@ -187,6 +189,52 @@ public class MetricDictionaryService {
         }
         return Map.of("success",true,"batchId",batchId,"count",data.entries().size(),
             "message","成功导入 " + data.entries().size() + " 条指标口径");
+    }
+
+    private static String clean(String value) { return value == null ? "" : value.strip(); }
+
+    @Transactional
+    public void createMetric(MetricEdit input,String username) {
+        String batchId=UUID.randomUUID().toString();
+        jdbc.update("INSERT INTO da_metric_import_batches(id,source_file,uploaded_by,row_count) VALUES(?,?,?,1)",
+            batchId,"手工维护",username);
+        jdbc.update("INSERT INTO da_metric_definitions " +
+            "(batch_id,metric_name,aliases,definition,ads_table,ads_field,time_field,dimensions,notes,sheet_name,excel_row) " +
+            "VALUES(?,?,?,?,?,?,?,?,?,?,0)",
+            batchId,clean(input.metricName()),clean(input.aliases()),clean(input.definition()),clean(input.adsTable()),
+            clean(input.adsField()),clean(input.timeField()),clean(input.dimensions()),clean(input.notes()),"手工维护");
+    }
+
+    @Transactional
+    public void updateMetric(long id,MetricEdit input) {
+        if(id<=0) throw new ResponseStatusException(HttpStatus.BAD_REQUEST,"指标 ID 无效");
+        int updated=jdbc.update("UPDATE da_metric_definitions SET metric_name=?,aliases=?,definition=?,ads_table=?," +
+            "ads_field=?,time_field=?,dimensions=?,notes=? WHERE id=?",
+            clean(input.metricName()),clean(input.aliases()),clean(input.definition()),clean(input.adsTable()),
+            clean(input.adsField()),clean(input.timeField()),clean(input.dimensions()),clean(input.notes()),id);
+        if(updated==0) throw new ResponseStatusException(HttpStatus.NOT_FOUND,"指标不存在");
+    }
+
+    @Transactional
+    public void deleteMetric(long id) {
+        if(id<=0) throw new ResponseStatusException(HttpStatus.BAD_REQUEST,"指标 ID 无效");
+        List<String> batches=jdbc.query("SELECT batch_id FROM da_metric_definitions WHERE id=?",
+            (rs,n)->rs.getString(1),id);
+        if(batches.isEmpty()) throw new ResponseStatusException(HttpStatus.NOT_FOUND,"指标不存在");
+        String batchId=batches.getFirst();
+        jdbc.update("DELETE FROM da_metric_definitions WHERE id=?",id);
+        Integer remaining=jdbc.queryForObject(
+            "SELECT COUNT(*) FROM da_metric_definitions WHERE batch_id=?",Integer.class,batchId);
+        if(remaining==null || remaining==0) jdbc.update("DELETE FROM da_metric_import_batches WHERE id=?",batchId);
+        else jdbc.update("UPDATE da_metric_import_batches SET row_count=? WHERE id=?",remaining,batchId);
+    }
+
+    public List<MetricRow> exportMetrics() {
+        return jdbc.query(
+            "SELECT metric_name,aliases,definition,ads_table,ads_field,time_field,dimensions,notes,sheet_name,excel_row " +
+            "FROM da_metric_definitions ORDER BY id",
+            (rs,n)->new MetricRow(rs.getString(1),rs.getString(2),rs.getString(3),rs.getString(4),
+                rs.getString(5),rs.getString(6),rs.getString(7),rs.getString(8),rs.getString(9),rs.getInt(10)));
     }
 
     public Map<String,Object> listImports() {
