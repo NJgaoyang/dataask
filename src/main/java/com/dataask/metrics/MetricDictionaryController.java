@@ -30,10 +30,18 @@ public class MetricDictionaryController {
         @Size(max=255) String adsField,
         @Size(max=128) String timeField,
         @Size(max=500) String dimensions,
-        @Size(max=3000) String notes) {
+        @Size(max=3000) String notes,
+        @Size(max=4000) String sourceTables,
+        @Size(max=4000) String sourceFields,
+        @Size(max=8000) String calculationExpression,
+        @Size(max=5000) String joinRules) {
         MetricDictionaryService.MetricEdit toEdit() {
             return new MetricDictionaryService.MetricEdit(
                 metricName, aliases, definition, adsTable, adsField, timeField, dimensions, notes);
+        }
+        MetricDictionaryService.MetricCalculation toCalculation() {
+            return new MetricDictionaryService.MetricCalculation(
+                sourceTables,sourceFields,calculationExpression,joinRules);
         }
     }
 
@@ -42,13 +50,13 @@ public class MetricDictionaryController {
 
     @PostMapping
     public Map<String,Object> create(@Valid @RequestBody MetricRequest input, Authentication auth) {
-        service.createMetric(input.toEdit(), auth.getName());
+        service.createMetric(input.toEdit(),auth.getName(),input.toCalculation());
         return Map.of("success",true,"message","指标已新增");
     }
 
     @PutMapping("/{id}")
     public Map<String,Object> update(@PathVariable long id,@Valid @RequestBody MetricRequest input) {
-        service.updateMetric(id,input.toEdit());
+        service.updateMetric(id,input.toEdit(),input.toCalculation());
         return Map.of("success",true,"message","指标已更新");
     }
 
