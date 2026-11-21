@@ -32,7 +32,12 @@ async function backend(route) {
   if(p==='/api/admin/settings')return ok({starrocks:{jdbcUrl:'jdbc:mysql://localhost:9030/ads',username:'readonly',schema:'ads'},ai:{baseUrl:'https://example.com/v1',model:'shared-model'},embedding:{enabled:false}});
   if(p==='/api/admin/users')return ok([{username:'admin',displayName:'系统管理员',role:'ADMIN'},{username:'alice',displayName:'业务用户',role:'USER'}]);
   if(p==='/api/admin/metrics')return ok({total:0,batches:[],definitions:[]});
-  if(p==='/api/admin/tables')return ok([]);
+  if(p==='/api/admin/table-permissions/sources')return ok([
+    {id:'00000000-0000-0000-0000-000000000001',name:'经营数据源',schema:'ads',active:true}
+  ]);
+  if(p==='/api/admin/table-permissions')return ok([
+    {name:'ads.orders',enabled:true},{name:'ads.sales',enabled:false}
+  ]);
   if(p==='/api/admin/audit/options')return ok({today:'2026-11-10',usernames:['admin','alice']});
   if(p==='/api/admin/audit/logs')return ok({items:auditRows.slice(0,20),total:38,page:1,pageSize:20});
   if(p==='/api/admin/audit/queries')return ok({items:[],total:0,page:1,pageSize:20});
