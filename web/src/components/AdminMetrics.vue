@@ -224,6 +224,11 @@ const downloadTemplate=()=>download('/admin/metrics/template','DataAsk-指标口
           <van-icon name="cluster-o"/> 一键解析
         </button>
       </template>
+      <template #sourceTables="{row}">
+        <span class="da-metric-table-summary" :title="row.sourceTables||row.adsTable||''">
+          {{ (row.sourceTables||row.adsTable||'—').replace(/[，,;；\n\r]+/g,'、') }}
+        </span>
+      </template>
       <template #actions="{row}">
         <button type="button" class="td-row-action" @click="editMetric(row)">编辑</button>
         <button type="button" class="td-row-action danger" @click="removeMetric(row)">删除</button>
@@ -281,10 +286,10 @@ const downloadTemplate=()=>download('/admin/metrics/template','DataAsk-指标口
             </div>
             <div class="metric-preview-table">
               <table>
-                <thead><tr><th>序号</th><th>指标名称</th><th>业务口径</th><th>ADS 表</th></tr></thead>
+                <thead><tr><th>序号</th><th>指标名称</th><th>业务口径</th><th>关联来源表</th></tr></thead>
                 <tbody>
                   <tr v-for="(item,index) in preview.samples" :key="index">
-                    <td>{{ index+1 }}</td><td>{{ item.metricName }}</td><td>{{ item.definition }}</td><td>{{ item.adsTable||'—' }}</td>
+                    <td>{{ index+1 }}</td><td>{{ item.metricName }}</td><td>{{ item.definition }}</td><td>{{ item.sourceTables||item.adsTable||'—' }}</td>
                   </tr>
                 </tbody>
               </table>
@@ -381,6 +386,7 @@ const downloadTemplate=()=>download('/admin/metrics/template','DataAsk-指标口
 .da-import-body{padding:18px 20px;max-height:65vh;overflow:auto}
 .metric-preview-heading{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:12px}
 .metric-preview-heading span{color:var(--da-primary);font-size:12px}
+.da-metric-table-summary{display:block;max-width:240px;overflow:hidden;white-space:nowrap;text-overflow:ellipsis;color:var(--da-text-2)}
 .td-row-action{height:28px;padding:0 8px;border:1px solid var(--da-border);border-radius:5px;background:var(--da-surface);color:var(--da-text-2);font-size:12px}
 .td-row-action.danger{color:var(--da-danger)}
 @media(max-width:900px){
