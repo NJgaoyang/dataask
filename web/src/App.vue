@@ -9,6 +9,7 @@ import AdminAuditLog from './components/AdminAuditLog.vue'
 import AdminDataSources from './components/AdminDataSources.vue'
 import AdminUsers from './components/AdminUsers.vue'
 import AdminRoles from './components/AdminRoles.vue'
+import AdminMetrics from './components/AdminMetrics.vue'
 import ModelConfigCenter from './components/ModelConfigCenter.vue'
 import RecordList from './components/RecordList.vue'
 import ListPagination from './components/ListPagination.vue'
@@ -1828,41 +1829,7 @@ onBeforeUnmount(() => {
           <p v-if="!filteredTables.length" class="muted">暂无匹配的数据表</p>
           <ListPagination v-model:page="tablePage" v-model:size="tableSize" :total="filteredTables.length"/>
         </div>
-        <div v-else-if="desktopSection==='admin-metrics'" class="tb-admin-panel-card tb-admin-metrics-page">
-          <section class="metric-admin">
-            <input ref="metricFileInput" class="file-input-hidden" type="file"
-              accept=".xlsx,.xls" @change="selectMetricFile" aria-label="选择指标口径Excel文件"/>
-            <div class="metric-action-row">
-              <van-button size="small" type="primary" icon="plus" plain @click="chooseMetricFile">上传 Excel</van-button>
-              <van-button size="small" plain icon="down" @click="downloadMetricTemplate">下载模板</van-button>
-            </div>
-            <div v-if="metricPreviewBusy" class="metric-upload-state">
-              <van-loading size="16px"/> 正在解析 Excel ...
-            </div>
-            <p v-if="metricError" class="metric-error">{{ metricError }}</p>
-            <div v-if="metricPreview" class="metric-preview">
-              <div class="metric-preview-heading">
-                <b>{{ metricPreview.filename }}</b><span>识别到 {{ metricPreview.count }} 条</span>
-              </div>
-              <p v-for="notice in metricPreview.notices" :key="notice" class="metric-note">{{ notice }}</p>
-              <div class="metric-preview-table" tabindex="0" role="region" aria-label="指标预览表格">
-                <table>
-                  <thead><tr><th>序号</th><th>指标名称</th><th>业务口径</th><th>ADS 表</th></tr></thead>
-                  <tbody><tr v-for="(item, idx) in metricPreview.samples" :key="idx">
-                    <td>{{ idx+1 }}</td><td>{{ item.metricName }}</td><td>{{ item.definition }}</td><td>{{ item.adsTable || '—' }}</td>
-                  </tr></tbody>
-                </table>
-              </div>
-              <van-button type="primary" block :loading="metricImportBusy" @click="importMetrics">
-                确认导入 {{ metricPreview.count }} 条指标
-              </van-button>
-            </div>
-            <h4>导入历史</h4>
-            <RecordList :api="api" endpoint="/admin/metrics/batches/page" label="导入历史" :refresh="metricListRefresh" :columns="[{key:'filename',label:'文件名称'},{key:'count',label:'指标数量'},{key:'uploadedBy',label:'操作人'},{key:'createdAt',label:'导入时间'}]"><template #actions="{row}"><button type="button" class="da-danger-button" @click="deleteMetricBatch(row)">删除</button></template></RecordList>
-            <h4>指标口径</h4>
-            <RecordList :api="api" endpoint="/admin/metrics/page" label="指标口径" :refresh="metricListRefresh" :columns="[{key:'metricName',label:'指标名称'},{key:'definition',label:'业务口径'},{key:'adsTable',label:'ADS 表'},{key:'adsField',label:'指标字段'}]"/>
-          </section>
-        </div>
+        <AdminMetrics v-else-if="desktopSection==='admin-metrics'" :api="api"/>
         <AdminUsers v-else-if="desktopSection==='admin-users'" :api="api"/>
         <AdminRoles v-else-if="desktopSection==='admin-roles'" :api="api"/>
       </main>
