@@ -27,7 +27,13 @@ public class MetricDictionaryService {
 
     public record MetricRow(String metricName, String aliases, String definition, String adsTable,
                             String adsField, String timeField, String dimensions, String notes,
-                            String sheetName, int excelRow) {}
+                            String sheetName, int excelRow, String sourceTables,String sourceFields,
+                            String calculationExpression,String joinRules) {
+        public MetricRow(String name,String aliases,String definition,String table,String field,
+                         String time,String dims,String notes,String sheet,int row) {
+            this(name,aliases,definition,table,field,time,dims,notes,sheet,row,"","","","");
+        }
+    }
     public record MetricEdit(String metricName,String aliases,String definition,String adsTable,
                              String adsField,String timeField,String dimensions,String notes) {}
     /** Optional lineage and formula reference for multi-table indicators, never executed as SQL. */
@@ -43,16 +49,20 @@ public class MetricDictionaryService {
         }
     }
 
-    private static final Map<String, Set<String>> HEADERS = Map.of(
-        "name", Set.of("指标名称", "指标", "指标名", "指标中文名", "业务指标", "统计指标", "指标标题"),
-        "definition", Set.of("指标口径", "统计口径", "计算口径", "业务口径", "指标定义", "业务定义",
-            "计算规则", "统计规则", "口径说明", "指标说明", "口径", "指标含义", "计算逻辑"),
-        "aliases", Set.of("指标别名", "业务别名", "别名", "同义词", "同义名称", "常用叫法"),
-        "table", Set.of("ads表", "ads表名", "表名", "来源表", "来源表名", "数据表", "数据来源表", "数据来源"),
-        "field", Set.of("指标字段", "来源字段", "ads字段", "字段名", "计算字段", "金额字段", "字段"),
-        "time", Set.of("时间字段", "日期字段", "业务日期字段", "统计日期字段"),
-        "dimension", Set.of("维度", "分析维度", "维度字段", "可用维度"),
-        "notes", Set.of("备注", "注意事项", "补充说明", "其他说明", "业务说明")
+    private static final Map<String, Set<String>> HEADERS = Map.ofEntries(
+        Map.entry("name", Set.of("指标名称", "指标", "指标名", "指标中文名", "业务指标", "统计指标", "指标标题")),
+        Map.entry("definition", Set.of("指标口径", "统计口径", "计算口径", "业务口径", "指标定义",
+            "业务定义","计算规则","统计规则","口径说明","指标说明","口径","指标含义","计算逻辑")),
+        Map.entry("aliases", Set.of("指标别名", "业务别名", "别名", "同义词", "同义名称", "常用叫法")),
+        Map.entry("table", Set.of("ads表", "ads表名", "表名", "来源表", "来源表名", "数据表", "数据来源表", "数据来源")),
+        Map.entry("field", Set.of("指标字段", "来源字段", "ads字段", "字段名", "计算字段", "金额字段", "字段")),
+        Map.entry("time", Set.of("时间字段", "日期字段", "业务日期字段", "统计日期字段")),
+        Map.entry("dimension", Set.of("维度", "分析维度", "维度字段", "可用维度")),
+        Map.entry("notes", Set.of("备注", "注意事项", "补充说明", "其他说明", "业务说明")),
+        Map.entry("sources", Set.of("关联来源表","来源表（多张）","多表来源","关联数据表")),
+        Map.entry("fields", Set.of("参与字段","引用字段","多个字段","参与计算字段")),
+        Map.entry("expression", Set.of("计算表达式","指标计算表达式","计算公式","sql表达式")),
+        Map.entry("joins", Set.of("表关联规则","关联规则","join规则","关联条件"))
     );
 
     private static String normalizeHeader(String name) {
@@ -155,7 +165,11 @@ public class MetricDictionaryService {
                         bounded(cell(row, columns.getOrDefault("time", -1), formatter), 128, "时间字段", sheetName, excelRow),
                         bounded(cell(row, columns.getOrDefault("dimension", -1), formatter), 500, "分析维度", sheetName, excelRow),
                         bounded(cell(row, columns.getOrDefault("notes", -1), formatter), 3000, "备注", sheetName, excelRow),
-                        sheetName, excelRow));
+                        sheetName, excelRow,
+                        bounded(cell(row,columns.getOrDefault("sources",-1),formatter),4000,"关联来源表",sheetName,excelRow),
+                        bounded(cell(row,columns.getOrDefault("fields",-1),formatter),4000,"参与字段",sheetName,excelRow),
+                        bounded(cell(row,columns.getOrDefault("expression",-1),formatter),8000,"计算表达式",sheetName,excelRow),
+                        bounded(cell(row,columns.getOrDefault("joins",-1),formatter),5000,"表关联规则",sheetName,excelRow)));
                     if (entries.size() > MAX_ROWS)
                         throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "一次最多导入 2000 条指标");
                 }
@@ -189,6 +203,14 @@ public class MetricDictionaryService {
                 "VALUES(?,?,?,?,?,?,?,?,?,?,?)",
                 batchId,row.metricName(),row.aliases(),row.definition(),row.adsTable(),row.adsField(),
                 row.timeField(),row.dimensions(),row.notes(),row.sheetName(),row.excelRow());
+            if(!row.sourceTables().isEmpty()||!row.sourceFields().isEmpty()||
+                !row.calculationExpression().isEmpty()||!row.joinRules().isEmpty()){
+                Long id=jdbc.queryForObject(
+                    "SELECT MAX(id) FROM da_metric_definitions WHERE batch_id=?",Long.class,batchId);
+                if(id==null)throw new IllegalStateException("无法读取导入指标 ID");
+                saveCalculation(id,new MetricCalculation(row.sourceTables(),row.sourceFields(),
+                    row.calculationExpression(),row.joinRules()));
+            }
         }
         return Map.of("success",true,"batchId",batchId,"count",data.entries().size(),
             "message","成功导入 " + data.entries().size() + " 条指标口径");
@@ -291,10 +313,13 @@ public class MetricDictionaryService {
 
     public List<MetricRow> exportMetrics() {
         return jdbc.query(
-            "SELECT metric_name,aliases,definition,ads_table,ads_field,time_field,dimensions,notes,sheet_name,excel_row " +
-            "FROM da_metric_definitions ORDER BY id",
+            "SELECT d.metric_name,d.aliases,d.definition,d.ads_table,d.ads_field,d.time_field,d.dimensions,d.notes," +
+            "d.sheet_name,d.excel_row,COALESCE(c.source_tables,''),COALESCE(c.source_fields,'')," +
+            "COALESCE(c.calculation_expression,''),COALESCE(c.join_rules,'') " +
+            "FROM da_metric_definitions d LEFT JOIN da_metric_calculations c ON c.metric_id=d.id ORDER BY d.id",
             (rs,n)->new MetricRow(rs.getString(1),rs.getString(2),rs.getString(3),rs.getString(4),
-                rs.getString(5),rs.getString(6),rs.getString(7),rs.getString(8),rs.getString(9),rs.getInt(10)));
+                rs.getString(5),rs.getString(6),rs.getString(7),rs.getString(8),rs.getString(9),rs.getInt(10),
+                rs.getString(11),rs.getString(12),rs.getString(13),rs.getString(14)));
     }
 
     /**
