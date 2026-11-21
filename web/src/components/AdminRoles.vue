@@ -44,7 +44,12 @@ onMounted(load)
       <div><strong>角色与权限</strong></div>
       <button type="button" class="td-btn td-btn--primary" :disabled="busy" @click="createRole"><van-icon name="plus"/> 新建角色</button>
     </div>
-    <p v-if="error&&!open" class="metric-error" role="alert">{{ error }}</p>
+    <div v-if="error&&!open" class="da-role-retry" role="alert">
+      <span>{{ error }}</span>
+      <button type="button" class="td-btn" :disabled="busy" @click="load">
+        <van-icon name="replay"/> 重试
+      </button>
+    </div>
     <div class="da-role-table">
       <div class="da-role-head"><span>角色</span><span>数据范围</span><span>功能权限</span><span>用户数</span><span>操作</span></div>
       <div v-for="role in sorted" :key="role.code" class="da-role-row">
@@ -82,3 +87,8 @@ onMounted(load)
     </van-popup>
   </div>
 </template>
+
+<style scoped>
+.da-role-retry{display:flex;align-items:center;justify-content:space-between;gap:12px;margin:10px 0;padding:12px 14px;border:1px solid var(--da-danger-border,var(--da-border));border-radius:7px;background:var(--da-surface);color:var(--da-danger);font-size:13px}
+.da-role-retry button{flex-shrink:0}
+</style>
