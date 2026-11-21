@@ -223,15 +223,18 @@ try {
       await page.locator('.da-account-label b').getByText('高阳（数据分析）',{exact:true}).waitFor();
       await page.locator('.da-account-trigger').click();
       await page.getByRole('menuitem',{name:'系统管理',exact:true}).click();
-      await page.locator('.tb-admin-overview-grid').waitFor();
-      assert.equal(await page.locator('.tb-admin-overview-grid button').filter({hasText:'角色权限'}).count(),1,
+      await page.locator('.da-admin-workspace-popup:visible').waitFor();
+      assert.equal(await page.locator('.topbar').count(),0,'No global breadcrumb behind management');
+      assert.equal(await page.locator('.da-admin-workspace-heading').innerText(),'数据源配置',
+        'System management shows just the module name, without breadcrumb repetition');
+      assert.equal(await page.locator('.da-admin-workspace-nav button').filter({hasText:'角色权限'}).count(),1,
         'System management exposes role and permission administration');
       await snap(page,'1440-admin-dark');
-      await page.locator('.tb-admin-overview-grid button').filter({hasText:'数据源配置'}).click();
+      await page.locator('.da-admin-workspace-nav button').filter({hasText:'数据源配置'}).click();
       await page.getByRole('button',{name:'新增数据源',exact:true}).click();
       await page.locator('.da-crud-modal:visible').waitFor();
       assert.equal(await page.locator('.da-crud-modal:visible').evaluate(el=>getComputedStyle(el).backgroundColor),
-        await page.locator('.topbar').evaluate(el=>getComputedStyle(el).backgroundColor));
+        await page.locator('.da-admin-workspace-header').evaluate(el=>getComputedStyle(el).backgroundColor));
       await snap(page,'1440-admin-source-dark');
       await page.locator('.da-crud-modal:visible').getByRole('button',{name:'取消',exact:true}).click();
       await page.getByRole('button',{name:'返回 DataAsk',exact:true}).click();
