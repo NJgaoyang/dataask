@@ -66,6 +66,11 @@ try {
     await page.locator('.conversation').waitFor();
     await page.locator('.da-home-question-box').waitFor();
     await page.locator('.da-ask-hero').waitFor();
+    assert.equal(await page.locator('.topbar').count(),0,
+      'New-task landing page must not render the DataAsk breadcrumb header');
+    const landingTop=await page.locator('.conversation').boundingBox();
+    assert(landingTop && landingTop.y<=1,
+      'New-task content must start at the top without an empty header row');
     assert.equal(await page.locator('.da-empty-ask-home').count(),1,'Authenticated New task must render the WorkBuddy-style landing page');
     const landingGeometry = await page.evaluate(() => {
       const conversation=document.querySelector('.conversation');
@@ -117,6 +122,7 @@ try {
     await snap(page,`${width}-ask-home`);
     await page.getByRole('textbox',{name:'输入经营数据问题'}).fill(analysisAnswer.question);
     await page.getByRole('button',{name:'发送问题'}).click();
+    await page.locator('.topbar').waitFor();
     const processPanel = page.locator('.da-analysis-panel');
     await processPanel.waitFor();
     assert.equal(await page.locator('.da-analysis-steps li').count(),6);
@@ -243,6 +249,8 @@ try {
       await page.locator('.da-analysis-panel').waitFor();
       assert.equal(await page.locator('.da-analysis-steps').count(),0);
       await page.locator('.desktop-main-nav button').filter({hasText:'新建任务'}).click();
+      assert.equal(await page.locator('.topbar').count(),0,
+        'Returning to New task must hide the conversation breadcrumb again');
       assert((await page.locator('.conversation').boundingBox())?.height>280,
         'Clicking New task after a conversation must restore the visible landing page');
       await page.getByRole('textbox',{name:'输入经营数据问题'}).click();

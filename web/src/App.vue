@@ -1729,7 +1729,7 @@ onBeforeUnmount(() => {
           @keydown.left.prevent="adjustSidebarWidth(-12)"
           @keydown.right.prevent="adjustSidebarWidth(12)"></div>
       </aside>
-      <header class="topbar">
+      <header v-if="!showDesktopAskLanding" class="topbar">
         <div v-if="isDesktop" class="tb-header-breadcrumb">
           <span>DataAsk</span><van-icon name="arrow" size="11"/>
           <template v-if="desktopIsAdminSection && desktopSection!=='admin-overview' && !adminWorkspaceOpen">

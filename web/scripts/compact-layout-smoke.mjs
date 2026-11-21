@@ -50,7 +50,8 @@ async function capture(page,width,name,contentSelector) {
   await page.locator(contentSelector).waitFor();
   await page.mouse.move(width-8,8);
   const frame=await page.locator(contentSelector).boundingBox();
-  assert(frame.y>=48 && frame.y<400,`${name}: content starts directly under the topbar`);
+  assert(name==='ask' ? frame.y>=0 && frame.y<2 : frame.y>=48 && frame.y<400,
+    `${name}: content starts at the correct position for its page state`);
   assert.equal(await page.locator('.ds-home-intro,.tb-page-heading,.tb-admin-heading,.da-chart-detail-heading').count(),0,
     `${name}: no duplicate title/description banner is rendered`);
   const metrics=await page.evaluate(()=>{
@@ -59,13 +60,15 @@ async function capture(page,width,name,contentSelector) {
     return {rail:rail.width,railRight:rail.right,mainX:main.getBoundingClientRect().x,padding:getComputedStyle(main).padding,
       main:main.clientWidth,overflow:document.documentElement.scrollWidth>innerWidth,
       mainOverflow:main.scrollWidth>main.clientWidth+1,text:document.querySelector('.app-shell').innerText,
-      headingFont:getComputedStyle(document.querySelector('.tb-header-breadcrumb strong')).fontSize};
+      headingFont:document.querySelector('.tb-header-breadcrumb strong')
+        ? getComputedStyle(document.querySelector('.tb-header-breadcrumb strong')).fontSize : null};
   });
   assert(Math.abs(metrics.rail-216)<2,`${width}: sidebar keeps the fixed enterprise rail width`);
   assert(Math.abs(metrics.main-(width-metrics.rail))<2,`${width}: content fills remaining width`);
   assert(Math.abs(metrics.railRight-metrics.mainX)<1,`${name}: main must touch the navigation divider`);
   assert(!metrics.overflow&&!metrics.mainOverflow,`${name}: horizontal overflow is confined to internal tables`);
-  assert(parseFloat(metrics.headingFont)>=12 && parseFloat(metrics.headingFont)<=20,`${name}: readable breadcrumb size`);
+  if(name==='ask')assert.equal(metrics.headingFont,null,`${name}: no redundant breadcrumb on New task landing`);
+  else assert(parseFloat(metrics.headingFont)>=12 && parseFloat(metrics.headingFont)<=20,`${name}: readable breadcrumb size`);
   assert.doesNotMatch(metrics.text,/仅查询管理员|用自然语言提问，系统会|通用问法示例|查看已收藏或他人共享|记录所有用户的服务端|接入说明|敏感凭证不会显示明文|管理员可创建用户/);
   await page.screenshot({path:`${out}/${width}-${name}.png`,animations:'disabled'});
 }

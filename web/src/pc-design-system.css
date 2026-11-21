@@ -277,11 +277,11 @@
   }
   /* The empty ask page is a dedicated landing state; once querying starts the shell switches to conversation + bottom composer. */
   .app-shell.consumer-pc.consumer-home{
-    grid-template-rows:var(--da-topbar-h) minmax(0,1fr);
-    grid-template-areas:"sidebar topbar" "sidebar content";
+    grid-template-rows:minmax(0,1fr);
+    grid-template-areas:"sidebar content";
   }
   .consumer-pc.consumer-home .conversation{display:block;padding:0;background:var(--da-canvas)}
-  .consumer-pc .da-empty-ask-home{width:100%;min-height:100%;padding:112px 32px 48px}
+  .consumer-pc .da-empty-ask-home{width:100%;min-height:100%;padding:132px 32px 48px}
   .consumer-pc .da-empty-ask-inner{width:min(980px,100%);margin:0 auto}
   .consumer-pc .da-ask-hero{margin:0 0 42px;text-align:center}
   .consumer-pc .da-ask-hero h1{margin:0;font-size:32px;line-height:1.25;font-weight:700;color:var(--da-text);letter-spacing:-.4px}
