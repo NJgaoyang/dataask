@@ -116,6 +116,17 @@ CREATE TABLE IF NOT EXISTS da_query_audit (
  INDEX idx_da_query_request (request_id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
+-- Table permissions are scoped to a specific configured data source. The legacy
+-- da_allowed_tables table remains the runtime allowlist of the ACTIVE source.
+CREATE TABLE IF NOT EXISTS da_source_table_permissions (
+  data_source_id VARCHAR(36) NOT NULL,
+  table_name VARCHAR(255) NOT NULL,
+  enabled TINYINT(1) NOT NULL DEFAULT 0,
+  updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  PRIMARY KEY (data_source_id,table_name),
+  INDEX idx_da_source_table_enabled (data_source_id,enabled)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
 CREATE TABLE IF NOT EXISTS da_allowed_tables (
  table_name VARCHAR(255) NOT NULL PRIMARY KEY,
  enabled TINYINT(1) NOT NULL DEFAULT 0,
