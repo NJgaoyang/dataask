@@ -4,9 +4,9 @@ import {showConfirmDialog,showSuccessToast} from 'vant'
 
 const props=defineProps({api:{type:Object,required:true}})
 const permissionOptions=[
-  {code:'ASK',name:'智能问数',desc:'使用自然语言查询已授权 ADS 数据'},
-  {code:'CHARTS',name:'我的图表',desc:'保存、查看和共享问数图表'},
-  {code:'SYSTEM_ADMIN',name:'系统管理',desc:'进入系统管理并维护配置、用户与角色'}
+  {code:'ASK',name:'智能问数'},
+  {code:'CHARTS',name:'我的图表'},
+  {code:'SYSTEM_ADMIN',name:'系统管理'}
 ]
 const roles=ref([]),busy=ref(false),error=ref(''),open=ref(false),mode=ref('create')
 const form=ref({code:'',name:'',permissions:[]})
@@ -41,7 +41,7 @@ onMounted(load)
 <template>
   <div class="tb-admin-panel-card da-role-admin">
     <div class="da-role-toolbar">
-      <div><strong>角色与权限</strong><p>管理员拥有全部城市；城市经理、普通用户及自定义角色都按账号匹配城市权限。</p></div>
+      <div><strong>角色与权限</strong></div>
       <button type="button" class="td-btn td-btn--primary" :disabled="busy" @click="createRole"><van-icon name="plus"/> 新建角色</button>
     </div>
     <p v-if="error&&!open" class="metric-error" role="alert">{{ error }}</p>
@@ -72,10 +72,9 @@ onMounted(load)
             <strong>功能权限</strong>
             <label v-for="item in permissionOptions" :key="item.code" class="da-role-permission-option">
               <input type="checkbox" :checked="form.permissions.includes(item.code)" @change="togglePermission(item.code)">
-              <span><b>{{ item.name }}</b><small>{{ item.desc }}</small></span>
+              <span><b>{{ item.name }}</b></span>
             </label>
           </div>
-          <p class="da-role-scope-note"><van-icon name="info-o"/> 数据范围固定：仅 ADMIN 为全部城市，其余角色都按用户城市权限过滤。</p>
         </div>
         <p v-if="error" class="metric-error" role="alert">{{ error }}</p>
         <footer><span/><button type="button" class="td-btn" :disabled="busy" @click="close">取消</button><button type="submit" class="td-btn td-btn--primary" :disabled="busy">{{ busy?'保存中…':'保存' }}</button></footer>

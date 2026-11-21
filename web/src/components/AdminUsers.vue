@@ -178,14 +178,12 @@ async function save(){
 
             <section v-if="form.role==='ADMIN'" class="da-user-city-scope all">
               <div><strong>城市数据权限</strong><span>全部城市</span></div>
-              <p>管理员不查询 ads.ads_user_city_permission，默认可查看全部城市。</p>
             </section>
 
             <section v-else class="da-user-city-scope">
               <div class="da-user-city-head">
                 <div>
                   <strong>城市数据权限</strong>
-                  <small>来自 ads.ads_user_city_permission，按 username_en 去重</small>
                 </div>
                 <button type="button" class="td-btn" :disabled="cityState.loading||!validCityAccount()" @click="loadCityOptions">
                   {{ cityState.loading?'读取中…':'刷新城市' }}
@@ -206,9 +204,7 @@ async function save(){
                 </div>
                 <p v-else class="da-user-city-empty">该账号在 ADS 城市权限表中暂无有效城市。</p>
               </template>
-              <p v-else class="da-user-city-hint">
-                输入账号后会自动读取城市；查询到的城市默认全部选中，可取消不需要的城市。
-              </p>
+
             </section>
           </template>
 

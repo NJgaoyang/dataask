@@ -1673,7 +1673,7 @@ onBeforeUnmount(() => {
           <div class="brand-icon" aria-hidden="true"><svg class="brand-glyph" viewBox="0 0 36 36"><rect x="1.5" y="1.5" width="33" height="33" rx="10" fill="#2f6bff"/><path d="M10 8.5h8.2c4.8 0 8 3.5 8 8s-3.2 8-8 8H10z" fill="#fff"/><path d="M13 12h5c2.4 0 4 1.6 4 4.5s-1.6 4.5-4 4.5h-5z" fill="#2f6bff"/><path d="M7 27l5-5 4 3 7-8" fill="none" stroke="#b9d6ff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></div>
           <div class="brand-title"><strong class="mobile-brand">数问</strong>
             <strong class="desktop-current-session">{{ activeSessionTitle }}</strong>
-            <small>经营数据助手</small></div>
+            </div>
         </div>
         <div v-if="isDesktop" class="da-topbar-utilities">
           <div class="da-topbar-operations">
@@ -1758,7 +1758,7 @@ onBeforeUnmount(() => {
             </button>
             <button type="button" @click="openAdminSection('admin-roles')">
               <span class="tb-admin-overview-icon icon-users"><van-icon name="shield-o" size="21"/></span>
-              <strong>角色权限</strong><small>自定义角色与功能权限</small>
+              <strong>角色权限</strong>
               <van-icon name="arrow" class="tb-admin-overview-arrow"/>
             </button>
             <button type="button" @click="openAdminSection('admin-status')">
@@ -1954,7 +1954,6 @@ onBeforeUnmount(() => {
         <section v-if="!isDesktop && !messages.length && !busy" class="welcome">
             <div class="welcome-icon"><van-icon name="chart-trending-o" size="27"/></div>
             <h2>今天想了解哪些经营数据？</h2>
-            <p>直接提问，系统会根据已授权的 ADS 数据计算真实结果。</p>
             <div class="quick-grid">
               <button v-for="item in quickQuestions" :key="item" :disabled="busy" @click="ask(item)">
                 {{ item }} <van-icon name="arrow" />
@@ -2082,7 +2081,6 @@ onBeforeUnmount(() => {
           @keydown.down.prevent="adjustComposerHeight(-24)"><span></span></button>
         <section v-if="isDesktop && !messages.length && !busy && !desktopFeedback" class="da-ask-hero" aria-label="智能问数入口">
           <h1>从一个经营问题开始</h1>
-          <p>输入经营问题，基于已授权的 ADS 数据直接查询、分析并生成图表。</p>
         </section>
         <div class="composer-row da-composer">
           <div v-if="isDesktop && followUpSource" class="da-followup-context">
@@ -2116,7 +2114,6 @@ onBeforeUnmount(() => {
         <section v-if="isDesktop && !messages.length && !busy && !desktopFeedback" class="da-suggestions" aria-label="示例问题">
           <div class="da-suggestions-label">
             <span>常用问题</span>
-            <small>点击即可开始分析</small>
           </div>
           <div class="da-suggestion-grid">
             <button v-for="item in desktopQuickQuestions" :key="item.question" :disabled="busy" type="button" @click="ask(item.question)">
@@ -2129,7 +2126,7 @@ onBeforeUnmount(() => {
             </button>
           </div>
         </section>
-        <small>DataAsk · 仅供内部经营分析 · 以实际业务口径为准</small>
+
       </footer>
       <van-popup v-if="isDesktop" v-model:show="resultFullscreenOpen" position="center"
         :close-on-click-overlay="false" class="da-result-fullscreen" @keydown.esc="closeFullScreen">
@@ -2163,8 +2160,8 @@ onBeforeUnmount(() => {
           <h2 id="da-personalization-title">个性化</h2>
           <div class="da-preference-heading"><h3>外观</h3><span>选择主题</span></div>
           <div class="da-theme-options" role="group" aria-label="主题选择">
-            <button type="button" :aria-pressed="theme==='light'" :class="{selected:theme==='light'}" @click="chooseTheme('light')"><van-icon name="bulb-o"/><strong>浅色</strong><small>白色界面</small><van-icon v-if="theme==='light'" name="checked" class="da-theme-check"/></button>
-            <button type="button" :aria-pressed="theme==='dark'" :class="{selected:theme==='dark'}" @click="chooseTheme('dark')"><van-icon name="circle"/><strong>深色</strong><small>黑色界面</small><van-icon v-if="theme==='dark'" name="checked" class="da-theme-check"/></button>
+            <button type="button" :aria-pressed="theme==='light'" :class="{selected:theme==='light'}" @click="chooseTheme('light')"><van-icon name="bulb-o"/><strong>浅色</strong><van-icon v-if="theme==='light'" name="checked" class="da-theme-check"/></button>
+            <button type="button" :aria-pressed="theme==='dark'" :class="{selected:theme==='dark'}" @click="chooseTheme('dark')"><van-icon name="circle"/><strong>深色</strong><van-icon v-if="theme==='dark'" name="checked" class="da-theme-check"/></button>
           </div>
         </section>
       </van-popup>
@@ -2187,8 +2184,7 @@ onBeforeUnmount(() => {
                 </button>
               </div>
               <p v-if="cityPermissionError" role="alert">读取失败：{{ cityPermissionError }}</p>
-              <p v-else-if="cityPermissionScope!=='CITY'">当前角色不做城市过滤，可查看全部城市数据。</p>
-              <p v-else-if="!cityPermissions.length">当前账号暂无授权城市</p>
+              <p v-else-if="cityPermissionScope==='CITY' && !cityPermissions.length">当前账号暂无授权城市</p>
               <div v-else class="da-profile-city-list">
                 <span v-for="city in cityPermissions" :key="city">{{ city }}</span>
               </div>
@@ -2253,7 +2249,7 @@ onBeforeUnmount(() => {
             </template>
           </template>
           <template v-else>
-            <p class="muted">点击收藏即可直接查看图表，无需返回对话。</p>
+
             <div v-for="item in savedCharts" :key="item.id" class="session-item" @click="revisitChart(item)">
               <van-icon name="chart-trending-o"/><span>{{ item.title }}</span><van-icon name="arrow"/>
             </div>
@@ -2306,9 +2302,8 @@ onBeforeUnmount(() => {
               <van-icon name="arrow"/>
             </span>
           </button>
-          <div class="admin-build-status">DataAsk 数问 · 版本 {{ buildSha }} · PC 宽屏使用桌面设计系统</div>
+          <div class="admin-build-status">版本 {{ buildSha }}</div>
           <h3>开放给 AI 的 ADS 表</h3>
-          <p class="muted">默认不开放任何表。仅授权通过审核的经营数据表。</p>
           <div v-for="table in allowedTables" :key="table.name" class="admin-table">
             <div class="table-head">
               <span @click="expandedTable = expandedTable === table.name ? '' : table.name">
@@ -2324,7 +2319,6 @@ onBeforeUnmount(() => {
           <section class="metric-admin">
             <div class="metric-section-title">
               <h3>指标口径 · Excel</h3>
-              <p class="muted">上传现有的指标定义，AI 将依据确认的业务口径理解 ADS 数据。当前已导入 {{ metricInfo.total || 0 }} 条。</p>
             </div>
             <input ref="metricFileInput" class="file-input-hidden" type="file"
               accept=".xlsx,.xls" @change="selectMetricFile" aria-label="选择指标口径Excel文件"/>
@@ -2383,14 +2377,12 @@ onBeforeUnmount(() => {
             <van-radio name="USER">普通用户</van-radio><van-radio name="ADMIN">管理员</van-radio>
           </van-radio-group></template></van-field>
           <van-button type="primary" block plain @click="addUser">创建账号</van-button>
-          <p class="muted">AI 配置直接使用服务器 application.yml，不会在浏览器回显密钥；StarRocks 配置可通过上方入口测试和保存。</p>
         </div>
       </van-popup>
       <van-popup v-if="canSystemAdmin && !isDesktop" v-model:show="configVisible"
         position="bottom" round :style="{width:'100%',height:'80%'}">
         <div class="config-panel">
           <div class="drawer-header"><b>StarRocks ADS 数据源</b><van-icon name="cross" @click="configVisible=false"/></div>
-          <p class="muted">配置 StarRocks FE 只读账号，测试连接后保存。</p>
           <van-field v-model="srForm.jdbcUrl" label="JDBC 地址" label-width="85px" placeholder="jdbc:mysql://192.168.1.10:9030/ads"/>
           <van-field v-model="srForm.schema" label="ADS 数据库" label-width="85px" placeholder="ads"/>
           <van-field v-model="srForm.username" label="用户名" label-width="85px" placeholder="只读用户名"/>

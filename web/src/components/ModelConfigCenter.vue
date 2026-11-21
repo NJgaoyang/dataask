@@ -108,7 +108,6 @@ onMounted(load)
             :aria-expanded="expanded.ai" aria-controls="da-model-ai-body" @click="toggleModel('ai')">
             <span class="da-model-setting-copy">
               <strong id="ai-settings-title"><van-icon name="chat-o"/> 对话模型</strong>
-              <small>用于理解经营问题、生成 SQL 与解释查询结果。</small>
             </span>
             <span class="da-model-setting-meta">
               <span class="da-model-setting-state" :class="{ok:status.aiConfigured}">{{ status.aiConfigured?'已配置':'待配置' }}</span>
@@ -123,7 +122,7 @@ onMounted(load)
           <van-field v-model.trim="ai.model" label="模型名称" placeholder="例如 qwen-plus" :disabled="locked()"/>
           <van-field v-model="ai.apiKey" label="API Key" type="password" autocomplete="new-password"
             :placeholder="settings.ai?.apiKeySet?'已保存，留空不修改':'输入 API Key'" :disabled="locked()"/>
-          <van-cell title="清除原有 API Key" label="仅本地免密模型需要，操作保存前会再次确认">
+          <van-cell title="清除原有 API Key">
             <template #right-icon><van-switch v-model="ai.clearKey" size="20px" :disabled="locked()"/></template>
           </van-cell>
         </div>
@@ -147,7 +146,6 @@ onMounted(load)
             :aria-expanded="expanded.embedding" aria-controls="da-model-embedding-body" @click="toggleModel('embedding')">
             <span class="da-model-setting-copy">
               <strong id="embedding-settings-title"><van-icon name="cluster-o"/> Embedding 模型</strong>
-              <small>用于 ADS 表字段、中文别名与指标口径的语义匹配。</small>
             </span>
             <span class="da-model-setting-meta">
               <span class="da-model-setting-state" :class="{ok:status.embeddingConfigured}">{{ status.embeddingConfigured?'已配置':'未启用 / 待配置' }}</span>
@@ -157,7 +155,7 @@ onMounted(load)
         </header>
         <div v-show="expanded.embedding" id="da-model-embedding-body" role="region" aria-labelledby="embedding-settings-title" class="da-model-setting-body">
         <div class="da-model-fields">
-          <van-cell title="启用 Embedding" label="关闭后不使用向量语义增强">
+          <van-cell title="启用 Embedding">
             <template #right-icon><van-switch v-model="embedding.enabled" size="20px" :disabled="locked()"/></template>
           </van-cell>
           <van-field v-model.trim="embedding.baseUrl" label="Base URL"
@@ -169,7 +167,7 @@ onMounted(load)
           <van-field v-model="embedding.apiKey" label="API Key" type="password"
             autocomplete="new-password" :placeholder="settings.embedding?.apiKeySet?'已保存，留空不修改':'本地免密模型可留空'"
             :disabled="locked()"/>
-          <van-cell title="清除原有 API Key" label="保存前会再次确认">
+          <van-cell title="清除原有 API Key">
             <template #right-icon><van-switch v-model="embedding.clearKey" size="20px" :disabled="locked()"/></template>
           </van-cell>
         </div>

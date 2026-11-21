@@ -37,13 +37,6 @@
     font-weight:600;
     letter-spacing:-.2px;
   }
-  .consumer-pc.consumer-home .da-ask-hero p{
-    margin:5px 0 0;
-    color:var(--da-text-3);
-    font-size:12px;
-    line-height:18px;
-  }
-
   .consumer-pc.consumer-home .composer-row{
     flex:0 0 auto;
     height:160px;
@@ -93,11 +86,6 @@
     font-size:14px;
     font-weight:600;
     color:var(--da-text-2);
-  }
-  .consumer-pc.consumer-home .da-suggestions-label small{
-    color:var(--da-text-3);
-    font-size:12px;
-    font-weight:400;
   }
   .consumer-pc.consumer-home .da-suggestion-grid{
     display:grid;
@@ -179,9 +167,6 @@
     .consumer-pc.consumer-home .composer{
       padding-top:24px;
       gap:14px;
-    }
-    .consumer-pc.consumer-home .da-ask-hero p{
-      margin-top:4px;
     }
     .consumer-pc.consumer-home .composer-row{
       height:136px;

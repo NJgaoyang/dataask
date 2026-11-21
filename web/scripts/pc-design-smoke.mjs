@@ -66,6 +66,8 @@ try {
     await page.locator('.conversation').waitFor();
     await page.locator('.composer-row').waitFor();
     await page.locator('.da-ask-hero').waitFor();
+    assert.equal(await page.locator('.da-ask-hero p').count(),0,'Smart Q&A home keeps only the task title');
+    assert.equal(await page.locator('.da-suggestions-label small').count(),0,'Common questions heading has no helper copy');
     assert.equal(await page.locator('.da-suggestion-grid button').count(),8,'Smart Q&A home exposes eight compact quick questions');
     const entryBox=await page.locator('.composer-row').boundingBox();
     assert(entryBox && entryBox.height>=136,'Smart Q&A input area stays visually dominant');
