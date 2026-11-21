@@ -19,7 +19,9 @@ const autoParseOpen=ref(false),autoParseBusy=ref(false),autoParseSaving=ref(fals
 const parseSources=ref([]),parseSourceId=ref(''),parsedPreview=ref(null)
 
 const empty=()=>({
-  id:null,metricName:'',aliases:'',definition:'',adsTable:'',adsField:'',timeField:'',dimensions:'',notes:''
+  id:null,metricName:'',aliases:'',definition:'',adsTable:'',adsField:'',
+  sourceTables:'',sourceFields:'',calculationExpression:'',joinRules:'',
+  timeField:'',dimensions:'',notes:''
 })
 const form=ref(empty())
 const errorText=e=>e.response?.data?.message||e.response?.data?.detail||e.message||'操作失败'
@@ -32,7 +34,11 @@ function createMetric(){
 }
 function editMetric(row){
   editorMode.value='edit'
-  form.value={...empty(),...row}
+  form.value={
+    ...empty(),...row,
+    sourceTables:row.sourceTables||row.adsTable||'',
+    sourceFields:row.sourceFields||row.adsField||''
+  }
   editorError.value=''
   editorOpen.value=true
 }
@@ -49,6 +55,10 @@ async function saveMetric(){
     definition:String(form.value.definition||'').trim(),
     adsTable:String(form.value.adsTable||'').trim(),
     adsField:String(form.value.adsField||'').trim(),
+    sourceTables:String(form.value.sourceTables||'').trim(),
+    sourceFields:String(form.value.sourceFields||'').trim(),
+    calculationExpression:String(form.value.calculationExpression||'').trim(),
+    joinRules:String(form.value.joinRules||'').trim(),
     timeField:String(form.value.timeField||'').trim(),
     dimensions:String(form.value.dimensions||'').trim(),
     notes:String(form.value.notes||'').trim()
@@ -198,8 +208,7 @@ const downloadTemplate=()=>download('/admin/metrics/template','DataAsk-指标口
         {key:'metricName',label:'指标名称'},
         {key:'definition',label:'业务口径'},
         {key:'sourceName',label:'数据源'},
-        {key:'adsTable',label:'来源表'},
-        {key:'adsField',label:'指标字段'}
+        {key:'sourceTables',label:'关联来源表'}
       ]">
       <template #toolbar>
         <button type="button" class="td-btn td-btn--primary" @click="createMetric">
@@ -231,11 +240,18 @@ const downloadTemplate=()=>download('/admin/metrics/template','DataAsk-指标口
         <div class="da-crud-fields da-metric-fields">
           <label>指标名称<input v-model.trim="form.metricName" maxlength="150" required placeholder="例如 营业额"></label>
           <label>指标别名<input v-model.trim="form.aliases" maxlength="500" placeholder="例如 收入，营收"></label>
-          <label class="wide">指标口径<textarea v-model.trim="form.definition" maxlength="5000" required rows="4" placeholder="填写计算口径"></textarea></label>
-          <label>ADS 表<input v-model.trim="form.adsTable" maxlength="255" placeholder="ads.xxx"></label>
-          <label>指标字段<input v-model.trim="form.adsField" maxlength="255" placeholder="amount"></label>
-          <label>时间字段<input v-model.trim="form.timeField" maxlength="128" placeholder="dt"></label>
-          <label>分析维度<input v-model.trim="form.dimensions" maxlength="500" placeholder="city, channel"></label>
+          <label class="wide">业务口径<textarea v-model.trim="form.definition" maxlength="5000" required rows="3"
+            placeholder="例如：已支付金额减去成功退款金额；按支付完成日期统计，剔除测试订单"></textarea></label>
+          <label class="wide">来源表（可多张）<textarea v-model.trim="form.sourceTables" maxlength="4000" rows="2"
+            aria-label="来源表（可多张）" placeholder="每行一张表，例如：&#10;ads.ads_order_di&#10;ads.ads_refund_di"></textarea></label>
+          <label class="wide">参与字段（可多个）<textarea v-model.trim="form.sourceFields" maxlength="4000" rows="2"
+            aria-label="参与字段（可多个）" placeholder="例如：order_id, paid_amount, refund_amount"></textarea></label>
+          <label class="wide">计算表达式（可选）<textarea v-model.trim="form.calculationExpression" maxlength="8000" rows="3"
+            aria-label="计算表达式" placeholder="例如：SUM(paid_amount) - SUM(refund_amount)"></textarea></label>
+          <label class="wide">表关联规则（可选）<textarea v-model.trim="form.joinRules" maxlength="5000" rows="2"
+            aria-label="表关联规则" placeholder="例如：订单与退款表通过 order_id 关联；同一订单多次退款先汇总"></textarea></label>
+          <label>时间字段<input v-model.trim="form.timeField" maxlength="128" placeholder="例如 pay_dt"></label>
+          <label>分析维度<input v-model.trim="form.dimensions" maxlength="500" placeholder="例如 city_id, channel"></label>
           <label class="wide">备注<textarea v-model.trim="form.notes" maxlength="3000" rows="3"></textarea></label>
         </div>
         <p v-if="editorError" class="metric-error" role="alert">{{ editorError }}</p>
@@ -340,7 +356,8 @@ const downloadTemplate=()=>download('/admin/metrics/template','DataAsk-指标口
 </template>
 
 <style scoped>
-.da-metric-editor{width:min(820px,calc(100vw - 48px))}
+.da-metric-editor{width:min(860px,calc(100vw - 48px))}
+.da-metric-fields{max-height:min(66vh,640px);overflow:auto}
 .da-metric-import{width:min(900px,calc(100vw - 48px))}
 .da-metric-auto-parse{width:min(1020px,calc(100vw - 48px))}
 .da-auto-body{padding:18px 20px;max-height:62vh;overflow:auto}
