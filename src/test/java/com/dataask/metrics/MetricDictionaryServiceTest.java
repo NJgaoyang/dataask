@@ -76,7 +76,7 @@ class MetricDictionaryServiceTest {
         var metric=new MetricDictionaryService.MetricEdit("净营业额","净收入","订单金额减已退金额",
             "","","pay_dt","city_id","");
         var formula=new MetricDictionaryService.MetricCalculation(
-            "ads.orders_di\\nads.refunds_di","order_id, paid_amount, refund_amount",
+            "ads.orders_di, ads.refunds_di","order_id, paid_amount, refund_amount",
             "SUM(paid_amount)-SUM(refund_amount)","order_id 关联；退款先按订单汇总");
         live.createMetric(metric,"admin",formula);
         Long id=jdbc.queryForObject("SELECT MAX(id) FROM da_metric_definitions",Long.class);
