@@ -538,6 +538,16 @@ const metricError = ref('')
 const newUser = ref({ username: '', displayName: '', password: '', role: 'USER' })
 const footerRef = ref(null)
 const quickQuestions = ['昨天的营业额是多少？', '昨天各城市的订单量排行', '最近7天的营收趋势', '本月各城市销售额对比']
+const desktopQuickQuestions = [
+  { type:'指标查询', icon:'chart-trending-o', question:'昨天的营业额是多少？' },
+  { type:'城市排行', icon:'location-o', question:'昨天各城市的订单量排行' },
+  { type:'趋势分析', icon:'bar-chart-o', question:'最近7天的营收趋势' },
+  { type:'经营对比', icon:'balance-o', question:'本月各城市销售额对比' },
+  { type:'用户增长', icon:'friends-o', question:'昨天新增用户数是多少？' },
+  { type:'城市排行', icon:'cluster-o', question:'本月各城市新增用户排行' },
+  { type:'订单趋势', icon:'clock-o', question:'最近30天订单量趋势' },
+  { type:'销售排行', icon:'ascending', question:'昨天各城市销售额排行' }
+]
 // Quick BI-inspired desktop querying. A dataset selection is enforced by the server.
 const approvedDatasets = ref([])
 const chartStyles = ref({})
@@ -2072,7 +2082,7 @@ onBeforeUnmount(() => {
           @keydown.down.prevent="adjustComposerHeight(-24)"><span></span></button>
         <section v-if="isDesktop && !messages.length && !busy && !desktopFeedback" class="da-ask-hero" aria-label="智能问数入口">
           <h1>从一个经营问题开始</h1>
-          <p>直接输入问题，DataAsk 将基于已授权的 ADS 数据进行查询、分析与可视化。</p>
+          <p>输入经营问题，基于已授权的 ADS 数据直接查询、分析并生成图表。</p>
         </section>
         <div class="composer-row da-composer">
           <div v-if="isDesktop && followUpSource" class="da-followup-context">
@@ -2109,13 +2119,13 @@ onBeforeUnmount(() => {
             <small>点击即可开始分析</small>
           </div>
           <div class="da-suggestion-grid">
-            <button v-for="(item, idx) in quickQuestions" :key="item" :disabled="busy" type="button" @click="ask(item)">
-              <span class="da-suggestion-icon"><van-icon :name="['chart-trending-o','location-o','bar-chart-o','balance-o'][idx]" size="16"/></span>
+            <button v-for="item in desktopQuickQuestions" :key="item.question" :disabled="busy" type="button" @click="ask(item.question)">
+              <span class="da-suggestion-icon"><van-icon :name="item.icon" size="15"/></span>
               <span class="da-suggestion-copy">
-                <small>{{ ['指标查询','城市排行','趋势分析','经营对比'][idx] }}</small>
-                <strong>{{ item }}</strong>
+                <small>{{ item.type }}</small>
+                <strong>{{ item.question }}</strong>
               </span>
-              <van-icon name="arrow" size="12"/>
+              <van-icon name="arrow" size="11"/>
             </button>
           </div>
         </section>

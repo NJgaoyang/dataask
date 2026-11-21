@@ -66,8 +66,9 @@ try {
     await page.locator('.conversation').waitFor();
     await page.locator('.composer-row').waitFor();
     await page.locator('.da-ask-hero').waitFor();
-    assert.equal(await page.locator('.da-suggestion-grid button').count(),4,'Smart Q&A home exposes four concise quick questions');
+    assert.equal(await page.locator('.da-suggestion-grid button').count(),8,'Smart Q&A home exposes eight compact quick questions');
     const entryBox=await page.locator('.composer-row').boundingBox();
+    assert(entryBox && entryBox.height>=136,'Smart Q&A input area stays visually dominant');
     assert(entryBox && entryBox.width<=1042 && entryBox.width>=Math.min(720,width-280),
       'Smart Q&A entry is centered and bounded instead of spanning the full canvas');
     assert.equal(await page.locator('.desktop-main-nav button').filter({hasText:'工作台'}).count(),0,
