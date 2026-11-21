@@ -252,7 +252,7 @@ public class MetricDictionaryService {
         Set<String> seen=new HashSet<>();
         for(MetricEdit entry:candidates){
             String table=clean(entry.adsTable()),field=clean(entry.adsField());
-            if(table.isEmpty()||field.isEmpty()||!seen.add(table+"\\u0000"+field)){
+            if(table.isEmpty()||field.isEmpty()||!seen.add(table+"::"+field)){
                 skipped++;
                 continue;
             }
