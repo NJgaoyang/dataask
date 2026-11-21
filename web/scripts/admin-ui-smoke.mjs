@@ -24,6 +24,7 @@ let users = [
 ];
 let metrics = {total:0,batches:[],definitions:[]};
 let failNextAdminSettings = false;
+let failNextRoles = false;
 
 async function mockBackend(route) {
   const req = route.request();
@@ -62,9 +63,14 @@ async function mockBackend(route) {
         adsField:'amount',dimensions:'city_id',timeField:'',notes:'待确认'}]});
   if(path==='/api/admin/table-permissions/auto-parse/confirm' && method==='POST')
     return ok({success:true,count:1,skipped:0,message:'已生成 1 条指标草稿'});
-  if(path==='/api/admin/roles' && method==='GET')
+  if(path==='/api/admin/roles' && method==='GET'){
+    if(failNextRoles){
+      failNextRoles=false;
+      return route.fulfill({status:503,json:{message:'角色权限读取失败，请检查 MySQL 角色权限表结构与后台日志'}});
+    }
     return ok([{code:'ADMIN',name:'管理员',builtIn:true,enabled:true,cityScoped:false,
       permissions:['ASK','CHARTS','SYSTEM_ADMIN'],userCount:1}]);
+  }
   if(path==='/api/admin/metrics' && method==='GET') return ok(metrics);
   if(path==='/api/admin/metrics/preview' && method==='POST')
     return ok({filename:'demo-metrics.xlsx',count:1,samples:[{metricName:'营业额',definition:'销售净额',adsTable:'ads.sales'}],notices:[]});
@@ -243,9 +249,13 @@ try {
   await page.locator('.da-metric-auto-parse:visible').getByRole('button',{name:'确认生成指标'}).click();
   await requireCall('POST /api/admin/table-permissions/auto-parse/confirm');
 
+  failNextRoles=true;
   await clickTile(page,'角色权限');
-  await visible(page.locator('.da-role-row'),'Role listing');
-  assert.equal(await page.locator('.da-role-admin .metric-error').count(),0,'Roles must load without a server-error banner');
+  await visible(page.locator('.da-role-retry'),'Actionable role backend error');
+  assert.match(await page.locator('.da-role-retry').innerText(),/角色权限读取失败/);
+  await page.locator('.da-role-retry').getByRole('button',{name:'重试'}).click();
+  await visible(page.locator('.da-role-row'),'Role listing after retry');
+  assert.equal(await page.locator('.da-role-retry').count(),0,'Retry must clear the error');
 
   await clickTile(page,'用户管理');
   const alice=page.locator('.da-list-table tbody tr').filter({hasText:'alice'});

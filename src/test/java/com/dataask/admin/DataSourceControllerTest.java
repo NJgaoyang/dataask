@@ -91,6 +91,31 @@ class DataSourceControllerTest {
             "SELECT enabled FROM da_allowed_tables WHERE table_name='ads.sales'",Integer.class)).isZero();
     }
 
+    @Test void refusesDeletingSourceWithReferencedMetricDefinitions() {
+        controller.migrate();
+        String newId=create("待删除数据源","password");
+        String batch=java.util.UUID.randomUUID().toString();
+        jdbc.update("INSERT INTO da_metric_import_batches(id,source_file,uploaded_by,row_count) " +
+            "VALUES(?,?,?,1)",batch,"自动解析","admin");
+        jdbc.update("INSERT INTO da_metric_definitions " +
+            "(batch_id,metric_name,aliases,definition,ads_table,ads_field,time_field,dimensions,notes,sheet_name,excel_row) " +
+            "VALUES(?,?,?,?,?,?,?,?,?,?,?)",
+            batch,"销售额","","待确认","ads.sales","amount","","city_id","","自动解析",1);
+        Long metricId=jdbc.queryForObject(
+            "SELECT MAX(id) FROM da_metric_definitions WHERE batch_id=?",Long.class,batch);
+        jdbc.update("INSERT INTO da_metric_definition_sources(metric_id,data_source_id) VALUES(?,?)",
+            metricId,newId);
+        assertThatThrownBy(()->controller.delete(newId))
+            .isInstanceOf(ResponseStatusException.class)
+            .hasMessageContaining("关联的自动解析指标");
+        assertThat(jdbc.queryForObject("SELECT COUNT(*) FROM da_datasources WHERE id=?",
+            Long.class,newId)).isEqualTo(1);
+        jdbc.update("DELETE FROM da_metric_definitions WHERE id=?",metricId);
+        controller.delete(newId);
+        assertThat(jdbc.queryForObject("SELECT COUNT(*) FROM da_datasources WHERE id=?",
+            Long.class,newId)).isZero();
+    }
+
     @Test void invalidOrDuplicateSourceAndMutatingActiveConnectionAreRejected() {
         controller.migrate();create("重复源","pwd");
         assertThatThrownBy(()->create("重复源","pwd")).isInstanceOf(ResponseStatusException.class);
