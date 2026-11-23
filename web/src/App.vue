@@ -543,6 +543,7 @@ const todayLabel = computed(() => {
   return `${now.getFullYear()} 年 ${now.getMonth() + 1} 月 ${now.getDate()} 日 星期${weekday}`
 })
 function answerScope(msg) {
+  if (msg?.viewType === 'dashboard') return []
   const period = msg.timeLabel || msg.periodLabel
   return [
     msg.metricLabel ? { key:'metric', label:'指标：', value:msg.metricLabel } : null,
