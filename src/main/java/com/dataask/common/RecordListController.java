@@ -22,7 +22,7 @@ public class RecordListController {
         return p.result(jdbc.queryForList("SELECT "+fields+" "+from+" ORDER BY "+order+" LIMIT ? OFFSET ?",values.toArray()),total);
     }
     @GetMapping("/admin/users/page")
-    @PreAuthorize("hasAuthority('PERM_SYSTEM_ADMIN')")
+    @PreAuthorize("hasRole('ADMIN')")
     public Map<String,Object> users(@RequestParam(defaultValue="1") int page,@RequestParam(defaultValue="10") int pageSize,@RequestParam(defaultValue="") String keyword) {
         String pattern=ListPage.pattern(keyword);
         return query("username,display_name AS displayName,role,created_at AS createdAt","FROM da_users WHERE username LIKE ? ESCAPE '!' OR display_name LIKE ? ESCAPE '!'","id",List.of(pattern,pattern),page,pageSize);
