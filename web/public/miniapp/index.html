@@ -699,7 +699,7 @@ function dashboardCardPreview(card,parentId){
  const single=card.rows?.length===1&&card.columns?.length===1;
  const value=single?card.rows[0][card.columns[0]]:null;
  const visual=chartable(card)&&['bar','line','pie'].includes(card.chartType);
- return '<article class="mobile-dashboard-card"><div class="mobile-dashboard-card-head"><div><strong>'+
+ return '<article class="mobile-dashboard-card" data-action="dashboard-expand" data-mid="'+safe(parentId)+'" data-cid="'+safe(card.id)+'"><div class="mobile-dashboard-card-head"><div><strong>'+
  safe(card.title||card.metricLabel||'经营指标')+'</strong>'+(card.timeLabel?'<small>'+safe(card.timeLabel)+'</small>':'')+
  '</div><button class="mobile-dashboard-expand" data-action="dashboard-expand" data-mid="'+safe(parentId)+
  '" data-cid="'+safe(card.id)+'" aria-label="放大查看">'+icon('expand')+'</button></div>'+
