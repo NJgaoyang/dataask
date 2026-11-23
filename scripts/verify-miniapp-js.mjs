@@ -28,6 +28,9 @@ assert(html.includes("const citySummary=admin?'全部':cities.length+' 个'"),
   'Administrator profile must show 全部 instead of 0 个');
 assert(html.includes("'<p class=\"profile-city-empty\">全部城市</p>'"),
   'Expanded administrator city details must state 全部城市');
+assert(html.includes('.dashboard-focus-sheet'),'Dashboard card full-screen sheet missing');
+assert(html.includes("case 'dashboard-expand'"),'Dashboard card tap action missing');
+
 
 for(const token of [
   "function chartDetailPage()",
@@ -43,7 +46,7 @@ assert(!html.includes('await openChat(c.question)'),
 const initializer = /startApp\(\);\s*\}\)\(\);\s*$/;
 assert(initializer.test(inline),'Miniapp bootstrap pattern changed: chart smoke tests need updating');
 const probe = inline.replace(initializer,
-  'globalThis.__charts = {resultChart, resultTable, chartable, pieAllowed, axisTickIndexes, answerCard, chartDetailPage, setDetail: d=>{state.chartDetail=d}, setType: (id,type) => {state.chartStyles[id]=type}, setMode: (id,mode) => {state.chartModes[id]=mode}}; })();');
+  'globalThis.__charts = {resultChart, resultTable, chartable, pieAllowed, axisTickIndexes, answerCard, dashboardCardPreview, dashboardAnswerCard, chartDetailPage, setDetail: d=>{state.chartDetail=d}, setType: (id,type) => {state.chartStyles[id]=type}, setMode: (id,mode) => {state.chartModes[id]=mode}}; })();');
 const context = { sessionStorage: {getItem:() => null},console,innerWidth:390 };
 runInNewContext(probe,context,{timeout:2000});
 const fn=context.__charts;
@@ -81,6 +84,28 @@ fn.setMode(a.id,'chart');
 assert(html.includes('.mobile-result-row .chart-card') && html.includes('grid-column:1 / -1'),
   'Mobile result card must span the avatar and answer columns');
 assert(!card.includes('data-action="export"'),'Result card exposes download');
+const dashboard={
+  id:'dashboard-answer-1',viewType:'dashboard',chartType:'dashboard',title:'本月经营驾驶舱',
+  summary:'已生成 3 个经营分析卡片',followUps:[],
+  dashboardCards:[
+    {id:'kpi-1',title:'本月订单量',chartType:'metric',metricLabel:'订单量',
+      columns:['total_orders'],columnLabels:{total_orders:'订单量'},rows:[{total_orders:344}],summary:'本月订单量为 344。'},
+    {id:'trend-1',title:'订单趋势',chartType:'line',metricLabel:'订单量',
+      columns:['dt','total_orders'],columnLabels:{dt:'日期',total_orders:'订单量'},
+      rows:[{dt:'2026-11-01',total_orders:120},{dt:'2026-11-02',total_orders:150}],summary:'订单量呈上升趋势。'},
+    {id:'rank-1',title:'城市排行',chartType:'bar',metricLabel:'订单量',
+      columns:['city','total_orders'],columnLabels:{city:'城市',total_orders:'订单量'},
+      rows:[{city:'南京市',total_orders:188},{city:'杭州市',total_orders:156}],summary:'南京市最高。'}
+  ]
+};
+const dashboardCard=fn.answerCard({type:'answer',answer:dashboard});
+assert(dashboardCard.includes('mobile-dashboard-grid'),'Dashboard answer must render a multi-card mobile page');
+assert(dashboardCard.includes('data-action="dashboard-expand"'),'Dashboard cards must expose a tap-to-expand action');
+assert(dashboardCard.includes('本月订单量')&&dashboardCard.includes('订单趋势')&&dashboardCard.includes('城市排行'),
+  'Dashboard answer must render every planned card');
+assert(fn.dashboardCardPreview(dashboard.dashboardCards[1],dashboard.id).includes('<svg'),
+  'Dashboard chart card must reuse real chart rendering');
+
 assert(html.includes('area.scrollTop=scroll'),'Chart switch should preserve the outer chat position');
 fn.setType(a.id,'line');
 assert(fn.resultChart(a).includes('<path'),'Line chart missing');
