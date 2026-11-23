@@ -66,6 +66,19 @@ public class MetricDictionaryController {
         return Map.of("success",true);
     }
 
+    public record MetricIdsRequest(java.util.List<Long> ids) {}
+    public record BatchIdsRequest(java.util.List<String> ids) {}
+
+    @PostMapping("/batch-delete")
+    public Map<String,Object> deleteMetrics(@RequestBody MetricIdsRequest input) {
+        return service.deleteMetrics(input==null?null:input.ids());
+    }
+
+    @PostMapping("/batches/batch-delete")
+    public Map<String,Object> deleteBatches(@RequestBody BatchIdsRequest input) {
+        return service.deleteBatches(input==null?null:input.ids());
+    }
+
     @PostMapping(value="/preview",consumes=MediaType.MULTIPART_FORM_DATA_VALUE)
     public MetricDictionaryService.WorkbookPreview preview(@RequestPart("file") MultipartFile file) {
         return service.preview(file);
