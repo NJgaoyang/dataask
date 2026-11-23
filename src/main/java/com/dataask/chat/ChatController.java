@@ -76,19 +76,48 @@ public class ChatController {
 
     record AskRequest(String sessionId, @NotBlank @Size(max=800) String question, String sourceMessageId, String requestId, String dataset) {}
     record CancelRequest(@NotBlank String requestId) {}
+
+    public record DashboardCard(String id, String title, String chartType,
+            List<String> columns, Map<String,String> columnLabels, List<Map<String,Object>> rows,
+            String metricLabel, String timeLabel, String summary,
+            QueryExplanation.Semantic semantic, String sql) {
+        public DashboardCard {
+            columns = columns == null ? List.of() : List.copyOf(columns);
+            columnLabels = columnLabels == null ? Map.of() : Map.copyOf(columnLabels);
+            rows = rows == null ? List.of() : List.copyOf(rows);
+        }
+    }
+
     public record Answer(String id, String sessionId, String question, String title, String summary,
                   String chartType, List<String> columns, Map<String,String> columnLabels,
                   List<Map<String,Object>> rows, List<String> followUps,
                   String metricLabel, String timeLabel, boolean unsupported, String dataset,
                   QueryExplanation.Semantic semantic, QueryExplanation.Execution execution,
-                  String sql) {
+                  String sql, String viewType, List<DashboardCard> dashboardCards) {
+        public Answer {
+            viewType = viewType == null || viewType.isBlank() ? "single" : viewType;
+            dashboardCards = dashboardCards == null ? List.of() : List.copyOf(dashboardCards);
+        }
+
         // Preserve source compatibility for existing integrations and cached visualization tests.
+        public Answer(String id, String sessionId, String question, String title, String summary,
+                String chartType, List<String> columns, Map<String,String> columnLabels,
+                List<Map<String,Object>> rows, List<String> followUps,
+                String metricLabel, String timeLabel, boolean unsupported, String dataset,
+                QueryExplanation.Semantic semantic, QueryExplanation.Execution execution,
+                String sql) {
+            this(id, sessionId, question, title, summary, chartType, columns, columnLabels,
+                rows, followUps, metricLabel, timeLabel, unsupported, dataset, semantic, execution,
+                sql, "single", List.of());
+        }
+
         public Answer(String id, String sessionId, String question, String title, String summary,
                 String chartType, List<String> columns, Map<String,String> columnLabels,
                 List<Map<String,Object>> rows, List<String> followUps,
                 String metricLabel, String timeLabel, boolean unsupported, String dataset) {
             this(id, sessionId, question, title, summary, chartType, columns, columnLabels,
-                rows, followUps, metricLabel, timeLabel, unsupported, dataset, null, null, null);
+                rows, followUps, metricLabel, timeLabel, unsupported, dataset, null, null, null,
+                "single", List.of());
         }
     }
 
