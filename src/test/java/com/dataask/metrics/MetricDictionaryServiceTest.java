@@ -140,6 +140,69 @@ class MetricDictionaryServiceTest {
             Integer.class)).isZero();
     }
 
+    @Test void bulkMetricDeleteRejectsStaleSelectionsAndUpdatesImportBatchCount() {
+        var jdbc=new JdbcTemplate(com.dataask.audit.AuditTestDatabase.create());
+        var live=new MetricDictionaryService(jdbc);
+        String sourceId="00000000-0000-0000-0000-000000000001";
+        var first=new MetricDictionaryService.MetricEdit(
+            "订单总量","","订单数统计","ads.orders","order_cnt","","city","");
+        var second=new MetricDictionaryService.MetricEdit(
+            "订单金额","","订单金额统计","ads.orders","amount","","city","");
+        assertThat(live.importAutoSuggestions(java.util.List.of(first,second),"admin",sourceId)
+            .get("count")).isEqualTo(2);
+        Long firstId=jdbc.queryForObject(
+            "SELECT id FROM da_metric_definitions WHERE metric_name='订单总量'",Long.class);
+        String batchId=jdbc.queryForObject(
+            "SELECT batch_id FROM da_metric_definitions WHERE id=?",String.class,firstId);
+        assertThatThrownBy(()->live.deleteMetrics(java.util.List.of(firstId,Long.MAX_VALUE)))
+            .isInstanceOf(ResponseStatusException.class);
+        assertThat(jdbc.queryForObject(
+            "SELECT COUNT(*) FROM da_metric_definitions WHERE batch_id=?",Integer.class,batchId))
+            .isEqualTo(2);
+        assertThat(live.deleteMetrics(java.util.List.of(firstId,firstId)).get("deleted"))
+            .isEqualTo(1);
+        assertThat(jdbc.queryForObject(
+            "SELECT row_count FROM da_metric_import_batches WHERE id=?",Integer.class,batchId))
+            .isEqualTo(1);
+        assertThat(jdbc.queryForObject(
+            "SELECT COUNT(*) FROM da_metric_definition_sources WHERE metric_id=?",Integer.class,firstId))
+            .isZero();
+        assertThat(live.deleteBatches(java.util.List.of(batchId)).get("metricsDeleted"))
+            .isEqualTo(1);
+        assertThat(jdbc.queryForObject(
+            "SELECT COUNT(*) FROM da_metric_definitions WHERE batch_id=?",Integer.class,batchId))
+            .isZero();
+    }
+
+    @Test void bulkDeleteBatchesCascadesCalculationsAndNeverPartiallyDeletesStaleIds() {
+        var jdbc=new JdbcTemplate(com.dataask.audit.AuditTestDatabase.create());
+        var live=new MetricDictionaryService(jdbc);
+        var edit=new MetricDictionaryService.MetricEdit(
+            "净营业额","","支付金额扣除退款","ads.orders","amount","","city","");
+        var formula=new MetricDictionaryService.MetricCalculation(
+            "ads.orders","amount","SUM(amount)","");
+        live.createMetric(edit,"admin",formula);
+        live.createMetric(new MetricDictionaryService.MetricEdit(
+            "交易金额","","支付金额","ads.orders","amount","","city",""),"admin");
+        String batchId=jdbc.queryForObject(
+            "SELECT batch_id FROM da_metric_definitions WHERE metric_name='净营业额'",String.class);
+        assertThatThrownBy(()->live.deleteBatches(java.util.List.of(
+            batchId,"00000000-0000-0000-0000-000000000099")))
+            .isInstanceOf(ResponseStatusException.class);
+        assertThat(jdbc.queryForObject(
+            "SELECT COUNT(*) FROM da_metric_definitions",Integer.class)).isEqualTo(2);
+        assertThat(live.deleteBatches(java.util.List.of(batchId,batchId)).get("deleted"))
+            .isEqualTo(1);
+        assertThat(jdbc.queryForObject(
+            "SELECT COUNT(*) FROM da_metric_calculations",Integer.class)).isZero();
+        assertThat(jdbc.queryForObject(
+            "SELECT COUNT(*) FROM da_metric_definitions",Integer.class)).isEqualTo(1);
+        assertThatThrownBy(()->live.deleteMetrics(java.util.List.of(0L)))
+            .isInstanceOf(ResponseStatusException.class);
+        assertThatThrownBy(()->live.deleteBatches(java.util.List.of("bad-id")))
+            .isInstanceOf(ResponseStatusException.class);
+    }
+
     @Test void previewsChineseMetricHeaders() throws Exception {
         var data = service.preview(workbook("支付完成金额，按照业务日期统计"));
         assertThat(data.count()).isEqualTo(1);
