@@ -90,9 +90,13 @@ class ChatExplanationFlowTest {
         assertThat(historical.getFirst().path("semantic").path("filters").get(0).asText()).isEqualTo("dt = '" + day + "'");
         assertThat(historical.getFirst().path("semantic").path("metrics").get(0).path("expression").asText()).contains("SUM");
         assertThat(payload.getValue()).doesNotContain("private-test-key","provider.example","messages\":", "上一轮使用SQL");
-        // Previous payloads without the two new attributes remain readable.
+        // Previous payloads without explanation/dashboard attributes remain readable.
         var old = json.valueToTree(answer).deepCopy();
-        ((com.fasterxml.jackson.databind.node.ObjectNode)old).remove(List.of("semantic","execution"));
-        assertThat(json.treeToValue(old,ChatController.Answer.class).semantic()).isNull();
+        ((com.fasterxml.jackson.databind.node.ObjectNode)old).remove(
+            List.of("semantic","execution","viewType","dashboardCards"));
+        var legacy=json.treeToValue(old,ChatController.Answer.class);
+        assertThat(legacy.semantic()).isNull();
+        assertThat(legacy.viewType()).isEqualTo("single");
+        assertThat(legacy.dashboardCards()).isEmpty();
     }
 }
