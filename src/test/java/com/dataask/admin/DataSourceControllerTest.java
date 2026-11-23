@@ -116,6 +116,21 @@ class DataSourceControllerTest {
             Long.class,newId)).isZero();
     }
 
+    @Test void activeLegacySourceWithBareHostAndPortCanBeTestedAndNormalizedInPlace() {
+        controller.migrate();
+        String id=settings.activeSourceId();
+        jdbc.update("UPDATE da_datasources SET jdbc_url=? WHERE id=?",
+            "jdbc:mysql://original:9030",id);
+        controller.test(id,null);
+        verify(gateway).test(argThat(c->c.jdbcUrl().equals("jdbc:mysql://original:9030/ads")));
+        controller.update(id,new DataSourceController.Input(
+            "默认数据源","jdbc:mysql://original:9030","readonly","","ads",""));
+        assertThat(jdbc.queryForObject(
+            "SELECT jdbc_url FROM da_datasources WHERE id=?",String.class,id))
+            .isEqualTo("jdbc:mysql://original:9030/ads");
+        assertThat(settings.activeSourceId()).isEqualTo(id);
+    }
+
     @Test void invalidOrDuplicateSourceAndMutatingActiveConnectionAreRejected() {
         controller.migrate();create("重复源","pwd");
         assertThatThrownBy(()->create("重复源","pwd")).isInstanceOf(ResponseStatusException.class);
