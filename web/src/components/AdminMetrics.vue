@@ -5,6 +5,10 @@ import RecordList from './RecordList.vue'
 
 const props=defineProps({api:{type:Object,required:true}})
 const refresh=ref(0)
+const activeList=ref('metrics')
+const selectedMetricIds=ref([])
+const selectedBatchIds=ref([])
+const deleteBusy=ref(false)
 const fileInput=ref(null)
 const editorOpen=ref(false)
 const editorMode=ref('create')
@@ -85,11 +89,61 @@ async function removeMetric(row){
   }catch{return}
   try{
     await props.api.delete('/admin/metrics/'+row.id)
+    selectedMetricIds.value=selectedMetricIds.value.filter(id=>id!==row.id)
     refresh.value++
     showSuccessToast('指标已删除')
   }catch(e){
     showFailToast(errorText(e))
   }
+}
+async function deleteSelectedMetrics(){
+  const ids=[...new Set(selectedMetricIds.value)]
+  if(deleteBusy.value||!ids.length)return
+  try{
+    await showConfirmDialog({title:'批量删除指标',
+      message:`确定删除已选中的 ${ids.length} 条指标吗？删除后无法恢复。`})
+  }catch{return}
+  deleteBusy.value=true
+  try{
+    const {data}=await props.api.post('/admin/metrics/batch-delete',{ids})
+    selectedMetricIds.value=[]
+    refresh.value++
+    showSuccessToast(`已删除 ${data.deleted} 条指标`)
+  }catch(e){showFailToast(errorText(e))}
+  finally{deleteBusy.value=false}
+}
+async function deleteSelectedBatches(){
+  const ids=[...new Set(selectedBatchIds.value)]
+  if(deleteBusy.value||!ids.length)return
+  try{
+    await showConfirmDialog({title:'批量删除导入批次',
+      message:`确定删除选中的 ${ids.length} 个文件/生成批次吗？该批次下所有指标也会一并删除，无法恢复。`})
+  }catch{return}
+  deleteBusy.value=true
+  try{
+    const {data}=await props.api.post('/admin/metrics/batches/batch-delete',{ids})
+    selectedBatchIds.value=[]
+    selectedMetricIds.value=[]
+    refresh.value++
+    showSuccessToast(`已删除 ${data.deleted} 个批次、${data.metricsDeleted} 条指标`)
+  }catch(e){showFailToast(errorText(e))}
+  finally{deleteBusy.value=false}
+}
+async function removeBatch(row){
+  if(deleteBusy.value)return
+  try{
+    await showConfirmDialog({title:'删除导入批次',
+      message:`确定删除“${row.filename}”及其中的 ${row.count} 条指标吗？删除后无法恢复。`})
+  }catch{return}
+  deleteBusy.value=true
+  try{
+    await props.api.delete('/admin/metrics/batches/'+row.id)
+    selectedBatchIds.value=selectedBatchIds.value.filter(id=>id!==row.id)
+    selectedMetricIds.value=[]
+    refresh.value++
+    showSuccessToast('批次及对应指标已删除')
+  }catch(e){showFailToast(errorText(e))}
+  finally{deleteBusy.value=false}
 }
 function chooseImport(){fileInput.value?.click()}
 async function selectFile(event){
@@ -203,7 +257,14 @@ const downloadTemplate=()=>download('/admin/metrics/template','DataAsk-指标口
     <input ref="fileInput" class="file-input-hidden" type="file" accept=".xlsx,.xls"
       aria-label="选择指标口径Excel文件" @change="selectFile">
 
-    <RecordList :api="api" endpoint="/admin/metrics/page" label="指标口径" :refresh="refresh"
+    <div class="da-metric-list-tabs" role="tablist" aria-label="指标管理视图">
+      <button type="button" role="tab" :aria-selected="activeList==='metrics'" :class="{active:activeList==='metrics'}"
+        @click="activeList='metrics'">指标列表</button>
+      <button type="button" role="tab" :aria-selected="activeList==='batches'" :class="{active:activeList==='batches'}"
+        @click="activeList='batches'">导入批次</button>
+    </div>
+    <RecordList v-if="activeList==='metrics'" :api="api" endpoint="/admin/metrics/page" label="指标口径" :refresh="refresh"
+      selectable v-model:selected="selectedMetricIds"
       :columns="[
         {key:'metricName',label:'指标名称'},
         {key:'definition',label:'业务口径'},
@@ -223,6 +284,10 @@ const downloadTemplate=()=>download('/admin/metrics/template','DataAsk-指标口
         <button type="button" class="td-btn" @click="openAutoParse">
           <van-icon name="cluster-o"/> 一键解析
         </button>
+        <button type="button" class="td-btn da-metric-bulk-delete"
+          :disabled="deleteBusy||!selectedMetricIds.length" @click="deleteSelectedMetrics">
+          <van-icon name="delete-o"/> 批量删除（{{ selectedMetricIds.length }}）
+        </button>
       </template>
       <template #sourceTables="{row}">
         <span class="da-metric-table-summary" :title="row.sourceTables||row.adsTable||''">
@@ -232,6 +297,26 @@ const downloadTemplate=()=>download('/admin/metrics/template','DataAsk-指标口
       <template #actions="{row}">
         <button type="button" class="td-row-action" @click="editMetric(row)">编辑</button>
         <button type="button" class="td-row-action danger" @click="removeMetric(row)">删除</button>
+      </template>
+    </RecordList>
+
+    <RecordList v-else :api="api" endpoint="/admin/metrics/batches/page" label="指标导入批次" :refresh="refresh"
+      selectable v-model:selected="selectedBatchIds"
+      :columns="[
+        {key:'filename',label:'文件/批次'},
+        {key:'count',label:'指标数量'},
+        {key:'uploadedBy',label:'创建人'},
+        {key:'createdAt',label:'创建时间'}
+      ]">
+      <template #toolbar>
+        <button type="button" class="td-btn da-metric-bulk-delete"
+          :disabled="deleteBusy||!selectedBatchIds.length" @click="deleteSelectedBatches">
+          <van-icon name="delete-o"/> 批量删除（{{ selectedBatchIds.length }}）
+        </button>
+      </template>
+      <template #actions="{row}">
+        <button type="button" class="td-row-action danger" :disabled="deleteBusy"
+          @click="removeBatch(row)">删除</button>
       </template>
     </RecordList>
 
@@ -361,6 +446,11 @@ const downloadTemplate=()=>download('/admin/metrics/template','DataAsk-指标口
 </template>
 
 <style scoped>
+.da-metric-list-tabs{display:flex;align-items:center;gap:18px;border-bottom:1px solid var(--da-border);margin:0 0 14px}
+.da-metric-list-tabs button{background:none;border:0;border-bottom:2px solid transparent;padding:10px 4px;color:var(--da-text-2);font-size:13px;cursor:pointer}
+.da-metric-list-tabs button.active{color:var(--da-primary);border-bottom-color:var(--da-primary);font-weight:600}
+.da-metric-bulk-delete{color:var(--da-danger)}
+.da-metric-bulk-delete:disabled{opacity:.45}
 .da-metric-editor{width:min(860px,calc(100vw - 48px))}
 .da-metric-fields{max-height:min(66vh,640px);overflow:auto}
 .da-metric-import{width:min(900px,calc(100vw - 48px))}
