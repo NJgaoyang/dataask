@@ -450,8 +450,12 @@ public class ChatController {
                     List<String> cardColumns = data.columns();
                     List<Map<String,Object>> cardRows = data.rows();
                     totalRows += cardRows.size();
+                    // A dashboard request describes the entire page, not each card's metric.
+                    // Preserve each card's own metric while carrying over the requested period.
                     QuestionPresentationService.Presentation cardShown =
-                        presentation.resolve(question, previousQuestion, cardPlan);
+                        new QuestionPresentationService.Presentation(
+                            cardPlan.path("metricLabel").asText("").strip(),
+                            presentation.resolve(question, previousQuestion, cardPlan).periodLabel());
                     Map<String,String> cardLabels = presentation.alignLabels(cardShown, cardColumns, cardRows,
                         labels.labels(cardColumns, cardPlan.path("columnLabels"), allowed, discovered), cardPlan);
                     String cardChart = inferChartType(requestedChart, cardColumns, cardRows);
@@ -461,7 +465,7 @@ public class ChatController {
                         QueryExplanation.summarize(cardRows, cardColumns, cardLabels, cardSemantic);
                     dashboardCards.add(new DashboardCard(
                         "dashboard-card-" + (++index) + "-" + UUID.randomUUID(),
-                        presentation.heading(cardShown, cardTitle),
+                        cardTitle,
                         cardChart, cardColumns, cardLabels, cardRows,
                         cardShown.metricLabel(), cardShown.periodLabel(),
                         cardSummary, cardSemantic, cardSql));
