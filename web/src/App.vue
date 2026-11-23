@@ -1885,20 +1885,22 @@ onBeforeUnmount(() => {
               <div class="da-chart-detail-bar">
                 <div><strong>数据分析结果</strong>
                   <small>本次结果 {{ activeChartAnswer.rows?.length || 0 }} 行</small></div>
-                <div class="da-chart-view-buttons">
+                <div class="da-chart-view-buttons" role="group" aria-label="图表展示方式">
                   <button v-if="activeChartIsMetric" type="button"
                     :class="{active:activeChartMode==='summary'}" @click="activeChartMode='summary'">指标</button>
-                  <button v-if="activeChartCanPlot" type="button"
-                    :class="{active:activeChartMode==='chart'}" @click="activeChartMode='chart'">图表</button>
+                  <template v-if="activeChartCanPlot">
+                    <button v-for="type in ['bar','line',...(pieSupported(activeChartAnswer)?['pie']:[])]"
+                      :key="type" type="button"
+                      :class="{active:activeChartMode==='chart' && activeChartStyle===type}"
+                      :aria-pressed="activeChartMode==='chart' && activeChartStyle===type"
+                      @click="activeChartMode='chart';activeChartStyle=type">
+                      <van-icon :name="{bar:'bar-chart-o',line:'chart-trending-o',pie:'pie-chart-o'}[type]"/>
+                      {{ {bar:'柱状图',line:'折线图',pie:'饼图'}[type] }}
+                    </button>
+                  </template>
                   <button type="button" :class="{active:activeChartMode==='table'}"
                     @click="activeChartMode='table'">表格</button>
                 </div>
-              </div>
-              <div v-if="activeChartCanPlot && activeChartMode==='chart'" class="da-chart-style-switch">
-                <span>切换展示</span>
-                <button v-for="type in ['bar','line',...(pieSupported(activeChartAnswer)?['pie']:[])]"
-                  :key="type" type="button" :class="{active:activeChartStyle===type}" :aria-pressed="activeChartStyle===type"
-                  @click="activeChartStyle=type"><van-icon :name="{bar:'bar-chart-o',line:'chart-trending-o',pie:'pie-chart-o'}[type]"/>{{ {bar:'柱状图',line:'折线图',pie:'饼图'}[type] }}</button>
               </div>
               <div v-if="activeChartIsMetric && activeChartMode==='summary'"
                 class="da-chart-metric">
@@ -2060,16 +2062,27 @@ onBeforeUnmount(() => {
               <div v-if="isDesktop" class="da-answer-result desktop-result-header">
                 <div class="desktop-result-heading"><van-icon name="chart-trending-o"/> 查询结果 <span>共 {{ msg.rows.length }} 行</span></div>
                 <div class="da-result-tools">
-                  <div class="desktop-result-switch da-segmented" role="group" :aria-label="'图表视图切换：'+msg.title">
-                    <button v-if="isSingleValue(msg)" type="button" :class="{active:resultView(msg)==='summary'}" :aria-pressed="resultView(msg)==='summary'" @click="setResultView(msg,'summary')">指标</button>
-                    <button v-if="['bar','line','pie'].includes(msg.chartType) && msg.rows.length > 1" type="button"
-                      :class="{active:resultView(msg)==='chart'}" :aria-pressed="resultView(msg)==='chart'" @click="setResultView(msg,'chart')">图表</button>
-                    <button v-if="!isSingleValue(msg)" type="button" :class="{active:resultView(msg)==='table'}" :aria-pressed="resultView(msg)==='table'" @click="setResultView(msg,'table')">表格</button>
-                  </div>
-                  <div v-if="['bar','line','pie'].includes(msg.chartType) && msg.rows.length > 1 && resultView(msg)==='chart'" class="qbi-chart-type da-segmented" role="group" aria-label="图表类型">
-                    <button type="button" :class="{active:chartStyle(msg)==='bar'}" :aria-pressed="chartStyle(msg)==='bar'" @click="setChartStyle(msg,'bar')"><van-icon name="bar-chart-o"/>柱状图</button>
-                    <button type="button" :class="{active:chartStyle(msg)==='line'}" :aria-pressed="chartStyle(msg)==='line'" @click="setChartStyle(msg,'line')"><van-icon name="chart-trending-o"/>折线图</button>
-                    <button v-if="pieSupported(msg)" type="button" :class="{active:chartStyle(msg)==='pie'}" :aria-pressed="chartStyle(msg)==='pie'" @click="setChartStyle(msg,'pie')"><van-icon name="pie-chart-o"/>饼图</button>
+                  <div class="desktop-result-switch da-segmented" role="group" :aria-label="'结果展示方式：'+msg.title">
+                    <button v-if="isSingleValue(msg)" type="button"
+                      :class="{active:resultView(msg)==='summary'}" :aria-pressed="resultView(msg)==='summary'"
+                      @click="setResultView(msg,'summary')">指标</button>
+                    <template v-if="['bar','line','pie'].includes(msg.chartType) && msg.rows.length > 1">
+                      <button type="button"
+                        :class="{active:resultView(msg)==='chart' && chartStyle(msg)==='bar'}"
+                        :aria-pressed="resultView(msg)==='chart' && chartStyle(msg)==='bar'"
+                        @click="setChartStyle(msg,'bar')"><van-icon name="bar-chart-o"/>柱状图</button>
+                      <button type="button"
+                        :class="{active:resultView(msg)==='chart' && chartStyle(msg)==='line'}"
+                        :aria-pressed="resultView(msg)==='chart' && chartStyle(msg)==='line'"
+                        @click="setChartStyle(msg,'line')"><van-icon name="chart-trending-o"/>折线图</button>
+                      <button v-if="pieSupported(msg)" type="button"
+                        :class="{active:resultView(msg)==='chart' && chartStyle(msg)==='pie'}"
+                        :aria-pressed="resultView(msg)==='chart' && chartStyle(msg)==='pie'"
+                        @click="setChartStyle(msg,'pie')"><van-icon name="pie-chart-o"/>饼图</button>
+                    </template>
+                    <button v-if="!isSingleValue(msg)" type="button"
+                      :class="{active:resultView(msg)==='table'}" :aria-pressed="resultView(msg)==='table'"
+                      @click="setResultView(msg,'table')">表格</button>
                   </div>
                 </div>
               </div>

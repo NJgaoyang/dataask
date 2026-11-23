@@ -141,10 +141,19 @@ try {
     await page.locator('.da-analysis-summary').scrollIntoViewIfNeeded();
     await snap(page,`${width}-summary`);
     await processPanel.getByRole('button',{name:'关闭分析过程'}).click();
-    await page.getByRole('button',{name:'表格',exact:true}).click();
+    const resultSwitch=page.locator('.desktop-result-switch');
+    assert.equal(await resultSwitch.count(),1,'Query result must use one display switch, not nested chart/table controls');
+    assert.equal(await resultSwitch.getByRole('button',{name:'图表',exact:true}).count(),0,
+      'Redundant parent Chart button must be removed');
+    assert.equal(await page.locator('.qbi-chart-type').count(),0,
+      'Separate chart-type switch must be removed');
+    await resultSwitch.getByRole('button',{name:'表格',exact:true}).click();
     assert.equal(await page.locator('.result-table tbody tr').count(),5);
-    await page.getByRole('button',{name:'图表',exact:true}).click();
+    await resultSwitch.getByRole('button',{name:'柱状图',exact:true}).click();
     assert.equal(await page.locator('.result-table').count(),0);
+    assert.equal(await resultSwitch.getByRole('button',{name:'柱状图',exact:true}).getAttribute('aria-pressed'),'true');
+    await resultSwitch.getByRole('button',{name:'折线图',exact:true}).click();
+    assert.equal(await resultSwitch.getByRole('button',{name:'折线图',exact:true}).getAttribute('aria-pressed'),'true');
     await page.locator('.desktop-answer-tools button').filter({hasText:'全屏查看'}).click();
     await page.locator('.da-result-fullscreen').waitFor();
     assert.match(await page.locator('.da-result-fullscreen-dialog').innerText(),/问数结果[\s\S]*各城市订单量排行/);
