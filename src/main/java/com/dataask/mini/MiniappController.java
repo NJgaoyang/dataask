@@ -145,7 +145,8 @@ public class MiniappController {
             if(payload==null || payload.path("unsupported").asBoolean(false) ||
                !payload.path("rows").isArray())
                 throw new ResponseStatusException(HttpStatus.CONFLICT,"收藏的数据已失效");
-            if(cities!=null && !cities.fingerprint(user.getName()).equals(
+            String permission=starrocks.cityPermissionFingerprint(user.getName());
+            if(permission!=null && !permission.equals(
                 payload.path("_cityPermissionHash").asText("")))
                 throw new ResponseStatusException(HttpStatus.CONFLICT,
                     "已保存的图表结果没有通过当前城市权限校验，请重新刷新数据");
