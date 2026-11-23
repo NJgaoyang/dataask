@@ -290,6 +290,11 @@ try {
       await page.locator('.da-home-question-box textarea').fill('查看近7天趋势');
       await page.locator('.da-home-question-box textarea').press('Enter');
       await page.locator('.metric-clarification').waitFor();
+      const answeredQuestionActions=page.locator('.turn').last().locator('.da-user-question-actions');
+      assert.equal(await answeredQuestionActions.getByRole('button',{name:'复制问题'}).count(),1,
+        'Answered user question must expose copy');
+      assert.equal(await answeredQuestionActions.getByRole('button',{name:'修改问题'}).count(),1,
+        'Answered user question must expose edit');
       const composerEdge=page.locator('.da-composer-resize-edge');
       const edgeBox=await composerEdge.boundingBox();
       assert(edgeBox && edgeBox.height<=10,'Conversation composer resize edge stays visually hidden');
@@ -304,6 +309,16 @@ try {
       assert.equal(await page.locator('.da-analysis-steps').count(),0,'Never invent in-flight completed stages');
       await page.getByRole('button',{name:'停止查询',exact:true}).click();
       await page.getByText('查询已停止',{exact:true}).waitFor();
+      const failedActions=page.locator('.desktop-feedback-turn .da-user-question-actions');
+      assert.equal(await failedActions.getByRole('button',{name:'复制问题'}).count(),1,
+        'Stopped question must expose copy');
+      assert.equal(await failedActions.getByRole('button',{name:'修改问题'}).count(),1,
+        'Stopped question must expose edit');
+      assert.equal(await failedActions.getByRole('button',{name:'重新提问'}).count(),1,
+        'Stopped or failed question must expose retry');
+      await failedActions.getByRole('button',{name:'修改问题'}).click();
+      assert.equal(await page.getByRole('textbox',{name:'输入经营数据问题'}).inputValue(),'昨天订单量',
+        'Edit question must return the original prompt to the composer');
       releasePending?.();
       mode = 'normal';
       await page.locator('.da-account-trigger').click();
