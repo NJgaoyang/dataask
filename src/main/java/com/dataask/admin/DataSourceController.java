@@ -87,7 +87,11 @@ public class DataSourceController {
         boolean active=id!=null && id.equals(settings.activeSourceId());
         if (active) {
             var old=existing(id);
-            if (!old.get("jdbc_url").equals(config.jdbcUrl()) || !old.get("schema_name").equals(config.schema()) || !old.get("username").equals(config.username()))
+            // Treat a legacy host:port URL as equivalent to its normalized host:port/schema URL.
+            // This lets administrators repair the stored format without switching sources.
+            String oldUrl=RuntimeConfigService.normalizeStarRocksUrl(
+                (String)old.get("jdbc_url"),(String)old.get("schema_name"));
+            if (!oldUrl.equals(config.jdbcUrl()) || !old.get("schema_name").equals(config.schema()) || !old.get("username").equals(config.username()))
                 throw bad("启用中的数据源不可更换连接地址、数据库或账号，请新增数据源后切换");
             gateway.test(config);
         }
