@@ -104,6 +104,10 @@ public class RuntimeConfigService {
         String url=safe(raw);
         if (!schema.matches("[A-Za-z_][A-Za-z0-9_]{0,63}"))
             throw invalid("StarRocks 数据库名不正确");
+        if (url.matches("jdbc:mysql://[A-Za-z0-9.-]+:[0-9]{1,5}")) {
+            // Existing profiles may omit the database suffix, which is stored separately.
+            return url + "/" + schema;
+        }
         if (url.startsWith("jdbc:starrocks://")) {
             // This project ships MySQL Connector/J, not a StarRocks-specific JDBC driver.
             // Convert the user's configured FE address to the MySQL wire protocol.
@@ -223,8 +227,11 @@ public class RuntimeConfigService {
         String url=normalizeStarRocksUrl(rawUrl,schema);
         // Profiles must use only their own credential, never the active source's password.
         if (!url.matches("jdbc:mysql://[A-Za-z0-9.-]+:[0-9]{1,5}/[A-Za-z_][A-Za-z0-9_]*")) {
-            throw invalid("JDBC 地址应为 jdbc:mysql://FE地址:9030/ads，不允许额外参数");
+            throw invalid("JDBC 地址应为 jdbc:mysql://FE地址:端口/数据库名，不允许额外参数");
         }
+        // A JDBC path must target the database selected in the separate schema field.
+        if (!url.substring(url.lastIndexOf('/') + 1).equals(schema))
+            throw invalid("JDBC 地址中的数据库名必须与数据库字段一致");
         if (username.isBlank() || username.length()>120) throw invalid("请填写 StarRocks 用户名");
         if (!schema.matches("[A-Za-z_][A-Za-z0-9_]{0,63}")) throw invalid("ADS 数据库名不正确");
         if (pass.length()>500) throw invalid("密码过长");
