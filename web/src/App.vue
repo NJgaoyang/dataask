@@ -725,6 +725,34 @@ function answerSummary(msg) {
 }
 function setResultView(msg, view) { answerViews.value = { ...answerViews.value, [msg.id]: view } }
 function focusDesktopQuestion() { nextTick(() => { if (isDesktop.value) desktopQuestionRef.value?.focus() }) }
+async function copyQuestion(text) {
+  const value=String(text||'').trim()
+  if(!value)return
+  try {
+    if(navigator.clipboard?.writeText) await navigator.clipboard.writeText(value)
+    else {
+      const el=document.createElement('textarea')
+      el.value=value
+      el.style.position='fixed'
+      el.style.left='-9999px'
+      document.body.appendChild(el)
+      el.select()
+      if(!document.execCommand('copy')) throw new Error('浏览器禁止复制')
+      el.remove()
+    }
+    showSuccessToast('问题已复制')
+  } catch { showFailToast('复制失败，请检查浏览器剪贴板权限') }
+}
+function editQuestion(text) {
+  if(busy.value)return
+  followUpSource.value=null
+  question.value=String(text||'').trim()
+  focusDesktopQuestion()
+}
+function retryQuestion(text) {
+  if(busy.value)return
+  ask(String(text||'').trim(),null)
+}
 async function copyAnswer(msg) {
   const data = [msg.title, msg.summary,
     ...(msg.rows || []).slice(0, 30).map(row => (msg.columns || []).map(c => `${msg.columnLabels?.[c] || c}: ${row[c] ?? '—'}`).join('；'))
@@ -2040,7 +2068,17 @@ onBeforeUnmount(() => {
           </div>
         </section>
         <section v-for="msg in messages" :key="msg.id" class="turn">
-          <div class="user-bubble">{{ msg.question }}</div>
+          <div class="da-user-question-wrap">
+            <div class="user-bubble">{{ msg.question }}</div>
+            <div v-if="isDesktop" class="da-user-question-actions" aria-label="提问操作">
+              <button type="button" title="复制问题" aria-label="复制问题" @click="copyQuestion(msg.question)">
+                <van-icon name="orders-o"/>
+              </button>
+              <button type="button" title="修改问题" aria-label="修改问题" :disabled="busy" @click="editQuestion(msg.question)">
+                <van-icon name="edit"/>
+              </button>
+            </div>
+          </div>
           <div class="answer-card" :class="{ 'answer-needs-clarification': msg.unsupported && msg.followUps?.length }">
             <div v-if="isDesktop" class="da-answer-process-row">
               <button type="button" class="da-analysis-toggle" :class="{active:analysisPanelOpen && analysisMessage?.id===msg.id}"
@@ -2146,16 +2184,26 @@ onBeforeUnmount(() => {
         </template>
         <div v-else-if="busy" class="loading-bubble"><van-loading size="16px"/> 小Q 正在理解问题并查询 ADS 数据...</div>
         <section v-if="isDesktop && !busy && desktopFeedback" class="turn desktop-feedback-turn" aria-live="polite">
-          <div class="user-bubble">{{ desktopFeedback.question }}</div>
+          <div class="da-user-question-wrap">
+            <div class="user-bubble">{{ desktopFeedback.question }}</div>
+            <div class="da-user-question-actions" aria-label="失败提问操作">
+              <button type="button" title="复制问题" aria-label="复制问题" @click="copyQuestion(desktopFeedback.question)">
+                <van-icon name="orders-o"/>
+              </button>
+              <button type="button" title="修改问题" aria-label="修改问题" @click="editQuestion(desktopFeedback.question)">
+                <van-icon name="edit"/>
+              </button>
+              <button type="button" title="重新提问" aria-label="重新提问" @click="retryQuestion(desktopFeedback.question)">
+                <van-icon name="replay"/>
+              </button>
+            </div>
+          </div>
           <div class="desktop-feedback-card" :class="'feedback-'+desktopFeedback.type">
             <van-icon :name="desktopFeedback.type==='stopped' ? 'pause-circle-o' : 'warning-o'" size="20"/>
             <div class="desktop-feedback-content">
               <strong>{{ desktopFeedback.type==='stopped' ? '查询已停止' : '查询未完成' }}</strong>
               <p>{{ desktopFeedback.message }}</p>
             </div>
-            <button type="button" :disabled="busy" @click="ask(desktopFeedback.question)">
-              <van-icon name="replay"/> 重新尝试
-            </button>
           </div>
         </section>
         <div ref="footerRef" class="end-marker"></div>
