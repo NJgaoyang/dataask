@@ -320,6 +320,63 @@ public class MetricDictionaryService {
         else jdbc.update("UPDATE da_metric_import_batches SET row_count=? WHERE id=?",remaining,batchId);
     }
 
+    /**
+     * Delete only explicitly selected metric IDs. A missing ID rejects the entire
+     * request so an outdated selection never silently produces a partial delete.
+     */
+    @Transactional
+    public Map<String,Object> deleteMetrics(List<Long> ids) {
+        if (ids == null || ids.isEmpty() || ids.size() > 200 ||
+                ids.stream().anyMatch(id -> id == null || id <= 0))
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST,"请选择1至200条有效指标");
+        List<Long> selected=new ArrayList<>(new LinkedHashSet<>(ids));
+        String placeholders=String.join(",",Collections.nCopies(selected.size(),"?"));
+        List<String> batchIds=jdbc.query(
+            "SELECT batch_id FROM da_metric_definitions WHERE id IN ("+placeholders+") FOR UPDATE",
+            (rs,n)->rs.getString(1),selected.toArray());
+        if(batchIds.size()!=selected.size())
+            throw new ResponseStatusException(HttpStatus.CONFLICT,"部分指标已不存在，请刷新后重新选择");
+        int deleted=jdbc.update(
+            "DELETE FROM da_metric_definitions WHERE id IN ("+placeholders+")",selected.toArray());
+        if(deleted!=selected.size())
+            throw new ResponseStatusException(HttpStatus.CONFLICT,"指标已被其他操作修改，请刷新后重试");
+        for(String batchId:new LinkedHashSet<>(batchIds)){
+            Integer remaining=jdbc.queryForObject(
+                "SELECT COUNT(*) FROM da_metric_definitions WHERE batch_id=?",Integer.class,batchId);
+            if(remaining==null || remaining==0)
+                jdbc.update("DELETE FROM da_metric_import_batches WHERE id=?",batchId);
+            else
+                jdbc.update("UPDATE da_metric_import_batches SET row_count=? WHERE id=?",remaining,batchId);
+        }
+        return Map.of("success",true,"deleted",deleted);
+    }
+
+    /** Delete explicitly selected import/generation batches and their metric definitions. */
+    @Transactional
+    public Map<String,Object> deleteBatches(List<String> ids) {
+        if(ids==null || ids.isEmpty() || ids.size()>200)
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST,"请选择1至200个有效批次");
+        List<String> selected=new ArrayList<>(new LinkedHashSet<>(ids));
+        for(String id:selected){
+            if(id==null || !id.matches("(?i)[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}"))
+                throw new ResponseStatusException(HttpStatus.BAD_REQUEST,"导入批次 ID 无效");
+        }
+        String placeholders=String.join(",",Collections.nCopies(selected.size(),"?"));
+        List<String> found=jdbc.query(
+            "SELECT id FROM da_metric_import_batches WHERE id IN ("+placeholders+") FOR UPDATE",
+            (rs,n)->rs.getString(1),selected.toArray());
+        if(found.size()!=selected.size())
+            throw new ResponseStatusException(HttpStatus.CONFLICT,"部分批次已不存在，请刷新后重新选择");
+        Integer metrics=jdbc.queryForObject(
+            "SELECT COUNT(*) FROM da_metric_definitions WHERE batch_id IN ("+placeholders+")",
+            Integer.class,selected.toArray());
+        int deleted=jdbc.update(
+            "DELETE FROM da_metric_import_batches WHERE id IN ("+placeholders+")",selected.toArray());
+        if(deleted!=selected.size())
+            throw new ResponseStatusException(HttpStatus.CONFLICT,"批次已被其他操作修改，请刷新后重试");
+        return Map.of("success",true,"deleted",deleted,"metricsDeleted",metrics==null?0:metrics);
+    }
+
     public List<MetricRow> exportMetrics() {
         return jdbc.query(
             "SELECT d.metric_name,d.aliases,d.definition,d.ads_table,d.ads_field,d.time_field,d.dimensions,d.notes," +
