@@ -128,6 +128,32 @@ class MiniappControllerTest {
     }
 
     @Test
+    void sharedCachedChartCannotLeakRowsAcrossDifferentCityScopes() {
+        String payload="""
+            {"id":"msg-shared","columns":["city","orders"],"rows":[{"city":"杭州市","orders":99}],
+             "unsupported":false,"_cityPermissionHash":"owner-city-hash"}
+            """;
+        when(jdbc.queryForList(anyString(),eq("chart-shared"))).thenReturn(List.of(Map.of(
+            "id","chart-shared","ownerUsername","bob","shareScope","ALL",
+            "sourceMessageId","msg-shared","question","订单量")));
+        when(jdbc.queryForList(eq("SELECT generated_sql,payload_json FROM da_messages WHERE id=?"),
+            eq("msg-shared"))).thenReturn(List.of(Map.of(
+                "generated_sql","SELECT city_name_std,orders FROM ads.orders",
+                "payload_json",payload)));
+        when(jdbc.query(eq("SELECT table_name FROM da_allowed_tables WHERE enabled=1"),
+            any(org.springframework.jdbc.core.RowMapper.class))).thenReturn(List.of("ads.orders"));
+        when(starrocks.schema()).thenReturn("ads");
+        when(guard.validate(anyString(),anySet(),eq("ads")))
+            .thenReturn("SELECT city_name_std,orders FROM ads.orders");
+        when(starrocks.cityPermissionFingerprint("alice")).thenReturn("alice-city-hash");
+
+        ResponseStatusException error=assertThrows(ResponseStatusException.class,
+            ()->controller.view("chart-shared",alice));
+        assertEquals(HttpStatus.CONFLICT,error.getStatusCode());
+        assertTrue(error.getReason().contains("城市权限校验"));
+    }
+
+    @Test
     void chartRefreshDoesNotOpenANewConversation() {
         when(jdbc.queryForList(anyString(),eq("chart2"))).thenReturn(List.of(Map.of(
             "id","chart2","ownerUsername","alice","shareScope","PRIVATE",
