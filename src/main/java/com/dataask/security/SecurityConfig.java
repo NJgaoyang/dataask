@@ -62,6 +62,11 @@ public class SecurityConfig {
             .authorizeHttpRequests(a -> a
                 .requestMatchers(org.springframework.http.HttpMethod.POST, "/api/auth/login").permitAll()
                 .requestMatchers("/api/health").permitAll()
+                .requestMatchers("/api/admin/users", "/api/admin/users/**",
+                    "/api/admin/roles", "/api/admin/roles/**",
+                    "/api/admin/datasources", "/api/admin/datasources/**",
+                    "/api/admin/settings/starrocks", "/api/admin/settings/starrocks/**")
+                    .hasRole("ADMIN")
                 .requestMatchers("/api/admin/**").hasAuthority("PERM_SYSTEM_ADMIN")
                 .requestMatchers("/api/chat/**").hasAuthority("PERM_ASK")
                 .requestMatchers("/api/mini/charts", "/api/mini/charts/**").hasAuthority("PERM_CHARTS")
