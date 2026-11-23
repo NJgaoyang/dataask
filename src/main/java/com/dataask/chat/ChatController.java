@@ -336,38 +336,146 @@ public class ChatController {
             对于多张聚合表，优先只查询满足业务问题的一张表；必要时才跨表。
             关联前应注意双方统计粒度，先适当聚合再关联，避免一对多、多对多造成重复计算；不能因为缺少人工关联规则而拒绝合法 JOIN。
             """.replace("adsSchema", starrocks.schema());
+        String dashboardInstruction = """
+            你是企业经营数据驾驶舱规划助手。必须只使用给定 ADS 元数据、字段注释和管理员维护的指标口径，
+            不得猜测不存在的表、列、指标、关联键或业务规则。
+            用户明确要求“经营看板、驾驶舱、经营概览、经营大盘”等页面时，返回多卡片分析计划。
+            如果授权数据不足以可靠生成任何经营卡片，输出 {"unsupported":true}。
+            否则只输出纯 JSON：
+            {"title":"经营驾驶舱","viewType":"dashboard","cards":[
+              {"title":"卡片标题","sql":"单条 SELECT SQL","chartType":"metric|table|bar|line|pie",
+               "metricLabel":"业务指标名称","measureColumn":"SELECT 返回的指标列别名",
+               "columnLabels":{"SQL返回列名":"中文业务名称"}}
+            ]}。
+            cards 建议 3 到 6 个，最多 6 个；不要为了凑数量重复同一指标。
+            数据允许时优先组合：核心 KPI、时间趋势、城市/门店排行、结构占比、必要的明细表。
+            每张卡片必须独立可执行，且只能包含一条只读 SELECT；不能使用注释、分号、信息模式或写操作。
+            必须使用完整 adsSchema.tableName；日期必须使用绝对值，不能使用 CURRENT_DATE/NOW。
+            同一看板的时间范围和用户筛选条件应保持一致，除非卡片标题明确说明不同。
+            允许在授权 ADS 表之间合法 JOIN，但只能使用元数据中真实存在且业务含义明确的字段。
+            涉及聚合表时必须尊重原始粒度，避免一对多或多对多重复计算。
+            metric 卡片必须返回单行单指标；趋势优先 line；排行优先 bar；结构占比可用 pie；明细使用 table。
+            """.replace("adsSchema", starrocks.schema());
+
         String full = "当前业务时区 Asia/Shanghai；今天=" + today + "；昨天=" + today.minusDays(1) +
             "。\n允许使用的表及字段如下：" + metadata + metricHints + semanticHints + cityHints +
             "\n" + previous + "\n用户问题：" + question;
-        // Do not let the model silently choose a metric for a clearly vague
-        // question like “查看近7天趋势”. Only propose metrics actually present
-        // as numeric columns in currently authorized ADS metadata.
+        // Broad dashboard requests intentionally contain multiple metrics, so they
+        // bypass the single-metric clarification flow and use a multi-card plan.
+        boolean dashboardRequested = dashboardIntent(question);
         List<String> metricOptions = clarification.choices(question, allowed, discovered);
-        boolean needsMetric = metricOptions.size() >= 2 &&
+        boolean needsMetric = !dashboardRequested && metricOptions.size() >= 2 &&
             clarification.metricMissing(question, previousQuestion);
         JsonNode plan = needsMetric
             ? json.createObjectNode().put("unsupported",true)
                 .put("clarification","请确认要分析的业务指标")
-            : plan(instruction, full);
+            : plan(dashboardRequested ? dashboardInstruction : instruction, full);
         active.checkCancelled();
+
+        boolean validPlan = dashboardRequested
+            ? hasValidDashboardPlan(plan)
+            : QuestionPresentationService.hasValidPlan(plan);
         trace.mark("planning", "查询规划", needsMetric ? "needs_input" :
-            (QuestionPresentationService.hasValidPlan(plan) ? "completed" : "needs_input"),
+            (validPlan ? "completed" : "needs_input"),
             needsMetric ? "缺少明确指标，等待选择后继续" :
-                (QuestionPresentationService.hasValidPlan(plan) ? "已生成结构化查询计划" : "未生成可执行的查询计划"));
+                (validPlan
+                    ? (dashboardRequested ? "已生成多卡片经营看板计划" : "已生成结构化查询计划")
+                    : "未生成可执行的查询计划"));
+
+        JsonNode presentationPlan = dashboardRequested && plan.path("cards").isArray() &&
+            !plan.path("cards").isEmpty() ? plan.path("cards").get(0) : plan;
         QuestionPresentationService.Presentation shown =
-            presentation.resolve(question, previousQuestion, plan);
+            presentation.resolve(question, previousQuestion, presentationPlan);
         String sql = "";
-        String title = presentation.heading(shown, plan.path("title").asText("数据查询"));
-        String chart = plan.path("chartType").asText("table");
+        String title = dashboardRequested
+            ? plan.path("title").asText("经营看板")
+            : presentation.heading(shown, plan.path("title").asText("数据查询"));
+        String chart = dashboardRequested ? "dashboard" : plan.path("chartType").asText("table");
         String summary = "";
         List<String> columns = List.of();
         Map<String,String> columnLabels = Map.of();
         List<Map<String,Object>> rows = List.of();
         List<String> followups = List.of();
         QueryExplanation.Semantic semantic = null;
-        boolean unsupported = !QuestionPresentationService.hasValidPlan(plan);
+        String viewType = dashboardRequested ? "dashboard" : "single";
+        List<DashboardCard> dashboardCards = new ArrayList<>();
+        boolean unsupported = !validPlan;
 
-        if (!unsupported) {
+        if (!unsupported && dashboardRequested) {
+            List<Map.Entry<JsonNode,String>> validatedCards = new ArrayList<>();
+            int skipped = 0;
+            for (JsonNode cardPlan : plan.path("cards")) {
+                if (validatedCards.size() >= 6) break;
+                active.checkCancelled();
+                try {
+                    String normalizedSql = entities.normalizeCityEquality(
+                        cardPlan.path("sql").asText(""), cityMatches);
+                    if (!QuestionPresentationService.supportsRequestedDay(question, normalizedSql, today)) {
+                        skipped++;
+                        continue;
+                    }
+                    String validatedSql = guard.validate(normalizedSql, allowed, starrocks.schema());
+                    validatedCards.add(Map.entry(cardPlan, validatedSql));
+                } catch (ResponseStatusException ex) {
+                    if (ex.getStatusCode().value() == 400) {
+                        skipped++;
+                        continue;
+                    }
+                    throw ex;
+                }
+            }
+
+            if (validatedCards.isEmpty()) {
+                unsupported = true;
+                trace.mark("validation", "查询校验", "rejected", "驾驶舱中的查询均未通过只读、授权表或日期校验");
+            } else {
+                trace.mark("validation", "查询校验", "completed",
+                    "已验证 " + validatedCards.size() + " 个驾驶舱查询" +
+                    (skipped > 0 ? "，跳过 " + skipped + " 个无效卡片" : ""));
+                int totalRows = 0;
+                int index = 0;
+                for (Map.Entry<JsonNode,String> entry : validatedCards) {
+                    active.checkCancelled();
+                    JsonNode cardPlan = entry.getKey();
+                    String cardSql = entry.getValue();
+                    String requestedChart = cardPlan.path("chartType").asText("table");
+                    if (!Set.of("metric","table","bar","line","pie").contains(requestedChart))
+                        requestedChart = "table";
+                    String cardTitle = cardPlan.path("title").asText("经营指标");
+                    String executedSql = cardSql;
+                    StarRocksGateway.QueryResult data = audit.query(username,
+                        persist ? "CHAT_DASHBOARD" : "CHART_REFRESH",
+                        persist ? session : null, question + " · " + cardTitle, executedSql,
+                        () -> starrocks.query(executedSql, active));
+                    List<String> cardColumns = data.columns();
+                    List<Map<String,Object>> cardRows = data.rows();
+                    totalRows += cardRows.size();
+                    QuestionPresentationService.Presentation cardShown =
+                        presentation.resolve(question, previousQuestion, cardPlan);
+                    Map<String,String> cardLabels = presentation.alignLabels(cardShown, cardColumns, cardRows,
+                        labels.labels(cardColumns, cardPlan.path("columnLabels"), allowed, discovered), cardPlan);
+                    String cardChart = inferChartType(requestedChart, cardColumns, cardRows);
+                    QueryExplanation.Semantic cardSemantic =
+                        QueryExplanation.semantic(cardSql, cardColumns, cardLabels, cardPlan);
+                    String cardSummary =
+                        QueryExplanation.summarize(cardRows, cardColumns, cardLabels, cardSemantic);
+                    dashboardCards.add(new DashboardCard(
+                        "dashboard-card-" + (++index) + "-" + UUID.randomUUID(),
+                        presentation.heading(cardShown, cardTitle),
+                        cardChart, cardColumns, cardLabels, cardRows,
+                        cardShown.metricLabel(), cardShown.periodLabel(),
+                        cardSummary, cardSemantic, cardSql));
+                    if (sql.isBlank()) sql = cardSql;
+                }
+                chart = "dashboard";
+                summary = "已生成 " + dashboardCards.size() + " 个经营分析卡片，" +
+                    "包含核心指标、趋势或结构分析；所有数据均来自当前账号授权范围。";
+                followups = List.of("按城市拆分这个看板", "查看近7天经营趋势", "查看异常变化指标");
+                trace.mark("query", "数据查询", "completed",
+                    "驾驶舱共执行 " + dashboardCards.size() + " 个查询，返回 " + totalRows + " 行数据");
+                trace.mark("result", "结果整理", "completed", "已整理为可交互的经营看板卡片");
+            }
+        } else if (!unsupported) {
             try {
                 String normalizedSql = entities.normalizeCityEquality(
                     plan.path("sql").asText(""), cityMatches);
@@ -399,8 +507,6 @@ public class ChatController {
                     trace.mark("result", "结果整理", "completed", "根据实际查询解析维度、指标和筛选条件，并整理返回数据摘要");
                 }
             } catch (ResponseStatusException ex) {
-                // Invalid or unapproved generated SQL is an unsupported business
-                // question, while unavailable upstream services remain explicit errors.
                 if (ex.getStatusCode().value() == 400) {
                     unsupported = true;
                     sql = "";
@@ -413,8 +519,10 @@ public class ChatController {
 
         if (unsupported) {
             semantic = null;
+            viewType = "single";
+            dashboardCards = List.of();
             trace.mark("stopped", "流程结束", "skipped", "本次未完成有效数据查询，请明确业务口径或调整问题后重试");
-            boolean promptForMetric = metricOptions.size() >= 2 &&
+            boolean promptForMetric = !dashboardRequested && metricOptions.size() >= 2 &&
                 (needsMetric || clarification.isMetricClarification(
                     plan.path("clarification").asText("")));
             title = promptForMetric ? "请确认查询指标" : "暂不支持";
@@ -426,8 +534,6 @@ public class ChatController {
             columns = List.of();
             columnLabels = Map.of();
             rows = List.of();
-            // Unsupported out-of-scope queries keep the existing safe fallback.
-            // Metric ambiguity offers grounded, clickable complete questions.
             followups = promptForMetric ? metricOptions : List.of();
         }
 
@@ -435,7 +541,7 @@ public class ChatController {
         String messageId = UUID.randomUUID().toString();
         Answer answer = new Answer(messageId, session, question, title, summary, chart, columns,
             columnLabels, rows, followups, shown.metricLabel(), shown.periodLabel(), unsupported, dataset,
-            semantic, trace.finish(), sql);
+            semantic, trace.finish(), sql, viewType, dashboardCards);
         if (persist) {
         try {
             com.fasterxml.jackson.databind.node.ObjectNode stored=json.valueToTree(answer);
