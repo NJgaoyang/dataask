@@ -71,6 +71,31 @@ class AdminAccessTest {
     }
 
     @Test
+    void customSystemAdminCannotEscalateIdentityToAdministrator() {
+        SecurityContextHolder.getContext().setAuthentication(
+            new UsernamePasswordAuthenticationToken("ops-user",null,List.of(
+                new SimpleGrantedAuthority("ROLE_OPERATIONS"),
+                new SimpleGrantedAuthority("PERM_SYSTEM_ADMIN"),
+                new SimpleGrantedAuthority("SCOPE_CITY"))));
+
+        // A delegated system operator may enter non-IAM system settings.
+        assertDoesNotThrow(() -> controller.settings());
+
+        // But identity, role and StarRocks authority boundaries remain true-admin only.
+        assertThrows(AccessDeniedException.class, () ->
+            controller.createUser(new AdminController.UserRequest(
+                "backdoor-admin","Backdoor","long-password-123","ADMIN")));
+        assertThrows(AccessDeniedException.class, () ->
+            controller.resetPassword("admin",
+                new AdminController.ResetPasswordRequest("new-admin-password-123")));
+        assertThrows(AccessDeniedException.class, () ->
+            controller.createRole(new AdminController.RoleRequest(
+                "OPS2","Ops2",java.util.Set.of("SYSTEM_ADMIN"))));
+        assertThrows(AccessDeniedException.class, () ->
+            controller.saveStarRocks(null));
+    }
+
+    @Test
     void administratorCanEnterConfigurationMethods() {
         authenticate("ADMIN");
         assertDoesNotThrow(() -> controller.saveAi(null));
