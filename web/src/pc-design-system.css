@@ -200,7 +200,7 @@
   /* ---------- 5. Primitives ---------- */
   .consumer-pc .da-btn,.consumer-pc .tb-secondary-action,.consumer-pc .tb-admin-plain-action,
   .consumer-pc .da-chart-back,.consumer-pc .tb-admin-back,.consumer-pc .da-chart-detail-actions button,.consumer-pc .tb-chart-open,
-  .consumer-pc .tb-empty-state button,.consumer-pc .tb-chart-table-empty button,.consumer-pc .desktop-feedback-card>button,.consumer-pc .tb-admin-load-error button{
+  .consumer-pc .tb-empty-state button,.consumer-pc .tb-chart-table-empty button,.consumer-pc .tb-admin-load-error button{
     display:inline-flex;align-items:center;justify-content:center;gap:6px;height:var(--da-control-h);padding:0 var(--da-sp-3);
     border:1px solid var(--da-border-strong);border-radius:var(--da-radius-sm);background:var(--da-surface);
     color:var(--da-text-2);font-size:var(--da-fs-sm);font-weight:500;white-space:nowrap;cursor:pointer;
@@ -209,10 +209,10 @@
   .consumer-pc .da-btn:hover,.consumer-pc .tb-secondary-action:hover,.consumer-pc .tb-admin-plain-action:hover,.consumer-pc .da-chart-detail-actions button:hover,
   .consumer-pc .tb-chart-open:hover,.consumer-pc .da-chart-back:hover,.consumer-pc .tb-admin-back:hover,.consumer-pc .tb-admin-load-error button:hover{border-color:var(--da-primary);color:var(--da-primary);background:var(--da-surface)}
   .consumer-pc .da-btn:disabled,.consumer-pc .tb-secondary-action:disabled,.consumer-pc .tb-admin-plain-action:disabled,.consumer-pc .da-chart-detail-actions button:disabled{opacity:.5;cursor:not-allowed}
-  .consumer-pc .da-btn-primary,.consumer-pc .tb-empty-state button,.consumer-pc .tb-chart-table-empty button,.consumer-pc .desktop-feedback-card>button{
+  .consumer-pc .da-btn-primary,.consumer-pc .tb-empty-state button,.consumer-pc .tb-chart-table-empty button{
     border-color:var(--da-primary);background:var(--da-primary);color:#fff;font-weight:600;
   }
-  .consumer-pc .da-btn-primary:hover,.consumer-pc .tb-empty-state button:hover,.consumer-pc .tb-chart-table-empty button:hover,.consumer-pc .desktop-feedback-card>button:hover{background:var(--da-primary-hover);border-color:var(--da-primary-hover);color:#fff}
+  .consumer-pc .da-btn-primary:hover,.consumer-pc .tb-empty-state button:hover,.consumer-pc .tb-chart-table-empty button:hover:hover{background:var(--da-primary-hover);border-color:var(--da-primary-hover);color:#fff}
   .consumer-pc .da-btn-ghost{border-color:transparent;background:transparent;padding:0 var(--da-sp-2);color:var(--da-text-3)}
   .consumer-pc .da-btn-ghost:hover{background:var(--da-primary-soft);border-color:transparent}
   .consumer-pc .da-btn .van-icon,.consumer-pc .tb-secondary-action .van-icon,.consumer-pc .tb-admin-plain-action .van-icon{font-size:15px}
@@ -310,7 +310,14 @@
   .consumer-pc .welcome h2{margin:0;font-size:var(--da-fs-xl);line-height:26px;font-weight:600;color:var(--da-text)}
   .consumer-pc .welcome>p{margin:2px 0 0;font-size:var(--da-fs-sm);color:var(--da-text-3);line-height:1.6}
   .consumer-pc .turn{gap:var(--da-sp-3);margin-bottom:var(--da-sp-4)}
-  .consumer-pc .user-bubble{max-width:min(72%,560px);padding:8px 12px;border-radius:var(--da-radius-md);background:var(--da-primary-soft);color:var(--da-text);font-size:var(--da-fs-md);line-height:1.6}
+  .consumer-pc .da-user-question-wrap{align-self:flex-end;display:flex;flex-direction:column;align-items:flex-end;max-width:min(72%,560px);min-width:0}
+  .consumer-pc .da-user-question-wrap .user-bubble{align-self:auto;max-width:100%;padding:8px 12px;border-radius:var(--da-radius-md);background:var(--da-primary-soft);color:var(--da-text);font-size:var(--da-fs-md);line-height:1.6}
+  .consumer-pc .da-user-question-actions{display:flex;align-items:center;justify-content:flex-end;gap:2px;margin-top:4px;min-height:28px}
+  .consumer-pc .da-user-question-actions button{width:30px;height:28px;display:inline-flex;align-items:center;justify-content:center;padding:0;border:0;border-radius:8px;background:transparent;color:var(--da-text-3);cursor:pointer}
+  .consumer-pc .da-user-question-actions button:hover{background:var(--da-surface-2);color:var(--da-text)}
+  .consumer-pc .da-user-question-actions button:focus-visible{outline:2px solid var(--da-primary);outline-offset:1px}
+  .consumer-pc .da-user-question-actions button:disabled{opacity:.42;cursor:not-allowed}
+  .consumer-pc .da-user-question-actions .van-icon{font-size:17px}
   .consumer-pc .answer-card{padding:var(--da-panel-padding);border:1px solid var(--da-border);border-radius:var(--da-radius-lg);background:var(--da-surface);box-shadow:none}
   .consumer-pc .da-answer-process-row{display:flex;align-items:center;margin-bottom:var(--da-sp-3)}
   .consumer-pc .da-analysis-toggle{display:inline-flex;align-items:center;gap:6px;height:28px;padding:0 10px;border:1px solid var(--da-border-strong);border-radius:var(--da-radius-sm);background:var(--da-surface);color:var(--da-text-2);font-size:var(--da-fs-xs);transition:border-color .12s,background .12s,color .12s}
