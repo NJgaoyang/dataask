@@ -115,6 +115,12 @@ class ChatDashboardFlowTest {
         assertThat(answer.dashboardCards()).hasSize(3);
         assertThat(answer.dashboardCards()).extracting(ChatController.DashboardCard::chartType)
             .containsExactly("metric","line","bar");
+        assertThat(answer.dashboardCards()).extracting(ChatController.DashboardCard::title)
+            .containsExactly("本月订单量","订单趋势","城市订单排行");
+        assertThat(answer.dashboardCards()).extracting(ChatController.DashboardCard::metricLabel)
+            .containsExactly("订单量","订单量","订单量");
+        assertThat(answer.dashboardCards().get(1).columnLabels())
+            .containsEntry("total_orders","订单量");
         assertThat(answer.dashboardCards().getFirst().rows().getFirst().get("total_orders"))
             .isEqualTo(344);
         assertThat(answer.rows()).isEmpty();
