@@ -353,12 +353,15 @@ button,input,textarea{font:inherit}button{border:0;cursor:pointer;color:inherit}
 .mini-new-chat,.history-new-chat{display:inline-flex;align-items:center;justify-content:center;gap:6px;background:#eef5ff;border:1px solid #cfe0ff;border-radius:11px;color:#2e72dc;font-size:12px;font-weight:700;padding:9px 12px;white-space:nowrap}
 .mini-new-chat .icon,.history-new-chat .icon{width:16px;height:16px}
 .history-new-chat{width:100%;margin:0 0 13px;padding:12px 14px}
-.profile-city-permissions{margin:0 0 18px;padding:15px 14px;border:1px solid #e6ebf2;border-radius:12px;background:#fff}
-.profile-permission-heading{display:flex;align-items:center;justify-content:space-between;font-size:14px}
-.profile-permission-heading span{font-size:12px;color:#718096}
-.profile-city-list{display:flex;flex-wrap:wrap;gap:8px;margin:12px 0}
-.profile-city-list>span{padding:7px 10px;background:#eef4fd;border:1px solid #e0eaf8;border-radius:7px;color:#234c82;font-size:12px}
-.profile-permission-note{display:block;margin-top:10px;color:#8492a5;font-size:11px;line-height:1.6}
+.profile-city-permissions{margin:0 0 18px;padding:0;border:1px solid #e6ebf2;border-radius:12px;background:#fff;overflow:hidden}
+.profile-permission-heading{width:100%;min-height:52px;padding:0 14px;display:flex;align-items:center;justify-content:space-between;gap:12px;background:transparent;text-align:left;font-size:14px}
+.profile-permission-heading strong{font-weight:700}
+.profile-permission-summary{margin-left:auto;display:flex;align-items:center;gap:7px;color:#718096;font-size:12px;font-weight:500}
+.profile-permission-chevron{width:16px;height:16px;transition:transform .18s ease;transform:rotate(90deg)}
+.profile-permission-heading[aria-expanded="true"] .profile-permission-chevron{transform:rotate(-90deg)}
+.profile-city-list{display:flex;flex-wrap:wrap;gap:7px;margin:0;padding:12px 14px 14px;border-top:1px solid #f0f2f5}
+.profile-city-list>span{padding:6px 9px;background:#eef4fd;border:1px solid #e0eaf8;border-radius:6px;color:#234c82;font-size:12px}
+.profile-city-empty{margin:0;padding:12px 14px 14px;border-top:1px solid #f0f2f5;color:#8a96a8;font-size:12px}
 
 /* Enterprise control alignment, inspired by TDesign mobile conventions.
    Preserve all existing screens and behavior; only harmonize visible controls. */
@@ -453,7 +456,7 @@ const robot=()=>`<svg viewBox="0 0 238 210" xmlns="http://www.w3.org/2000/svg" r
 const safe=(s)=>String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 
 const sets=[[['chart','昨日营业额是多少？'],['trending','近7天的订单量趋势如何？'],['pin','按城市看营业额TOP10'],['pie','本月新增用户数及环比？']],[['trending','本周营业额趋势怎么样？'],['pin','哪个城市的营业额最高？'],['chart','昨天订单总数是多少？'],['pie','近30天新增用户情况']]];
-const state={view:'home',tab:'home',sampleSet:0,chartMode:'chart',chartModes:{},chartStyles:{},analysisOpen:{},historySearch:'',chat:[],sessionId:null,lastMessageId:null,modal:null,shareScope:'PRIVATE',sharePerson:'',toast:'',scrollBottom:false,loggedIn:Boolean(sessionStorage.getItem('dataask_token')),profile:null,sessions:[],charts:[],shared:[],chartDetail:null,loading:false,chatEpoch:0,authEpoch:0,activeRequestId:null};
+const state={view:'home',tab:'home',sampleSet:0,chartMode:'chart',chartModes:{},chartStyles:{},analysisOpen:{},historySearch:'',chat:[],sessionId:null,lastMessageId:null,modal:null,shareScope:'PRIVATE',sharePerson:'',toast:'',scrollBottom:false,loggedIn:Boolean(sessionStorage.getItem('dataask_token')),profile:null,cityPermissionsOpen:false,sessions:[],charts:[],shared:[],chartDetail:null,loading:false,chatEpoch:0,authEpoch:0,activeRequestId:null};
 function statusBar(){return `<div class="status"><span>10:24</span><div class="status-right"><svg width="17" height="13" viewBox="0 0 17 13"><rect x="0" y="9" width="3" height="4" rx=".7"/><rect x="5" y="6" width="3" height="7" rx=".7"/><rect x="10" y="3" width="3" height="10" rx=".7"/><rect x="15" y="0" width="2" height="13" rx=".7"/></svg><svg width="17" height="14" viewBox="0 0 17 14"><path d="M1 4Q8-2 16 4M4 7Q8 4 13 7M7 10Q8.5 9 10 10" stroke="#10192d" stroke-width="1.8" fill="none" stroke-linecap="round"/><circle cx="8.5" cy="12" r="1"/></svg><svg width="24" height="12" viewBox="0 0 24 12"><rect x=".5" y=".5" width="20" height="11" rx="2.6" stroke="#10192d" fill="none"/><rect x="2.3" y="2.2" width="16.3" height="7.6" rx="1.3" fill="#10192d"/><rect x="21" y="3.5" width="2.5" height="5" rx="1" fill="#10192d"/></svg></div></div>`}
 function capsule(){return `<div class="capsule"><button data-action="more" aria-label="更多">${icon('dots','sm')}</button><div class="cut"></div><button data-action="more" aria-label="小程序菜单">${icon('target','sm')}</button></div>`}
 function header(){if(state.view==='home')return `<div class="appbar"><div class="brand">${logo()}<span>DataAsk 智能问数</span></div>${capsule()}</div>`;
@@ -719,10 +722,15 @@ function chartDetailPage(){
 function profilePage(){
  const p=state.profile||{},admin=p.role==='ADMIN';
  const cities=Array.isArray(p.cities)?[...new Set(p.cities)]:[];
- const cityArea='<section class="profile-city-permissions" aria-label="数据权限"><div class="profile-permission-heading"><strong>数据权限 · 管理城市</strong><span>'+cities.length+' 个</span></div>'+
- (cities.length?'<div class="profile-city-list">'+cities.map(city=>'<span>'+safe(city)+'</span>').join('')+'</div>':
- '<p class="inner-desc">当前登录手机号没有有效的城市授权，请联系管理员。</p>')+
- '<small class="profile-permission-note">城市权限由 ADS 授权表维护，仅可查看授权范围内的数据。</small></section>';
+ const cityDetails=state.cityPermissionsOpen
+  ? (cities.length
+    ? '<div class="profile-city-list">'+cities.map(city=>'<span>'+safe(city)+'</span>').join('')+'</div>'
+    : '<p class="profile-city-empty">暂无城市</p>')
+  : '';
+ const cityArea='<section class="profile-city-permissions" aria-label="管理城市">'+
+ '<button class="profile-permission-heading" data-action="toggle-cities" type="button" aria-expanded="'+(state.cityPermissionsOpen?'true':'false')+'">'+
+ '<strong>管理城市</strong><span class="profile-permission-summary">'+cities.length+' 个'+icon('arrow','profile-permission-chevron')+'</span></button>'+
+ cityDetails+'</section>';
  return '<div class="inner-page"><div class="profile-banner"><div class="profile-avatar">'+icon('user')+'</div><div><b>'+safe(p.display_name||p.username||'未登录')+'</b><small>'+safe(p.username||'')+' · '+(admin?'管理员':'普通成员')+'</small></div></div>'+
  cityArea+
  '<div class="profile-group"><button class="profile-row" data-action="tab" data-view="charts">'+icon('star')+'<span>我的收藏与图表</span>'+icon('arrow')+'</button><button class="profile-row" data-action="tab" data-view="history">'+icon('clock')+'<span>历史会话</span>'+icon('arrow')+'</button><button class="profile-row" data-action="tab" data-view="charts">'+icon('share')+'<span>共享给我的图表</span>'+icon('arrow')+'</button></div><div class="profile-group"><button class="profile-row" data-action="about">'+icon('shield')+'<span>隐私与数据权限</span>'+icon('arrow')+'</button><button class="profile-row" data-action="logout">'+icon('left')+'<span>退出登录</span>'+icon('arrow')+'</button></div><p class="inner-desc" style="text-align:center">DataAsk · 企业内部使用</p></div>';
@@ -866,6 +874,7 @@ async function handleClick(e){
  case 'ask-home':ask('home-query',false);break;
  case 'ask-chat':ask('chat-query',true);break;
  case 'shuffle':state.sampleSet=(state.sampleSet+1)%sets.length;render();break;
+ case 'toggle-cities':state.cityPermissionsOpen=!state.cityPermissionsOpen;render();break;
  case 'chart-mode':{
    const scroll=document.getElementById('scroll-area')?.scrollTop||0;
    state.chartModes[target.dataset.mid]=target.dataset.mode;
