@@ -74,27 +74,27 @@ button,input,textarea{font:inherit}button{border:0;cursor:pointer;color:inherit}
 .home .hero-features span:last-child{border-right:0}
 .home .hero-features .icon{width:17px;height:17px;color:#486cf4}
 .home .ask-outer{margin:14px 16px 0;padding:4px;border-radius:38px;background:linear-gradient(105deg,#c7dbff 0%,#d9c4ff 100%);box-shadow:0 9px 22px rgba(85,91,221,.14)}
-.home .ask-box{height:56px;padding-left:15px}
-.home .ask-box input{font-size:14px}
-.home .ask-box .send{width:42px;height:42px}
-.home .section{margin:21px 17px 0}
-.home .section-head{margin-bottom:10px}
-.home .section h2{font-size:17px;letter-spacing:-.3px}
-.home .examples{gap:9px}
-.home .example{min-height:60px;height:60px;padding:0 14px 0 12px;border:1px solid rgba(231,235,251,.84);border-radius:17px;box-shadow:0 7px 18px rgba(56,70,160,.065);gap:12px;background:rgba(255,255,255,.93);font-size:13.5px;font-weight:620;display:flex;line-height:1.3}
-.home .example .example-icon{width:39px;height:39px;border-radius:12px;background:linear-gradient(140deg,#e8f4ff,#ebe8ff);display:flex;align-items:center;justify-content:center;flex:none}
-.home .example .example-icon .icon{height:22px;width:22px;color:#4779ff}
+.home .ask-box{height:96px;padding:10px 7px 8px 15px;align-items:flex-end;border-radius:28px}
+.home .ask-box textarea{border:0;outline:0;resize:none;background:transparent;min-width:0;flex:1;height:72px;padding:4px 0;color:#1e2b4a;font-size:14px;line-height:1.55}
+.home .ask-box textarea::placeholder{color:#929cb7}
+.home .ask-box .ask-spark{align-self:flex-start;margin-top:5px}
+.home .ask-box .send{width:42px;height:42px;flex:none}
+.home .section{margin:17px 17px 0}
+.home .section-head{margin-bottom:7px}
+.home .section h2{font-size:16px;letter-spacing:-.2px}
+.home .examples{gap:6px}
+.home .example{min-height:44px;height:44px;padding:0 10px;border:1px solid rgba(231,235,251,.84);border-radius:13px;box-shadow:0 4px 12px rgba(56,70,160,.05);gap:9px;background:rgba(255,255,255,.93);font-size:12.5px;font-weight:590;display:flex;line-height:1.2}
+.home .example .example-icon{width:30px;height:30px;border-radius:9px;background:linear-gradient(140deg,#e8f4ff,#ebe8ff);display:flex;align-items:center;justify-content:center;flex:none}
+.home .example .example-icon .icon{height:17px;width:17px;color:#4779ff}
 .home .example .example-label{flex:1;text-align:left}
-.home .example .example-arrow{color:#aab3c9;width:15px;height:15px;opacity:.8;flex:none}
-.home .quick-section{margin-top:23px}
-.home .quick{height:82px}
+.home .example .example-arrow{color:#aab3c9;width:14px;height:14px;opacity:.8;flex:none}
 .tabbar{background:rgba(255,255,255,.98)}
 @media (max-width:370px){
  .home .hero h1{font-size:18.5px}.home .hero-robot{right:-13px;width:49%}
  .home .hero-features{left:8px;bottom:8px;padding:5px}
  .home .hero-features span{font-size:10.2px;padding:0 5px;gap:3px}
  .home .hero-features .icon{width:15px;height:15px}
- .home .example{height:57px;min-height:57px}
+ .home .example{height:42px;min-height:42px}
 }
 @media (max-height:745px){
  .home .hero{height:clamp(140px,20dvh,164px)}
@@ -102,11 +102,12 @@ button,input,textarea{font:inherit}button{border:0;cursor:pointer;color:inherit}
  .home .hero h1{font-size:19px}
  .home .hero-features{bottom:8px}
  .home .ask-outer{margin-top:11px}
- .home .ask-box{height:52px}
- .home .section{margin-top:15px}
- .home .section-head{margin-bottom:7px}
- .home .example{min-height:53px;height:53px}
- .home .examples{gap:7px}
+ .home .ask-box{height:88px}
+ .home .ask-box textarea{height:64px}
+ .home .section{margin-top:13px}
+ .home .section-head{margin-bottom:6px}
+ .home .example{min-height:40px;height:40px}
+ .home .examples{gap:5px}
 }
 
 /* Live API edition: never substitute hard-coded sample measurements. */
@@ -458,7 +459,7 @@ function capsule(){return `<div class="capsule"><button data-action="more" aria-
 function header(){if(state.view==='home')return `<div class="appbar"><div class="brand">${logo()}<span>DataAsk 智能问数</span></div>${capsule()}</div>`;
 if(state.view==='chat'||state.view==='chart-detail')return `<div class="appbar"><button class="back" data-action="back" aria-label="返回">${icon('left','lg')}</button><div class="page-title">${state.view==='chart-detail'?'图表详情':'智能问数'}</div>${state.view==='chat'?'<button class="mini-new-chat" data-action="new-session" aria-label="新建会话">'+icon('plus')+' 新建</button>':capsule()}</div>`;
 const names={history:'历史会话',charts:'我的图表',profile:'个人中心'};return `<div class="appbar"><div class="brand">${logo()}<span>${names[state.view]||'DataAsk'}</span></div>${capsule()}</div>`}
-function homePage(){return `<div class="home"><section class="hero" aria-label="DataAsk 智能问数介绍"><div class="hero-copy"><h1>用自然语言，<br>快速获取业务数据</h1></div><div class="hero-robot">${robot()}</div><div class="hero-features"><span>${icon('message')}自然对话</span><span>${icon('layers')}自动分析</span><span>${icon('chart')}智能图表</span></div></section><div class="ask-outer"><div class="ask-box">${icon('sparkle','ask-spark')}<input id="home-query" enterkeyhint="send" aria-label="输入问题" placeholder="试试输入你的问题..."/><button class="send" data-action="ask-home" aria-label="发送问题">${icon('send')}</button></div></div><section class="section"><div class="section-head"><h2>你可以这样问</h2><button class="muted-action" data-action="shuffle">换一换 ${icon('refresh','sm')}</button></div><div class="examples">${sets[state.sampleSet].slice(0,3).map(([ic,q])=>`<button class="example" data-action="question" data-q="${safe(q)}"><span class="example-icon">${icon(ic)}</span><span class="example-label">${safe(q)}</span>${icon('arrow','example-arrow')}</button>`).join('')}</div></section><section class="section quick-section"><div class="section-head"><h2>我的常用</h2><button class="muted-action" data-action="tab" data-view="charts">查看全部 ${icon('arrow','sm')}</button></div><div class="quick-grid"><button class="quick" data-action="tab" data-view="charts">${icon('star')}我的收藏</button><button class="quick" data-action="tab" data-view="history">${icon('clock')}历史问答</button><button class="quick" data-action="tab" data-view="charts">${icon('chart')}我的图表</button><button class="quick" data-action="open-share">${icon('share')}分享给我</button></div></section></div>`}
+function homePage(){return `<div class="home"><section class="hero" aria-label="DataAsk 智能问数介绍"><div class="hero-copy"><h1>用自然语言，<br>快速获取业务数据</h1></div><div class="hero-robot">${robot()}</div><div class="hero-features"><span>${icon('message')}自然对话</span><span>${icon('layers')}自动分析</span><span>${icon('chart')}智能图表</span></div></section><div class="ask-outer"><div class="ask-box">${icon('sparkle','ask-spark')}<textarea id="home-query" rows="3" enterkeyhint="send" aria-label="输入问题" placeholder="试试输入你的问题..."></textarea><button class="send" data-action="ask-home" aria-label="发送问题">${icon('send')}</button></div></div><section class="section"><div class="section-head"><h2>你可以这样问</h2><button class="muted-action" data-action="shuffle">换一换 ${icon('refresh','sm')}</button></div><div class="examples">${sets[state.sampleSet].slice(0,3).map(([ic,q])=>`<button class="example" data-action="question" data-q="${safe(q)}"><span class="example-icon">${icon(ic)}</span><span class="example-label">${safe(q)}</span>${icon('arrow','example-arrow')}</button>`).join('')}</div></section></div>`}
 async function api(path,method='GET',body){
  const token=sessionStorage.getItem('dataask_token');
  const resp=await fetch(path,{method,headers:{'Accept':'application/json',...(body?{'Content-Type':'application/json'}:{}),...(token?{'Authorization':'Bearer '+token}:{})},...(body?{body:JSON.stringify(body)}:{})});
@@ -906,7 +907,7 @@ async function handleClick(e){
 
 function startApp(){
  document.addEventListener('click',handleClick);
- document.addEventListener('keydown',e=>{if(e.key==='Enter'&&e.target.id==='home-query'){e.preventDefault();ask('home-query',false)}else if(e.key==='Enter'&&e.target.id==='chat-query'){e.preventDefault();ask('chat-query',true)}else if(e.key==='Enter'&&['login-user','login-pass'].includes(e.target.id)){e.preventDefault();login()}else if(e.key==='Escape'&&state.modal?.type!=='login'){state.modal=null;render()}});
+ document.addEventListener('keydown',e=>{if(e.key==='Enter'&&e.target.id==='home-query'&&!e.shiftKey){e.preventDefault();ask('home-query',false)}else if(e.key==='Enter'&&e.target.id==='chat-query'){e.preventDefault();ask('chat-query',true)}else if(e.key==='Enter'&&['login-user','login-pass'].includes(e.target.id)){e.preventDefault();login()}else if(e.key==='Escape'&&state.modal?.type!=='login'){state.modal=null;render()}});
  document.addEventListener('input',e=>{if(e.target.id==='history-search'){state.historySearch=e.target.value;const sel=e.target.selectionStart;render();const next=document.getElementById('history-search');if(next){next.focus();next.setSelectionRange(sel,sel)}}else if(e.target.id==='share-member'){state.sharePerson=e.target.value}});
  document.addEventListener('visibilitychange',()=>{if(!document.hidden)refreshSharedHistory()});
  window.addEventListener('focus',refreshSharedHistory);

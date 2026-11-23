@@ -13,6 +13,11 @@ assert(!html.includes('8,463,520')&&!html.includes('数据为交互原型演示'
 assert(!html.includes('data-action="export"')&&!html.includes('exportCSV(')&&!html.includes('.download='),'Mobile downloads must be unavailable');
 assert(!html.includes('data-action="mic"') && !html.includes('data-action="config"'),
   'Mobile must never show microphone recording or model/data configuration');
+assert(!html.includes('<h2>我的常用</h2>'),'Mobile home must not render the My Common section');
+assert(html.includes('<textarea id="home-query"'),'Mobile home question composer must be a larger multiline box');
+assert(html.includes('.home .ask-box{height:96px'),'Mobile home composer height regression');
+assert(html.includes('.home .example{min-height:44px;height:44px'),'Mobile example questions must stay compact');
+
 for(const token of [
   "function chartDetailPage()",
   "state.view==='chart-detail'?chartDetailPage()",
