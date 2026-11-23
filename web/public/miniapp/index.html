@@ -548,6 +548,18 @@ const chartColors=['#3478ec','#12b8a6','#f49b4e','#8467d8','#e86992','#24a6cf','
 const cnLabels={city:'城市',city_name:'城市',city_name_std:'城市',province:'省份',dt:'业务日期',biz_date:'业务日期',total_orders:'订单总数',order_cnt:'订单量',order_count:'订单数',total_amount:'总金额',pay_amount:'实付金额',total_revenue:'营业额',revenue:'营业额',user_cnt:'用户数',store_name:'门店名称'};
 function colLabel(a,c){return a.columnLabels?.[c]||cnLabels[String(c).toLowerCase()]||c}
 function valueFmt(n){return Number(n||0).toLocaleString('zh-CN',{maximumFractionDigits:2})}
+function axisTickIndexes(rows,labels){
+ const count=rows.length;if(!count)return [];
+ const viewport=Math.max(280,Math.min(430,Number(globalThis.innerWidth)||375));
+ const longest=Math.max(1,...labels.map(v=>String(v??'').length));
+ // Keep labels intact; narrow screens show fewer ticks instead of truncating text.
+ const estimatedLabelWidth=Math.min(110,Math.max(42,longest*5.2+12));
+ const maxTicks=Math.max(2,Math.min(5,Math.floor((viewport-56)/estimatedLabelWidth)));
+ if(count===1)return [0];
+ const ticks=Math.min(count,maxTicks),result=[];
+ for(let i=0;i<ticks;i++)result.push(Math.round(i*(count-1)/(ticks-1)));
+ return [...new Set(result)];
+}
 function chartCols(a){
  const cols=a.columns||[],rows=a.rows||[];
  const nums=cols.filter(c=>rows.some(r=>r[c]!==null&&r[c]!==undefined&&r[c]!==''&&typeof r[c]!=='boolean'&&Number.isFinite(Number(r[c]))));
@@ -602,8 +614,13 @@ function resultChart(a){
    svg=[0,.25,.5,.75,1].map(t=>{const n=lo+range*t,yy=yp(n);return '<line x1="'+left+'" y1="'+yy.toFixed(1)+'" x2="'+(W-right)+'" y2="'+yy.toFixed(1)+'" stroke="#e6eefa" stroke-dasharray="3 4"/><text x="'+(left-5)+'" y="'+(yy+3).toFixed(1)+'" text-anchor="end" font-size="9" fill="#91a0b8">'+safe(valueFmt(n))+'</text>'}).join('');
    svg+='<path d="'+nums.map((v,i)=>(i?'L':'M')+xp(i).toFixed(1)+' '+yp(v).toFixed(1)).join(' ')+'" stroke="#3478ec" stroke-width="2.7" fill="none" stroke-linejoin="round"/>';
    svg+=nums.map((v,i)=>'<circle cx="'+xp(i).toFixed(1)+'" cy="'+yp(v).toFixed(1)+'" r="2.8" fill="#fff" stroke="#3478ec" stroke-width="1.7"/>').join('');
-   const ticks=[...new Set([0,Math.round((rows.length-1)/4),Math.round((rows.length-1)/2),Math.round(3*(rows.length-1)/4),rows.length-1])];
-   svg+=ticks.map(i=>'<text x="'+xp(i).toFixed(1)+'" y="'+(H-12)+'" text-anchor="middle" font-size="9" fill="#8b9ab3">'+safe(String(rows[i][x]??'').slice(0,6))+'</text>').join('');
+   const axisLabels=rows.map(r=>String(r[x]??''));
+   const ticks=axisTickIndexes(rows,axisLabels);
+   svg+=ticks.map((i,pos)=>{
+     const anchor=pos===0?'start':pos===ticks.length-1?'end':'middle';
+     const xx=pos===0?left:pos===ticks.length-1?(W-right):xp(i);
+     return '<text x="'+xx.toFixed(1)+'" y="'+(H-12)+'" text-anchor="'+anchor+'" font-size="9" fill="#8b9ab3">'+safe(axisLabels[i])+'</text>';
+   }).join('');
  }else{
    const total=nums.reduce((u,v)=>u+v,0),cx=170,cy=94,r=78,firstY=204;
    H=firstY+rows.length*21+10;let angle=-Math.PI/2;

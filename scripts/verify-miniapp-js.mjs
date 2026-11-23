@@ -43,8 +43,8 @@ assert(!html.includes('await openChat(c.question)'),
 const initializer = /startApp\(\);\s*\}\)\(\);\s*$/;
 assert(initializer.test(inline),'Miniapp bootstrap pattern changed: chart smoke tests need updating');
 const probe = inline.replace(initializer,
-  'globalThis.__charts = {resultChart, resultTable, chartable, pieAllowed, answerCard, chartDetailPage, setDetail: d=>{state.chartDetail=d}, setType: (id,type) => {state.chartStyles[id]=type}, setMode: (id,mode) => {state.chartModes[id]=mode}}; })();');
-const context = { sessionStorage: {getItem:() => null},console };
+  'globalThis.__charts = {resultChart, resultTable, chartable, pieAllowed, axisTickIndexes, answerCard, chartDetailPage, setDetail: d=>{state.chartDetail=d}, setType: (id,type) => {state.chartStyles[id]=type}, setMode: (id,mode) => {state.chartModes[id]=mode}}; })();');
+const context = { sessionStorage: {getItem:() => null},console,innerWidth:390 };
 runInNewContext(probe,context,{timeout:2000});
 const fn=context.__charts;
 assert(fn,'Chart functions missing');
@@ -84,6 +84,28 @@ assert(!card.includes('data-action="export"'),'Result card exposes download');
 assert(html.includes('area.scrollTop=scroll'),'Chart switch should preserve the outer chat position');
 fn.setType(a.id,'line');
 assert(fn.resultChart(a).includes('<path'),'Line chart missing');
+const dateSeries={
+  ...a,id:'date-series',chartType:'line',
+  columns:['dt','total_orders'],
+  rows:[
+    {dt:'2026-11-01',total_orders:1400},{dt:'2026-11-08',total_orders:1395},
+    {dt:'2026-11-15',total_orders:1566},{dt:'2026-11-22',total_orders:1568},
+    {dt:'2026-11-29',total_orders:1580},{dt:'2026-12-06',total_orders:1600}
+  ],
+  columnLabels:{dt:'日期',total_orders:'订单数'}
+};
+const datePlot=fn.resultChart(dateSeries);
+assert(datePlot.includes('2026-11-01')&&datePlot.includes('2026-12-06'),
+  'Line chart date labels must remain complete rather than being truncated to six characters');
+assert(!datePlot.includes('>2026-1<'),'Truncated date label regression');
+assert(fn.axisTickIndexes(dateSeries.rows,dateSeries.rows.map(x=>x.dt)).length<=5,
+  'Responsive date axis must cap tick count');
+context.innerWidth=310;
+assert(fn.axisTickIndexes(dateSeries.rows,dateSeries.rows.map(x=>x.dt)).length<=3,
+  'Narrow phones must reduce tick density instead of truncating labels');
+context.innerWidth=430;
+assert(fn.axisTickIndexes(dateSeries.rows,dateSeries.rows.map(x=>x.dt)).length>=3,
+  'Wider phones should use available width for more date ticks');
 fn.setType(a.id,'pie');
 assert(fn.pieAllowed(a),'Positive-value pie chart expected');
 assert(fn.resultChart(a).includes('<circle'),'Pie chart missing');
