@@ -52,11 +52,13 @@ public class AdminController {
     Map<String,Object> settings() { return settings.adminView(); }
 
     @PostMapping("/settings/starrocks/test")
+    @PreAuthorize("hasRole('ADMIN')")
     Map<String,Object> testStarRocks(@RequestBody RuntimeConfigService.StarRocksInput input) {
         return starrocks.test(settings.validateStarRocks(input));
     }
 
     @PostMapping("/settings/starrocks")
+    @PreAuthorize("hasRole('ADMIN')")
     Map<String,Object> saveStarRocks(@RequestBody RuntimeConfigService.StarRocksInput input) {
         if (!Objects.toString(settings.activeSourceId(),"").isBlank())
             throw new ResponseStatusException(HttpStatus.CONFLICT,"请在数据源管理中编辑或启用数据源");
@@ -187,6 +189,7 @@ public class AdminController {
     }
 
     @GetMapping("/roles")
+    @PreAuthorize("hasRole('ADMIN')")
     List<Map<String,Object>> roles() {
         try {
         // Avoid a role/user aggregation join: older deployments can have a different
@@ -227,6 +230,7 @@ public class AdminController {
     record RoleEditRequest(@NotBlank @Size(max=80) String name,Set<String> permissions) {}
 
     @PostMapping("/roles")
+    @PreAuthorize("hasRole('ADMIN')")
     @Transactional
     Map<String,Object> createRole(@Valid @RequestBody RoleRequest input) {
         String code=input.code().strip().toUpperCase(Locale.ROOT);
@@ -249,6 +253,7 @@ public class AdminController {
     }
 
     @PutMapping("/roles/{code}")
+    @PreAuthorize("hasRole('ADMIN')")
     @Transactional
     Map<String,Object> updateRole(@PathVariable String code,@Valid @RequestBody RoleEditRequest input) {
         code=code.strip().toUpperCase(Locale.ROOT);
@@ -272,6 +277,7 @@ public class AdminController {
     }
 
     @DeleteMapping("/roles/{code}")
+    @PreAuthorize("hasRole('ADMIN')")
     @Transactional
     Map<String,Object> deleteRole(@PathVariable String code) {
         code=code.strip().toUpperCase(Locale.ROOT);
@@ -290,6 +296,7 @@ public class AdminController {
     }
 
     @GetMapping("/users")
+    @PreAuthorize("hasRole('ADMIN')")
     List<Map<String,Object>> users() {
         return jdbc.query("SELECT u.username,u.display_name,u.role,COALESCE(r.name,u.role),u.created_at " +
                 "FROM da_users u LEFT JOIN da_roles r ON r.code=u.role ORDER BY u.id",
@@ -301,6 +308,7 @@ public class AdminController {
                        @Size(min=10,max=128) String password,@NotBlank String role) {}
 
     @PostMapping("/users")
+    @PreAuthorize("hasRole('ADMIN')")
     Map<String,Object> createUser(@Valid @RequestBody UserRequest input) {
         AuditContext.set("target","用户："+input.username());
         AuditContext.set("detail","显示名称："+input.displayName()+"；角色："+input.role());
@@ -326,6 +334,7 @@ public class AdminController {
      * their own active account or the last administrator.
      */
     @PutMapping("/users/{username}")
+    @PreAuthorize("hasRole('ADMIN')")
     @Transactional
     Map<String,Object> updateUser(@PathVariable String username,
                                   @Valid @RequestBody UserEditRequest input,
@@ -364,6 +373,7 @@ public class AdminController {
      * The JWT password stamp rejects existing sessions after the update.
      */
     @PostMapping("/users/{username}/reset-password")
+    @PreAuthorize("hasRole('ADMIN')")
     Map<String,Object> resetPassword(@PathVariable String username,
                                      @Valid @RequestBody ResetPasswordRequest input) {
         if (!username.matches("[A-Za-z0-9_-]{3,64}"))
