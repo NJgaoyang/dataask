@@ -17,6 +17,13 @@ assert(!html.includes('<h2>我的常用</h2>'),'Mobile home must not render the 
 assert(html.includes('<textarea id="home-query"'),'Mobile home question composer must be a larger multiline box');
 assert(html.includes('.home .ask-box{height:96px'),'Mobile home composer height regression');
 assert(html.includes('.home .example{min-height:44px;height:44px'),'Mobile example questions must stay compact');
+assert(html.includes('<strong>管理城市</strong>'),'Mobile profile must use concise managed-city label');
+assert(!html.includes('数据权限 · 管理城市'),'Legacy city permission title must be removed');
+assert(!html.includes('当前登录手机号没有有效的城市授权'),'Verbose no-city copy must be hidden');
+assert(!html.includes('城市权限由 ADS 授权表维护'),'Internal city-permission implementation copy must be hidden');
+assert(html.includes('data-action="toggle-cities"'),'Managed cities must be expandable');
+assert(html.includes("cityPermissionsOpen:false"),'Managed cities must be collapsed by default');
+assert(html.includes('profile-permission-chevron'),'Managed cities must show a disclosure arrow');
 
 for(const token of [
   "function chartDetailPage()",
