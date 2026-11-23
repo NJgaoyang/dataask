@@ -490,6 +490,26 @@ public class ChatController {
         }
     }
 
+    static boolean dashboardIntent(String question) {
+        if (question == null) return false;
+        String q = question.replaceAll("\\s+", "");
+        return q.matches(".*(经营看板|经营驾驶舱|驾驶舱|经营概览|经营总览|经营大盘|数据大盘|经营全景|整体经营情况|经营情况概览|业务看板|分析看板).*");
+    }
+
+    static boolean hasValidDashboardPlan(JsonNode plan) {
+        if (plan == null || plan.path("unsupported").asBoolean(false)) return false;
+        JsonNode cards = plan.path("cards");
+        if (!cards.isArray() || cards.isEmpty()) return false;
+        int valid = 0;
+        for (JsonNode card : cards) {
+            if (card.path("sql").asText("").isBlank()) continue;
+            String chart = card.path("chartType").asText("table");
+            if (!Set.of("metric","table","bar","line","pie").contains(chart)) continue;
+            if (++valid >= 1) return true;
+        }
+        return false;
+    }
+
     private String inferChartType(String requested, List<String> columns, List<Map<String,Object>> rows) {
         if (!"table".equals(requested) || columns.size()!=2 || rows.size()<2) return requested;
         String dimension=columns.getFirst(), metric=columns.get(1);
