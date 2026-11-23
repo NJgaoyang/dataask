@@ -261,6 +261,17 @@ function openFullScreen(message) {
   recordClientEvent('FULLSCREEN_RESULT', message.id)
 }
 function closeFullScreen() { fullScreenMessage.value = null }
+function dashboardCardIsMetric(card) {
+  return card?.rows?.length === 1 && card?.columns?.length === 1
+}
+function dashboardCardValue(card) {
+  if (!dashboardCardIsMetric(card)) return ''
+  return pretty(card.rows[0][card.columns[0]])
+}
+function openDashboardCard(card, parent) {
+  if (!card) return
+  openFullScreen({...card, question:parent?.question || '', id:card.id || parent?.id})
+}
 function voteAnswer(message, value) {
   const next = answerFeedback.value[message.id] === value ? '' : value
   answerFeedback.value = { ...answerFeedback.value, [message.id]: next }
@@ -2096,7 +2107,39 @@ onBeforeUnmount(() => {
             </div>
             <p v-if="!isDesktop || msg.unsupported"
               class="answer-summary da-answer-insight" :class="{ 'unsupported-text': msg.unsupported }">{{ answerSummary(msg) }}</p>
-            <template v-if="msg.rows?.length">
+            <section v-if="isDesktop && msg.viewType==='dashboard' && msg.dashboardCards?.length"
+              class="da-dashboard-result" aria-label="经营看板">
+              <div class="da-dashboard-heading">
+                <div><small>经营看板</small><h3>{{ msg.title }}</h3></div>
+                <span>{{ msg.dashboardCards.length }} 项分析</span>
+              </div>
+              <div class="da-dashboard-grid">
+                <article v-for="card in msg.dashboardCards" :key="card.id"
+                  class="da-dashboard-card" :class="{ 'is-metric':dashboardCardIsMetric(card) }">
+                  <header>
+                    <div><strong>{{ card.title }}</strong><small v-if="card.timeLabel">{{ card.timeLabel }}</small></div>
+                    <button type="button" title="放大查看" aria-label="放大查看"
+                      @click="openDashboardCard(card,msg)"><van-icon name="expand-o"/></button>
+                  </header>
+                  <div v-if="dashboardCardIsMetric(card)" class="da-dashboard-kpi">
+                    <span>{{ card.metricLabel || card.columnLabels?.[card.columns?.[0]] || '指标' }}</span>
+                    <strong>{{ dashboardCardValue(card) }}</strong>
+                  </div>
+                  <AnswerChart v-else-if="['bar','line','pie'].includes(card.chartType) && card.rows?.length>1"
+                    :message="card" :desktop-expanded="false"/>
+                  <div v-else class="da-dashboard-table">
+                    <table>
+                      <thead><tr><th v-for="col in (card.columns||[]).slice(0,4)" :key="col">{{ card.columnLabels?.[col] || col }}</th></tr></thead>
+                      <tbody><tr v-for="(row,rowIndex) in (card.rows||[]).slice(0,5)" :key="rowIndex">
+                        <td v-for="col in (card.columns||[]).slice(0,4)" :key="col">{{ pretty(row[col]) }}</td>
+                      </tr></tbody>
+                    </table>
+                  </div>
+                  <p v-if="card.summary" class="da-dashboard-insight">{{ card.summary }}</p>
+                </article>
+              </div>
+            </section>
+            <template v-else-if="msg.rows?.length">
               <div v-if="isDesktop" class="da-answer-result desktop-result-header">
                 <div class="desktop-result-heading"><van-icon name="chart-trending-o"/> 查询结果 <span>共 {{ msg.rows.length }} 行</span></div>
                 <div class="da-result-tools">
