@@ -34,6 +34,21 @@ async function backend(route) {
     if (mode === 'pending') await new Promise(resolve => { releasePending = resolve; });
     const input = req.postDataJSON();
     assert.equal(input.dataset,null,'Removing the scope control must not leave an invisible dataset restriction');
+    if (mode === 'dashboard') return ok({
+      ...analysisAnswer,id:'dashboard-answer',question:input.question,title:'本月经营驾驶舱',
+      summary:'已生成 3 个经营分析卡片',viewType:'dashboard',chartType:'dashboard',
+      rows:[],columns:[],columnLabels:{},metricLabel:'',timeLabel:'',followUps:['按城市拆分这个看板'],
+      dashboardCards:[
+        {id:'dash-kpi',title:'本月订单量',chartType:'metric',metricLabel:'订单量',timeLabel:'本月',
+          columns:['total_orders'],columnLabels:{total_orders:'订单量'},rows:[{total_orders:344}],summary:'本月订单量为 344。'},
+        {id:'dash-trend',title:'订单趋势',chartType:'line',metricLabel:'订单量',timeLabel:'本月',
+          columns:['dt','total_orders'],columnLabels:{dt:'日期',total_orders:'订单量'},
+          rows:[{dt:'2026-11-01',total_orders:120},{dt:'2026-11-02',total_orders:150}],summary:'订单量呈上升趋势。'},
+        {id:'dash-rank',title:'城市订单排行',chartType:'bar',metricLabel:'订单量',timeLabel:'本月',
+          columns:['city','total_orders'],columnLabels:{city:'城市',total_orders:'订单量'},
+          rows:[{city:'南京市',total_orders:188},{city:'杭州市',total_orders:156}],summary:'南京市最高。'}
+      ]
+    });
     return ok(mode === 'unsupported' ? {...analysisAnswer,id:'unsupported',unsupported:true,rows:[],semantic:null,sql:null,
       title:'请确认查询指标',summary:'请选择要分析的指标。',followUps:['查看订单量'],
       execution:{durationMs:150,steps:[{key:'planning',label:'查询规划',status:'needs_input',durationMs:150,detail:'等待确认指标'}]}}
@@ -285,6 +300,22 @@ try {
       await page.locator('.tb-chart-tabs').waitFor();
       await page.locator('.desktop-main-nav button').filter({hasText:'新建任务'}).click();
       assert.equal(await page.locator('.topbar').count(),0,'Returning to New task keeps the breadcrumb hidden');
+
+      if (width===1440) {
+        mode='dashboard';
+        await page.locator('.da-home-question-box textarea').fill('生成本月经营驾驶舱');
+        await page.locator('.da-home-question-box textarea').press('Enter');
+        await page.locator('.da-dashboard-grid').waitFor();
+        assert.equal(await page.locator('.da-dashboard-card').count(),3,
+          'Dashboard response must render every planned business card');
+        assert.equal(await page.getByRole('button',{name:'放大查看'}).count(),3,
+          'Every dashboard card must support expansion');
+        await page.getByRole('button',{name:'放大查看'}).first().click();
+        await page.locator('.da-result-fullscreen-dialog').waitFor();
+        assert.match(await page.locator('.da-result-fullscreen-dialog').innerText(),/本月订单量/);
+        await page.getByRole('button',{name:'关闭全屏结果'}).click();
+        await page.locator('.desktop-main-nav button').filter({hasText:'新建任务'}).click();
+      }
 
       mode = 'unsupported';
       await page.locator('.da-home-question-box textarea').fill('查看近7天趋势');
