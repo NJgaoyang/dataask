@@ -534,8 +534,8 @@ const todayLabel = computed(() => {
 function answerScope(msg) {
   const period = msg.timeLabel || msg.periodLabel
   return [
-    msg.metricLabel ? { key:'metric', label:'指标', value:msg.metricLabel } : null,
-    period ? { key:'period', label:'周期', value:period } : null,
+    msg.metricLabel ? { key:'metric', label:'指标：', value:msg.metricLabel } : null,
+    period ? { key:'period', label:'维度：', value:period } : null,
     msg.dataset ? { key:'dataset', label:'数据来源', value:msg.dataset } : null,
   ].filter(Boolean)
 }

@@ -127,6 +127,10 @@ try {
     await processPanel.waitFor();
     assert.equal(await page.locator('.da-analysis-steps li').count(),6);
     assert.match(await processPanel.locator('.da-analysis-card').first().innerText(),/分析维度[\s\S]*城市[\s\S]*计算指标[\s\S]*订单量/);
+    const scopeText=await page.locator('.da-answer-scope').first().innerText();
+    assert.match(scopeText,/指标：/,'Result scope must label the metric as 指标：');
+    assert.match(scopeText,/维度：/,'Result scope must label the second scope chip as 维度：');
+    assert.doesNotMatch(scopeText,/周期/,'Legacy 周期 label must not be shown');
     assert.match(await processPanel.locator('.da-analysis-sql').innerText(),/SELECT city[\s\S]*ads\.city_orders/);
     assert.equal(await page.locator('.da-analysis-summary').count(),1);
     assert.match(await page.locator('.da-analysis-summary').innerText(),/西安市的订单量最高，为 188/,'Actual summary must not be mistaken for generic system narration');
