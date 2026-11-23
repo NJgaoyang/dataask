@@ -16,7 +16,7 @@ import java.util.*;
 
 @RestController
 @RequestMapping("/api/admin/users")
-@PreAuthorize("hasAuthority('PERM_SYSTEM_ADMIN')")
+@PreAuthorize("hasRole('ADMIN')")
 public class AdminCityPermissionController {
     private final JdbcTemplate jdbc;
     private final CityPermissionService cities;
