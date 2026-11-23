@@ -24,6 +24,10 @@ assert(!html.includes('城市权限由 ADS 授权表维护'),'Internal city-perm
 assert(html.includes('data-action="toggle-cities"'),'Managed cities must be expandable');
 assert(html.includes("cityPermissionsOpen:false"),'Managed cities must be collapsed by default');
 assert(html.includes('profile-permission-chevron'),'Managed cities must show a disclosure arrow');
+assert(html.includes("const citySummary=admin?'全部':cities.length+' 个'"),
+  'Administrator profile must show 全部 instead of 0 个');
+assert(html.includes("'<p class=\"profile-city-empty\">全部城市</p>'"),
+  'Expanded administrator city details must state 全部城市');
 
 for(const token of [
   "function chartDetailPage()",

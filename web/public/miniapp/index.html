@@ -722,14 +722,17 @@ function chartDetailPage(){
 function profilePage(){
  const p=state.profile||{},admin=p.role==='ADMIN';
  const cities=Array.isArray(p.cities)?[...new Set(p.cities)]:[];
+ const citySummary=admin?'全部':cities.length+' 个';
  const cityDetails=state.cityPermissionsOpen
-  ? (cities.length
-    ? '<div class="profile-city-list">'+cities.map(city=>'<span>'+safe(city)+'</span>').join('')+'</div>'
-    : '<p class="profile-city-empty">暂无城市</p>')
+  ? (admin
+    ? '<p class="profile-city-empty">全部城市</p>'
+    : (cities.length
+      ? '<div class="profile-city-list">'+cities.map(city=>'<span>'+safe(city)+'</span>').join('')+'</div>'
+      : '<p class="profile-city-empty">暂无城市</p>'))
   : '';
  const cityArea='<section class="profile-city-permissions" aria-label="管理城市">'+
  '<button class="profile-permission-heading" data-action="toggle-cities" type="button" aria-expanded="'+(state.cityPermissionsOpen?'true':'false')+'">'+
- '<strong>管理城市</strong><span class="profile-permission-summary">'+cities.length+' 个'+icon('arrow','profile-permission-chevron')+'</span></button>'+
+ '<strong>管理城市</strong><span class="profile-permission-summary">'+citySummary+icon('arrow','profile-permission-chevron')+'</span></button>'+
  cityDetails+'</section>';
  return '<div class="inner-page"><div class="profile-banner"><div class="profile-avatar">'+icon('user')+'</div><div><b>'+safe(p.display_name||p.username||'未登录')+'</b><small>'+safe(p.username||'')+' · '+(admin?'管理员':'普通成员')+'</small></div></div>'+
  cityArea+
