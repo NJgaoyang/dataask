@@ -12,6 +12,13 @@ class StarRocksJdbcUrlTest {
     }
 
     @Test
+    void completesExistingMysqlFeAddressUsingSelectedDatabase() {
+        assertThat(RuntimeConfigService.normalizeStarRocksUrl(
+            "jdbc:mysql://172.16.0.99:9031", "ads"))
+            .isEqualTo("jdbc:mysql://172.16.0.99:9031/ads");
+    }
+
+    @Test
     void leavesNormalMysqlUrlUnchanged() {
         String value="jdbc:mysql://127.0.0.1:9030/ads";
         assertThat(RuntimeConfigService.normalizeStarRocksUrl(value,"ads"))
