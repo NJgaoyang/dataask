@@ -627,9 +627,10 @@ const desktopQuickQuestions = [
   { type:'用户增长', icon:'friends-o', question:'昨天新增用户数是多少？' },
   { type:'城市排行', icon:'cluster-o', question:'本月各城市新增用户排行' },
   { type:'订单趋势', icon:'clock-o', question:'最近30天订单量趋势' },
-  { type:'销售排行', icon:'ascending', question:'昨天各城市销售额排行' }
+  { type:'销售排行', icon:'ascending', question:'昨天各城市销售额排行' },
+  { type:'经营看板', icon:'apps-o', question:'生成本月经营驾驶舱' }
 ]
-const desktopAskCategories = ['指标查询','城市排行','趋势分析','经营对比','用户增长','销售排行']
+const desktopAskCategories = ['指标查询','城市排行','趋势分析','经营对比','用户增长','销售排行','经营看板']
 function chooseAskCategory(type) {
   const item = desktopQuickQuestions.find(entry => entry.type === type)
   if (!item) return
