@@ -62,7 +62,7 @@ defineExpose({reload:load})
     <p v-if="error" class="metric-error" role="alert">{{ error }}</p>
     <div class="da-list-table-wrap" :aria-busy="loading">
       <table class="da-list-table"><thead><tr><th v-if="selectable" class="da-check"><input type="checkbox" :checked="allOnPage" :indeterminate.prop="someOnPage" aria-label="全选本页" @change="togglePage"></th><th class="da-sequence">序号</th><th v-for="col in columns" :key="col.key">{{ col.label }}</th><th v-if="$slots.actions">操作</th></tr></thead>
-        <tbody><tr v-for="(row,index) in rows" :key="row.id || row.username"><td v-if="selectable" class="da-check"><input type="checkbox" :checked="selected.includes(row.id)" :aria-label="'选择 '+row.title" @change="toggleRow(row)"></td><td class="da-sequence">{{ offset+index+1 }}</td><td v-for="col in columns" :key="col.key"><slot :name="col.key" :row="row">{{ display(row,col) }}</slot></td><td v-if="$slots.actions" class="da-row-actions"><slot name="actions" :row="row"/></td></tr>
+        <tbody><tr v-for="(row,index) in rows" :key="row.id || row.username"><td v-if="selectable" class="da-check"><input type="checkbox" :checked="selected.includes(row.id)" :aria-label="'选择 '+(row.title||row.metricName||row.filename||row.name||row.id)" @change="toggleRow(row)"></td><td class="da-sequence">{{ offset+index+1 }}</td><td v-for="col in columns" :key="col.key"><slot :name="col.key" :row="row">{{ display(row,col) }}</slot></td><td v-if="$slots.actions" class="da-row-actions"><slot name="actions" :row="row"/></td></tr>
           <tr v-if="!rows.length"><td :colspan="columns.length+($slots.actions?2:1)+(selectable?1:0)" class="da-list-empty"><van-icon name="description-o"/>{{ loading?'正在加载…':error?'加载失败':'暂无数据' }}</td></tr>
         </tbody>
       </table>
